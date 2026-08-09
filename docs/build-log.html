@@ -343,6 +343,33 @@
       </div>
       <p>45 tests passing across the whole app now. Next: before writing a single screen, a full design-system and page-by-page spec — the one deliberate pause in this build, so the visual direction gets nailed down properly instead of guessed at.</p>
     </div>
+
+    <div class="entry">
+      <div class="date">09 August 2026</div>
+      <h3>Pausing on purpose</h3>
+      <span class="pill">Milestone 5 · Design system &amp; screen spec</span>
+      <p>
+        Everything so far has been invisible — a database, some math, some
+        wiring. This milestone is different: it's the one deliberate stop
+        in the whole build. Before a single screen gets built, the plan
+        calls for writing up exactly what every screen needs to do and show,
+        and handing that over externally to get the actual look — colors,
+        type, spacing, motion — nailed down properly, since "looks and
+        feels modern and visually aesthetic" is one of the app's stated
+        goals and that's not something to guess at while also writing
+        business logic.
+      </p>
+      <p>
+        The document that came out of this is written as a brief, not a
+        finished design system: every screen's structure and behavior is
+        already fixed by the earlier design discussion (what's on the Home
+        screen, how History drills from month to day, what the Stats charts
+        are), but the actual visual language — the parts a design tool is
+        good at — is deliberately left as open questions rather than
+        guessed here.
+      </p>
+      <p><strong>Build paused here, waiting on Paul.</strong> The next milestone (Core UI) doesn't start until the visual direction comes back from Claude Design.</p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -479,6 +506,10 @@
     <div class="log-entry">
       <span class="ts">2026-08-09</span><span class="tag">[M4/wiring]</span>
       <p>`flutter test` → 45/45 passing (6 new repository-layer tests + all prior suites). `flutter analyze` → No issues found. Committed (fbe0d69) and pushed to PaulWiench/time-manager.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M5/design-spec]</span>
+      <p>Wrote docs/design-system-spec.md — the Milestone 5 deliverable. Deliberately structured as a brief, not a finished design system: functional requirements (from Requirements & Scope / UX & Screen Architecture / Tech Stack) are stated as fixed, purely visual decisions (palette, type, spacing, motion, iconography) are explicitly deferred to §7 "Open Questions for the Design Pass" rather than invented here, since the whole point of this checkpoint is getting those decided by an external design tool. Sections: Product Context, Design Direction Brief (semantic color needs derived from the docs — a 3-state tracking/break/checked-out signal, a single warning treatment not a red/green dichotomy, distinct real/synthetic/leave block types), Platform & Technical Constraints (Flutter/Material 3 base, native Kotlin/Glance widget as the most constrained rendering surface, fl_chart+CustomPainter chart toolkit), Navigation Structure, full Screen-by-Screen spec (Onboarding, Home, History incl. all 3 drill levels and 3 empty-state cases, Stats incl. all 3 tabs and every chart, Settings, both widget sizes), an 11-item Component Inventory, and the 7 open questions. No implementation code — this is the one milestone that produces a document instead.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
