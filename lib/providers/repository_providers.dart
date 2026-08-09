@@ -52,3 +52,17 @@ PublicHolidayRepository publicHolidayRepository(Ref ref) {
 VacationQuotaRepository vacationQuotaRepository(Ref ref) {
   return VacationQuotaRepository(ref.watch(appDatabaseProvider));
 }
+
+/// Seeds this year's and next year's German public holidays on app start.
+/// `seedYear` only inserts dates that don't already exist, so this is a
+/// cheap no-op on every launch after the first — and covers the
+/// December-into-January boundary so next year's holidays are already
+/// present before it turns over, not just by the time someone opens the
+/// Settings screen after New Year's.
+@Riverpod(keepAlive: true)
+Future<void> holidaySeed(Ref ref) async {
+  final repo = ref.watch(publicHolidayRepositoryProvider);
+  final year = DateTime.now().year;
+  await repo.seedYear(year);
+  await repo.seedYear(year + 1);
+}

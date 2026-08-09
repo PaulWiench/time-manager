@@ -652,6 +652,80 @@
       </p>
       <p>58/58 tests passing, <code>flutter analyze</code> clean. This closes the plan: all nine milestones — scaffold, data layer, domain engines, Riverpod wiring, the design-system handoff, core UI, the Android widget, Stats' charts, and this polish pass — are done. TimeManager is a complete, working, sideload-only Android app.</p>
     </div>
+    <div class="entry">
+      <div class="date">09 August 2026</div>
+      <h3>Moving in for real: five months of history, and a landmine in the calendar math</h3>
+      <span class="pill">Post-launch · Real data import &amp; a real bug</span>
+      <p>
+        With the build finished, the next step was making it Paul's actual
+        system of record instead of a demo: importing every day worked
+        since 15 March 2026 — two source PDFs (an internal project-hours
+        sheet covering March–May, and a public time-tracker export with
+        real check-in/out timestamps from 20 April onward, preferred
+        wherever both had data), plus sick/vacation days and two blocks of
+        already-planned future leave. Rather than hand-writing SQL, the
+        import ran through the app's own repositories and
+        <code>RecalculationService</code> — a standalone Dart script
+        temporarily borrowing <code>AppDatabase</code> with a file-backed
+        executor, so the imported history is produced by exactly the same
+        code path a real check-in/check-out would use, break-law deduction
+        included.
+      </p>
+      <div class="problem">
+        <strong>Every day after 27 March came back zeroed</strong>
+        The first import run computed a wildly wrong total (78 hours
+        instead of ~725) and a nonsense balance, with every DayEntry from
+        30 March onward stuck at net=0/target=0 despite real sessions being
+        in the database. The cutoff was suspicious: exactly 10 correct days,
+        then nothing — and 29 March 2026 is Germany's spring-forward DST
+        transition. <code>RecalculationService</code>'s day-stepping loops
+        used <code>date.add(Duration(days: 1))</code> to walk the calendar.
+        <code>Duration</code> arithmetic operates on the underlying instant,
+        not the wall-clock date — adding 24 real hours across a
+        spring-forward boundary lands on 01:00 local, not midnight. Every
+        <code>date.equals(...)</code> lookup downstream of that point then
+        silently misses, forever (the offset never self-corrects until the
+        next DST transition). This is a real bug in the shipped app, not
+        just the import script — anyone using TimeManager across a DST
+        change would have hit the same silent freeze. Fixed with a
+        calendar-safe <code>shiftDays()</code> helper
+        (<code>domain/date_only.dart</code>) that reconstructs the date via
+        its year/month/day components instead of adding a Duration, applied
+        everywhere a local date gets stepped by N days: both
+        <code>RecalculationService</code> loops, <code>stats_aggregation.dart</code>'s
+        trailing-range and week-start math, <code>midnight_cutoff.dart</code>,
+        History's week/month navigation, the Stats custom date-range picker,
+        and <code>holiday_calculator.dart</code>'s Easter-offset holidays
+        (latent for 2026, but the same landmine for a year where Easter
+        falls close to the boundary). Added a regression test asserting
+        <code>shiftDays</code> stays exact across the exact date that broke
+        it. Re-running the import after the fix landed on numbers that
+        checked out exactly against the source PDFs' own totals.
+      </p>
+      <p>
+        Also wired up <code>PublicHolidayRepository.seedYear</code>, which
+        existed since Milestone 4 but was never actually called from
+        anywhere — meaning every German public holiday, forever, would have
+        silently required a full day's target hours instead of zero. It now
+        runs once per app start (idempotent) for the current and next year.
+      </p>
+      <p>
+        Getting the seeded database onto the phone hit one more snag:
+        <code>adb run-as</code> (needed to write into the app's private
+        storage without root) only works on a debuggable build, and
+        <code>flutter build apk --release</code> forces
+        <code>debuggable=false</code> no matter what the Gradle config says.
+        Worked around it by temporarily signing the <em>debug</em> build
+        type with the same release keystore — a debuggable build that still
+        shares the installed app's signing certificate installs in place,
+        no uninstall, no data loss — pushed the database, then rebuilt and
+        reinstalled the real non-debuggable release over it, again in
+        place. 62/62 tests passing (58 plus the new DST regression tests),
+        <code>flutter analyze</code> clean, and the on-device balance,
+        History, and Settings screens all verified against the
+        independently-computed expected values.
+      </p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -948,6 +1022,22 @@
     <div class="log-entry">
       <span class="ts">2026-08-09</span><span class="tag">[M9/polish]</span>
       <p><strong>Plan complete.</strong> All 9 milestones from `~/.claude/plans/groovy-twirling-meteor.md` are done: scaffold, Drift data layer, domain engines (break law, holidays, recalculation, vacation rollover), Riverpod wiring, the design-system spec handoff to Claude Design, core UI, the native Kotlin/Glance widget, Stats' real charts, and this polish/release pass. Added a short "Installing" section to README.md documenting the sideload flow (`flutter build apk --release` + `adb install`) and the `key.properties` requirement.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[post-launch/bugfix]</span>
+      <p><strong>Real bug: `RecalculationService`'s cascade loops broke across DST.</strong> `recalculateRangeFrom` and `_cascadeBalanceFrom` both stepped calendar dates via `d = d.add(const Duration(days: 1))`. `Duration` arithmetic is instant-based, not wall-clock-based — crossing Germany's 29 March 2026 spring-forward transition, adding 24h to a local midnight `DateTime` lands on 01:00 local, not 00:00. Every `t.date.equals(day)` lookup in the DAOs downstream then permanently misses (the offset never self-corrects until the next DST transition reverses it), so every DayEntry/BalanceSnapshot from that point forward silently freezes at whatever placeholder/default existed. Found via the historical data import (see story entry) — 10 correct days, then everything from 30 March onward stuck at net=0/target=0/balance frozen. Not specific to the import: any live user crossing a DST boundary would hit the identical silent corruption. Root-caused by bisecting exactly which date the good/bad data split on and recognizing it as the DST date, then reproducing under plain `dart run` (ruled out a `flutter test` zone red herring first).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[post-launch/bugfix]</span>
+      <p>Fix: added `shiftDays(DateTime date, int days)` to `domain/date_only.dart` — reconstructs via `DateTime(date.year, date.month, date.day + days)` (calendar-safe, Dart normalizes overflow correctly) instead of `Duration` arithmetic. Applied everywhere a local date gets stepped by N calendar days: both `RecalculationService` loops (the critical fix), `stats_aggregation.dart` (`trailingRange`, `mondayOfWeek`), `midnight_cutoff.dart` (next-day/cutoff-instant math), `settings_repository.dart` (`seedStartingBalance`'s day-before seed), `history_screen.dart` (week/month nav, `_WeekList`, `_DayList`), `stats_screen.dart` (custom date-range picker), and `holiday_calculator.dart`'s Easter-offset holidays (not currently DST-adjacent for 2026, but same landmine for other years). Left `vacation_rollover.dart`'s `deadline.subtract(Duration(days: warnDaysBefore))` alone — that's genuine elapsed-time-before-an-instant math, not calendar bookkeeping, so `Duration` is the correct tool there. Added `test/domain/date_only_test.dart`: steps a date across the exact 29 March 2026 boundary 10 times asserting it never drifts off local midnight. 62/62 tests passing (58 existing + 4 new), `flutter analyze` clean.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[post-launch]</span>
+      <p>Wired `PublicHolidayRepository.seedYear` — present since Milestone 4, never called from anywhere in the app. New `holidaySeedProvider` (keepAlive `FutureProvider`) in `repository_providers.dart` seeds the current and next calendar year; `_RootGate` in `app.dart` fires it (via `ref.watch`, non-blocking) once Settings exist. `seedYear` only inserts holiday dates that don't already exist, so this is a no-op on every launch after the first for a given year, and covers the December→January boundary before Settings' "Public holidays" row would otherwise show 0 for the new year.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[post-launch]</span>
+      <p>Historical data import: built `tool/import_history.dart` (temporary, removed after use — not committed) driving `AppDatabase`/the real repositories/`RecalculationService` against a file-backed `NativeDatabase`, seeded from two source PDFs (ZIM Stundennachweis for March–May, cross-validated by summing extracted daily values against the PDF's own printed monthly totals; a public time-tracker export for 20 April onward with real check-in/out timestamps, parsed via `pdftotext -layout` and validated day-by-day against the export's own printed "Gearb. im Tag" totals — 0 mismatches across 76 days). Where both sources had data, the tracker won per instruction; ZIM-only days (before the tracker was in use) got a single synthetic session starting 11:00 with the checkout time solved so the break-engine's own noon-anchored deduction produces the exact stated net hours. Sick/vacation days (30 March; 5 June; 17+20 July; two future blocks: 31 Aug–11 Sep, 26–30 Sep) recorded as `LeaveEntry` rows at that date's target hours. `dart run` (not `flutter test`, which turned out to silently truncate a 150-iteration transaction inside its test zone — a red herring chased before finding the real DST bug) required temporarily stubbing `database.dart`'s `path_provider` import, since it transitively pulls in `dart:ui`-dependent Flutter framework code the plain Dart VM can't compile; reverted immediately after. Final numbers cross-checked exactly against source totals. Deployment: `adb run-as` needs a debuggable build, but `flutter build apk --release` forces `debuggable=false` regardless of Gradle overrides — worked around by temporarily pointing the `debug` build type's `signingConfig` at the release keystore (same cert as the installed app, so it upgrades in place with no data loss), pushing the DB via `run-as`, then rebuilding and reinstalling the real release APK over it, again in place. `android/app/build.gradle.kts` reverted to its exact original state afterward (`git diff` confirmed clean). Backed up the seeded database and the release keystore/`key.properties` to `~/time-manager-backups/` (outside the git repo — the keystore is credential material, the DB is personal data, neither belongs in version control).</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>

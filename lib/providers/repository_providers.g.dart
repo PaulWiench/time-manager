@@ -115,5 +115,29 @@ final vacationQuotaRepositoryProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef VacationQuotaRepositoryRef = ProviderRef<VacationQuotaRepository>;
+String _$holidaySeedHash() => r'a10b98766147efb659efe6b372ba8931581e26f2';
+
+/// Seeds this year's and next year's German public holidays on app start.
+/// `seedYear` only inserts dates that don't already exist, so this is a
+/// cheap no-op on every launch after the first — and covers the
+/// December-into-January boundary so next year's holidays are already
+/// present before it turns over, not just by the time someone opens the
+/// Settings screen after New Year's.
+///
+/// Copied from [holidaySeed].
+@ProviderFor(holidaySeed)
+final holidaySeedProvider = FutureProvider<void>.internal(
+  holidaySeed,
+  name: r'holidaySeedProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$holidaySeedHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef HolidaySeedRef = FutureProviderRef<void>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

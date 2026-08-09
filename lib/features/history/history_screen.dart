@@ -30,7 +30,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   DateTime _anchor = dateOnly(DateTime.now());
   DateTime? _expandedDay;
 
-  DateTime get _weekStart => _anchor.subtract(Duration(days: _anchor.weekday - 1));
+  DateTime get _weekStart => shiftDays(_anchor, -(_anchor.weekday - 1));
 
   void _step(int direction) {
     setState(() {
@@ -39,7 +39,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         case HistoryMode.week:
           _anchor = DateTime(_anchor.year + direction, 1, 1);
         case HistoryMode.day:
-          _anchor = _anchor.add(Duration(days: 7 * direction));
+          _anchor = shiftDays(_anchor, 7 * direction);
       }
     });
   }
@@ -100,7 +100,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       case HistoryMode.week:
         return _anchor.year.toString();
       case HistoryMode.day:
-        return AppFormat.weekRange(_weekStart, _weekStart.add(const Duration(days: 6)));
+        return AppFormat.weekRange(_weekStart, shiftDays(_weekStart, 6));
     }
   }
 
@@ -225,12 +225,12 @@ class _WeekList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final now = dateOnly(DateTime.now());
     final jan1 = DateTime(year, 1, 1);
-    final firstMonday = jan1.subtract(Duration(days: jan1.weekday - 1));
-    final lastMonday = year == now.year ? now.subtract(Duration(days: now.weekday - 1)) : DateTime(year, 12, 31 - 6);
+    final firstMonday = shiftDays(jan1, -(jan1.weekday - 1));
+    final lastMonday = year == now.year ? shiftDays(now, -(now.weekday - 1)) : DateTime(year, 12, 31 - 6);
 
     final weeks = <DateTime>[];
-    for (var d = firstMonday; !d.isAfter(lastMonday); d = d.add(const Duration(days: 7))) {
-      if (d.year == year || d.add(const Duration(days: 6)).year == year) weeks.add(d);
+    for (var d = firstMonday; !d.isAfter(lastMonday); d = shiftDays(d, 7)) {
+      if (d.year == year || shiftDays(d, 6).year == year) weeks.add(d);
     }
     final ordered = weeks.reversed.toList();
 
@@ -239,12 +239,12 @@ class _WeekList extends ConsumerWidget {
       itemCount: ordered.length,
       itemBuilder: (context, i) {
         final start = ordered[i];
-        final end = start.add(const Duration(days: 7));
+        final end = shiftDays(start, 7);
         final entries = ref.watch(dayEntriesInRangeProvider(start, end)).valueOrNull ?? const [];
         final hours = entries.fold<double>(0, (a, e) => a + e.netWorkedHours);
         final delta = entries.fold<double>(0, (a, e) => a + e.balanceDelta);
         return _RangeRow(
-          label: AppFormat.weekRange(start, start.add(const Duration(days: 6))),
+          label: AppFormat.weekRange(start, shiftDays(start, 6)),
           hours: hours,
           delta: delta,
           onTap: () => onTapWeek(start),
@@ -307,7 +307,7 @@ class _DayList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final today = dateOnly(DateTime.now());
-    final days = [for (var i = 0; i < 7; i++) weekStart.add(Duration(days: i))];
+    final days = [for (var i = 0; i < 7; i++) shiftDays(weekStart, i)];
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(AppSpace.screenPadding, 0, AppSpace.screenPadding, 16),

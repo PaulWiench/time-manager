@@ -68,7 +68,7 @@ class SettingsRepository {
   /// the latest snapshot strictly before the date it's cascading from, so
   /// this becomes every later day's base without needing its own column.
   Future<void> seedStartingBalance({required double balance, required DateTime effectiveFrom}) async {
-    final seedDate = dateOnly(effectiveFrom).subtract(const Duration(days: 1));
+    final seedDate = shiftDays(dateOnly(effectiveFrom), -1);
     await db.balanceSnapshotDao.upsert(BalanceSnapshotsCompanion.insert(
       date: seedDate,
       balance: balance,

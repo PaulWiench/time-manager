@@ -2,6 +2,8 @@
 /// & Scope § Midnight Cutoff.
 library;
 
+import 'date_only.dart';
+
 /// A same-day time-of-day range (minutes since midnight), used for the
 /// optional "restrict check-in to work window" setting. Kept Flutter-free
 /// on purpose — this is not `package:flutter`'s TimeOfDay.
@@ -45,7 +47,7 @@ MidnightCutoffResult evaluateMidnightCutoff({
 }) {
   final startDay =
       DateTime(sessionStart.year, sessionStart.month, sessionStart.day);
-  final nextDay = startDay.add(const Duration(days: 1));
+  final nextDay = shiftDays(startDay, 1);
 
   final crossedMidnight = !now.isBefore(nextDay);
   if (!crossedMidnight) {
@@ -57,6 +59,6 @@ MidnightCutoffResult evaluateMidnightCutoff({
   }
 
   final cutoff =
-      startDay.add(const Duration(hours: 23, minutes: 59, seconds: 59));
+      DateTime(startDay.year, startDay.month, startDay.day, 23, 59, 59);
   return MidnightCutoffResult(effectiveEnd: cutoff, cutoffApplied: true);
 }

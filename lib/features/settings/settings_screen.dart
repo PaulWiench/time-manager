@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../core/format.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -59,7 +60,7 @@ class SettingsScreen extends ConsumerWidget {
                   _Kicker('Schedule', colors),
                   _NavRow(
                     label: 'Weekly hours',
-                    value: '${settings.weeklyHours.round()}h',
+                    value: AppFormat.hoursLabel(settings.weeklyHours),
                     colors: colors,
                     onTap: () => _editWeeklyHours(context, settings.weeklyHours, (v) => patch(weeklyHours: v)),
                   ),
@@ -157,9 +158,9 @@ class SettingsScreen extends ConsumerWidget {
           content: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton(onPressed: () => setState(() => value = (value - 1).clamp(0, 80)), icon: const Icon(Icons.remove)),
-              SizedBox(width: 60, child: Text('${value.round()}h', textAlign: TextAlign.center)),
-              IconButton(onPressed: () => setState(() => value = (value + 1).clamp(0, 80)), icon: const Icon(Icons.add)),
+              IconButton(onPressed: () => setState(() => value = (value - 0.5).clamp(0, 80)), icon: const Icon(Icons.remove)),
+              SizedBox(width: 60, child: Text(AppFormat.hoursLabel(value), textAlign: TextAlign.center)),
+              IconButton(onPressed: () => setState(() => value = (value + 0.5).clamp(0, 80)), icon: const Icon(Icons.add)),
             ],
           ),
           actions: [

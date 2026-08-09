@@ -167,9 +167,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           defaultCaption: 'Default: 40h',
           colors: colors,
           child: _Stepper(
-            label: '${_weeklyHours.round()}h',
-            onDecrement: () => setState(() => _weeklyHours = (_weeklyHours - 1).clamp(0, 80)),
-            onIncrement: () => setState(() => _weeklyHours = (_weeklyHours + 1).clamp(0, 80)),
+            label: AppFormat.hoursLabel(_weeklyHours),
+            onDecrement: () => setState(() => _weeklyHours = (_weeklyHours - 0.5).clamp(0, 80)),
+            onIncrement: () => setState(() => _weeklyHours = (_weeklyHours + 0.5).clamp(0, 80)),
             colors: colors,
           ),
         );

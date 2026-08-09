@@ -4,6 +4,8 @@
 /// calling in.
 library;
 
+import 'date_only.dart';
+
 /// One day's already-computed aggregate, as stored on `DayEntry` — net
 /// worked hours, target, and balance delta are read straight off that row
 /// rather than recomputed here, since `DayEntry` already holds the
@@ -33,16 +35,13 @@ class DateRange {
 }
 
 DateRange trailingRange(int days, {required DateTime today}) {
-  final start = DateTime(today.year, today.month, today.day)
-      .subtract(Duration(days: days - 1));
-  final endExclusive =
-      DateTime(today.year, today.month, today.day).add(const Duration(days: 1));
+  final start = shiftDays(dateOnly(today), -(days - 1));
+  final endExclusive = shiftDays(dateOnly(today), 1);
   return DateRange(start: start, endExclusive: endExclusive);
 }
 
 /// The Monday (ISO week start) of the week containing [date].
-DateTime mondayOfWeek(DateTime date) =>
-    date.subtract(Duration(days: date.weekday - 1));
+DateTime mondayOfWeek(DateTime date) => shiftDays(date, -(date.weekday - 1));
 
 class WeekStat {
   final DateTime weekStart;

@@ -8,6 +8,8 @@
 /// "fully editable by the user" regardless (Requirements § 4).
 library;
 
+import 'date_only.dart';
+
 class HolidaySeed {
   final DateTime date;
   final String name;
@@ -53,20 +55,20 @@ List<HolidaySeed> germanNationalHolidays(int year) {
   return [
     HolidaySeed(date: DateTime(year, 1, 1), name: 'Neujahr'),
     HolidaySeed(
-      date: easter.subtract(const Duration(days: 2)),
+      date: shiftDays(easter, -2),
       name: 'Karfreitag',
     ),
     HolidaySeed(
-      date: easter.add(const Duration(days: 1)),
+      date: shiftDays(easter, 1),
       name: 'Ostermontag',
     ),
     HolidaySeed(date: DateTime(year, 5, 1), name: 'Tag der Arbeit'),
     HolidaySeed(
-      date: easter.add(const Duration(days: 39)),
+      date: shiftDays(easter, 39),
       name: 'Christi Himmelfahrt',
     ),
     HolidaySeed(
-      date: easter.add(const Duration(days: 50)),
+      date: shiftDays(easter, 50),
       name: 'Pfingstmontag',
     ),
     HolidaySeed(

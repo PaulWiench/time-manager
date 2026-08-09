@@ -15,6 +15,13 @@ class AppFormat {
     return '$sign$h:${m.toString().padLeft(2, '0')}';
   }
 
+  /// Renders a target-hours figure (e.g. weekly hours) without a false
+  /// trailing ".0" for whole numbers, but keeping halves like "39.5h".
+  static String hoursLabel(double hours) {
+    final isWhole = hours == hours.roundToDouble();
+    return isWhole ? '${hours.round()}h' : '${hours.toStringAsFixed(1)}h';
+  }
+
   static String hms(Duration d) {
     final h = d.inHours;
     final m = d.inMinutes % 60;

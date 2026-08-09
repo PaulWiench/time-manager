@@ -7,6 +7,7 @@ import 'features/home/home_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/stats/stats_screen.dart';
+import 'providers/repository_providers.dart';
 import 'providers/settings_providers.dart';
 import 'widgets/app_bottom_nav.dart';
 
@@ -45,6 +46,9 @@ class _RootGate extends ConsumerWidget {
         if (setting == null) {
           return OnboardingScreen(onDone: () {});
         }
+        // Fire-and-forget: idempotent, and the shell doesn't need to block
+        // on it — see holidaySeedProvider.
+        ref.watch(holidaySeedProvider);
         return const _AppShell();
       },
     );

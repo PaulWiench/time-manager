@@ -44,7 +44,7 @@ class RecalculationService {
     final end = start.isAfter(today) ? start : today;
 
     await db.transaction(() async {
-      for (var d = start; !d.isAfter(end); d = d.add(const Duration(days: 1))) {
+      for (var d = start; !d.isAfter(end); d = shiftDays(d, 1)) {
         await _recalculateDay(d);
       }
       await _cascadeBalanceFrom(start);
@@ -132,7 +132,7 @@ class RecalculationService {
     final end = day.isAfter(today) ? day : today;
 
     final deltas = <MapEntry<DateTime, double>>[];
-    for (var d = day; !d.isAfter(end); d = d.add(const Duration(days: 1))) {
+    for (var d = day; !d.isAfter(end); d = shiftDays(d, 1)) {
       deltas.add(MapEntry(d, await _deltaFor(d)));
     }
 

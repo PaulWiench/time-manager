@@ -7,6 +7,7 @@ import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../data/database/database.dart';
 import '../../data/database/enums.dart';
+import '../../domain/date_only.dart';
 import '../../domain/stats_aggregation.dart';
 import '../../providers/day_providers.dart';
 import '../../providers/stats_providers.dart';
@@ -61,8 +62,8 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
       firstDate: DateTime(now.year - 5),
       lastDate: now,
       initialDateRange: DateTimeRange(
-        start: initial?.start ?? now.subtract(const Duration(days: 29)),
-        end: initial != null ? initial.endExclusive.subtract(const Duration(days: 1)) : now,
+        start: initial?.start ?? shiftDays(now, -29),
+        end: initial != null ? shiftDays(initial.endExclusive, -1) : now,
       ),
     );
     if (result == null || !mounted) return;
@@ -70,7 +71,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
       _range = 'Custom';
       _customRange = DateRange(
         start: DateTime(result.start.year, result.start.month, result.start.day),
-        endExclusive: DateTime(result.end.year, result.end.month, result.end.day).add(const Duration(days: 1)),
+        endExclusive: shiftDays(DateTime(result.end.year, result.end.month, result.end.day), 1),
       );
     });
   }
