@@ -23,6 +23,14 @@ class BalanceSnapshotDao extends DatabaseAccessor<AppDatabase>
             ..limit(1))
           .getSingleOrNull();
 
+  Future<List<BalanceSnapshot>> forRange(DateTime start, DateTime endExclusive) =>
+      (select(balanceSnapshots)
+            ..where((t) =>
+                t.date.isBiggerOrEqualValue(start) &
+                t.date.isSmallerThanValue(endExclusive))
+            ..orderBy([(t) => OrderingTerm.asc(t.date)]))
+          .get();
+
   Stream<BalanceSnapshot?> watchLatest() => (select(balanceSnapshots)
         ..orderBy([(t) => OrderingTerm.desc(t.date)])
         ..limit(1))

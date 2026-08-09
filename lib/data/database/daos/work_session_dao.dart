@@ -20,6 +20,13 @@ class WorkSessionDao extends DatabaseAccessor<AppDatabase>
   Stream<List<WorkSession>> watchForDate(DateTime date) =>
       (select(workSessions)..where((t) => t.date.equals(date))).watch();
 
+  Future<List<WorkSession>> forRange(DateTime start, DateTime endExclusive) =>
+      (select(workSessions)
+            ..where((t) =>
+                t.date.isBiggerOrEqualValue(start) &
+                t.date.isSmallerThanValue(endExclusive)))
+          .get();
+
   /// At most one session should ever be active at a time (Requirements §
   /// Core Timer), but this returns the full list rather than assuming that
   /// invariant holds at the query layer.

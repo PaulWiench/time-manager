@@ -522,6 +522,76 @@
       </div>
       <p>Verified on the emulator: added to the home screen through the real widget picker (not simulated), tapped to check in, confirmed a genuine session row appeared in the database, tapped again to check out. <code>flutter analyze</code> clean, debug build succeeds with the widget included. Next: Milestone 8, Stats' real charts.</p>
     </div>
+    <div class="entry">
+      <div class="date">09 August 2026</div>
+      <h3>Nine charts, none of them the same shape</h3>
+      <span class="pill">Milestone 8 · Stats &amp; charts</span>
+      <p>
+        The Stats screen had been sitting there since Milestone 6 with six
+        "Coming in Milestone 8" placeholders. This milestone replaced every
+        one of them with a real chart wired to real data — three on
+        Overview (balance trend, weekly target hit rate, overtime
+        accumulation rate), four on Patterns (monthly heatmap, daily hours,
+        hours by day of week, check-in-time distribution), and Leave's
+        vacation/sick breakdown. Two of those — the heatmap and the
+        check-in histogram — have no off-the-shelf shape in
+        <code>fl_chart</code>, exactly as the design spec called out, so
+        they're hand-drawn <code>CustomPainter</code>s instead. The Leave
+        donut turned out not to need a new chart at all: the
+        <code>ProgressRing</code> widget built back in Milestone 6 for
+        Home's daily-target ring was already the exact shape this screen
+        needed, doc comment and all — a small case of earlier work paying
+        for itself twice.
+      </p>
+      <p>
+        Most of the actual math lives in a new, small, pure-Dart module
+        rather than inside the widgets: trailing date ranges ("last 30
+        days," not calendar-aligned), grouping days into ISO weeks, and the
+        weekday/hour aggregations behind the bar charts and the histogram —
+        kept separate and unit tested the same way the break-law engine was
+        back in Milestone 3, so the chart widgets themselves stay dumb
+        rendering code. One deliberate scope call: the monthly heatmap
+        ignores the global Month/6&nbsp;Months/Year range selector and
+        always shows a single calendar month with its own prev/next arrows
+        — a flattened six-month window doesn't lay out as a legible
+        calendar grid, and Leave's tab already established the precedent
+        of a chart with its own independent range control.
+      </p>
+      <div class="problem">
+        <strong>Every tab in the bottom nav stopped responding — except it hadn't</strong>
+        After wiring everything up, tapping History, Stats, or Settings in
+        the bottom nav did nothing at all — no error, no crash, just the
+        Home tab staying put. The instinct was to suspect the new
+        <code>IndexedStack</code> children or a swallowed exception in
+        <code>StatsScreen</code>. Neither was it: the bug was in the
+        testing, not the app. Screenshots get shown scaled down to 900×2000
+        for review, and the habit from earlier milestones was to eyeball
+        tap coordinates off that preview and scale by 1.2×. That math is
+        right for the <em>content</em>, but the bottom nav bar sits right
+        at the bottom edge, and a rounding mismatch meant the computed tap
+        landed about 560 pixels above where the nav bar actually is —
+        square in the middle of the scrollable content instead. Measuring
+        the real 1080×2400 screenshot directly (searching for the accent
+        purple of the active tab icon) found the nav row's true position,
+        and every tab, range chip, and the Leave year selector confirmed
+        working immediately after.
+      </div>
+      <div class="shots">
+        <figure>
+          <img src="screenshots/m8-01-overview.png" alt="Stats Overview tab with balance trend and weekly hit-rate charts">
+          <figcaption>Overview · balance trend, weekly hit rate, overtime rate</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/m8-02-patterns.png" alt="Stats Patterns tab with monthly heatmap and check-in distribution">
+          <figcaption>Patterns · heatmap, daily/weekday hours, check-in times</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/m8-03-leave.png" alt="Stats Leave tab with vacation donut and sick day breakdown">
+          <figcaption>Leave · vacation donut (the Home ring, reused)</figcaption>
+        </figure>
+      </div>
+      <p>63/63 tests passing (5 new for the aggregation module), <code>flutter analyze</code> clean, golden path — all three tabs, all four ranges including the native custom date-range picker, Leave's year navigation — verified on the emulator against real on-device data from earlier milestones' testing. Next: Milestone 9, polish and the signed release build.</p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -762,6 +832,38 @@
     <div class="log-entry">
       <span class="ts">2026-08-09</span><span class="tag">[M7/widget]</span>
       <p>Verified on the emulator: added the widget via the launcher's widget picker (bound successfully, `dumpsys appwidget` confirms `widgets.size=1`), confirmed the placed instance renders the compact (ring-only, &lt;180dp) layout matching the design handoff's idle-gray/no-fill state on a fresh install, tapped to check in (state flips to TRACKING, a genuine `active` session row appears in the DB), tapped again to check out (flips to CHECKED_OUT, session completes). One nuance confirmed rather than assumed: the ring's colored arc only becomes visible once `targetHours &gt; 0` (the underlying `_RingPainter`/`renderProgressRing` logic — shared by the Flutter and Kotlin implementations — skips drawing the foreground arc entirely at `progress &lt;= 0`), so on a non-work day the ring stays neutral-gray even while actively tracking; this matches the in-app Home screen's own ring behavior exactly, not a widget-specific gap. Also noted: right after an APK reinstall, the very first tap can transiently show the launcher's own "Can't load widget" placeholder for a few seconds while Glance's session re-establishes — cosmetic, tied to reinstall specifically, not something a real user hits between ordinary taps. `flutter analyze` clean, `flutter build apk --debug` succeeds with the widget code included.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M8/stats]</span>
+      <p>New `lib/domain/stats_aggregation.dart` (pure Dart, no Flutter/Drift imports, matching every other `domain/` module): `DayStat` value type (callers map `DayEntry` rows into it, same pattern `WorkPeriod` uses for sessions in `break_engine.dart`), `trailingRange(days, today:)` for the global range selector's "last N days" windows, `mondayOfWeek`/`weeklyAggregates` for ISO-week grouping behind the weekly-hit-rate and overtime-rate charts, `averageHoursByWeekday`, and `checkinHourHistogram`. 5 new unit tests in `test/domain/stats_aggregation_test.dart` covering week-boundary grouping, the zero-target-hours "trivially hit" edge case, and histogram bucketing.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M8/stats]</span>
+      <p>Added `BalanceSnapshotDao.forRange` and `WorkSessionDao.forRange` (both plain date-range selects, mirroring the existing `DayEntryDao.forRange`), and a new `lib/providers/stats_providers.dart` (`balanceSnapshotsInRangeProvider`, `workSessionsInRangeProvider`, `leaveForYearProvider`, `vacationQuotaForYearProvider` — the last two thin wrappers over the existing `LeaveRepository`/`VacationQuotaRepository`). Reused the existing `dayEntriesInRangeProvider` (from Milestone 6) for every chart driven by `DayEntry` aggregates rather than adding a duplicate — `DayEntry.netWorkedHours`/`targetHours`/`balanceDelta` are already the historically-accurate recalculated figures, so no chart needed to re-derive them from raw sessions.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M8/stats]</span>
+      <p>Built the seven `fl_chart`/`CustomPainter` chart widgets under `lib/features/stats/charts/`: `BalanceTrendChart` (line, plots `BalanceSnapshot.balance` directly since it's already cumulative), `WeeklyHitRateChart` and `OvertimeRateChart` (bar, both driven by `weeklyAggregates` — the former color-codes bars hit/miss, the latter straddles a zero line for balance-delta direction, kept as two charts rather than one since the spec calls them out as distinct: raw trend vs. rate of change), `DailyHoursChart` (bar, horizontally scrollable with a fixed per-bar width for long ranges rather than squashing bars illegibly thin on Year), `WeekdayHoursChart` (bar, 7 fixed bars with M–S labels), `CheckinDistributionChart` and `MonthlyHeatmap` (both hand-rolled `CustomPainter`s per the design spec's explicit call-out that neither has an `fl_chart` equivalent). Shared `ChartEmptyState`/`ChartLoading` widgets give every chart the same "not enough data yet" fallback independently, per spec.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M8/stats]</span>
+      <p><strong>Design decision: the monthly heatmap ignores the global range selector.</strong> Every other Patterns/Overview chart is driven by the shared Month/6&nbsp;Months/Year/Custom range, but a calendar-grid heatmap doesn't flatten sensibly across a 6-month or year window. `MonthlyHeatmap` is its own `ConsumerStatefulWidget` with local month state and its own prev/next arrows, fetching just that calendar month via `dayEntriesInRangeProvider` — the same "chart with its own independent range control" precedent the Leave tab's year selector already established, so this isn't a new pattern, just the second application of one.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M8/stats]</span>
+      <p>Built `LeaveBreakdown` (`lib/features/stats/charts/leave_breakdown.dart`) by reusing the existing `ProgressRing` widget from Milestone 6 rather than adding `fl_chart`'s pie chart — its doc comment already named "Stats Leave (vacation used/quota)" as an intended use case. Vacation/sick days both use the same hours÷8 heuristic `VacationQuotaRepository.usedDaysForYear` already established. Consolidated the design spec's two Leave bullets ("vacation used vs. remaining" and "sick days taken") into one chart card rather than two separate placeholders, since they read as one visual (a donut plus two or three stat rows), not two unrelated charts.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M8/stats]</span>
+      <p>Rewrote `lib/features/stats/stats_screen.dart` from a `StatefulWidget` shell into a `ConsumerStatefulWidget` wiring all of the above: `_resolveRange()` maps the range chip to a `trailingRange` window (Custom via a native `showDateRangePicker`, themed automatically off the app's `MaterialApp` theme), and the previously-decorative Leave year arrows now actually mutate `_leaveYear` state. <strong>Bug caught by `flutter analyze`:</strong> `TextDirection.ltr` in `monthly_heatmap.dart` resolved to the wrong type — the `intl` package exports its own `TextDirection` enum, which shadowed `dart:ui`'s once `intl` was imported for `DateFormat`. Fixed with an explicit `import 'dart:ui' as ui;` and `ui.TextDirection.ltr`, since `checkin_distribution_chart.dart` (no `intl` import) needed no such qualification, confirming the ambiguity was import-driven rather than a real API change.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M8/stats]</span>
+      <p><strong>Problem: every bottom-nav tap during golden-path testing appeared to do nothing.</strong> Tapping History, Stats, or Settings left the Home tab active with no error in `flutter analyze`, `flutter test`, or `adb logcat`. Ruled out the app itself first — `AppBottomNav`/`_AppShellState` are unchanged, `IndexedStack` builds all four screens regardless of active index (so a `StatsScreen` build-time exception would have shown a red error box immediately, not a silently-stuck Home tab), and tapping Home's own Settings-gear shortcut navigated correctly, proving `setState`-driven tab switching still worked in general. <strong>Root cause:</strong> the tap coordinates were wrong, not the app — screenshots are described to me as "displayed at 900×2000, multiply by 1.2× for real coordinates," a habit carried over from earlier milestones' content-area taps, but the bottom nav sits flush against the bottom edge and that scaling assumption put every computed y-coordinate roughly 560px above where the nav bar actually renders on the real 1080×2400 framebuffer (confirmed by scanning the screenshot directly for the active tab's accent-purple pixels via PIL, finding the true nav row at y≈2300 rather than the assumed ~1750). Every nav tap, range chip, and the Leave year stepper worked immediately once tap coordinates were computed from the real screenshot dimensions instead of the scaled preview.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M8/stats]</span>
+      <p>Verified on the emulator against the same install used for Milestone 7 testing (so real, if sparse, device data rather than a fresh onboarding): Overview's weekly-hit-rate chart correctly read "1 of 1 weeks hit target"; Patterns' monthly heatmap and daily/weekday-hours charts correctly showed the "not enough data yet" empty state (no completed sessions yet this month on this install) while the check-in-time histogram rendered real buckets from actual check-in timestamps; Leave's donut correctly showed 0.0/30.0 days against the onboarding-configured quota; the native custom date-range picker opened pre-filled with the current 30-day window, saved, and updated every Overview chart. `flutter analyze` clean, `flutter test` → 63/63 passing (58 prior + 5 new), `flutter build apk --debug` succeeds with the new charts included.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>

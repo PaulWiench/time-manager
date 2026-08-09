@@ -1,28 +1,79 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../data/database/database.dart';
+import '../../data/database/enums.dart';
+import '../../domain/stats_aggregation.dart';
+import '../../providers/day_providers.dart';
+import '../../providers/stats_providers.dart';
 import '../../widgets/stat_card.dart';
+import 'charts/balance_trend_chart.dart';
+import 'charts/checkin_distribution_chart.dart';
+import 'charts/chart_empty_state.dart';
+import 'charts/daily_hours_chart.dart';
+import 'charts/leave_breakdown.dart';
+import 'charts/monthly_heatmap.dart';
+import 'charts/overtime_rate_chart.dart';
+import 'charts/weekday_hours_chart.dart';
+import 'charts/weekly_hit_rate_chart.dart';
 
 enum StatsTab { overview, patterns, leave }
 
-/// Header, in-screen tab bar, and range selector per the design handoff —
-/// the shell every chart eventually lives inside. Chart bodies themselves
-/// (balance trend, heatmap, donut, etc.) are Milestone 8 scope; each is a
-/// placeholder here so the nav destination is complete and the shell can
-/// be reviewed against the handoff now rather than twice.
-class StatsScreen extends StatefulWidget {
+/// Header, in-screen tab bar, range selector, and the real chart bodies per
+/// the design handoff and § 5.4 of the design spec (Milestone 8).
+class StatsScreen extends ConsumerStatefulWidget {
   const StatsScreen({super.key});
 
   @override
-  State<StatsScreen> createState() => _StatsScreenState();
+  ConsumerState<StatsScreen> createState() => _StatsScreenState();
 }
 
-class _StatsScreenState extends State<StatsScreen> {
+class _StatsScreenState extends ConsumerState<StatsScreen> {
   StatsTab _tab = StatsTab.overview;
   String _range = 'Month';
+  DateRange? _customRange;
+  int _leaveYear = DateTime.now().year;
+
+  DateRange _resolveRange() {
+    final today = DateTime.now();
+    switch (_range) {
+      case '6 Months':
+        return trailingRange(182, today: today);
+      case 'Year':
+        return trailingRange(365, today: today);
+      case 'Custom':
+        return _customRange ?? trailingRange(30, today: today);
+      case 'Month':
+      default:
+        return trailingRange(30, today: today);
+    }
+  }
+
+  Future<void> _pickCustomRange() async {
+    final now = DateTime.now();
+    final initial = _customRange;
+    final result = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 5),
+      lastDate: now,
+      initialDateRange: DateTimeRange(
+        start: initial?.start ?? now.subtract(const Duration(days: 29)),
+        end: initial != null ? initial.endExclusive.subtract(const Duration(days: 1)) : now,
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _range = 'Custom';
+      _customRange = DateRange(
+        start: DateTime(result.start.year, result.start.month, result.start.day),
+        endExclusive: DateTime(result.end.year, result.end.month, result.end.day).add(const Duration(days: 1)),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,11 +102,17 @@ class _StatsScreenState extends State<StatsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        PhosphorIcon(PhosphorIconsRegular.caretLeft, size: 15, color: colors.textMuted),
+                        GestureDetector(
+                          onTap: () => setState(() => _leaveYear -= 1),
+                          child: PhosphorIcon(PhosphorIconsRegular.caretLeft, size: 15, color: colors.textMuted),
+                        ),
                         const SizedBox(width: 10),
-                        Text(DateTime.now().year.toString(), style: AppTextStyles.heroNumber(13).copyWith(color: colors.text)),
+                        Text(_leaveYear.toString(), style: AppTextStyles.heroNumber(13).copyWith(color: colors.text)),
                         const SizedBox(width: 10),
-                        PhosphorIcon(PhosphorIconsRegular.caretRight, size: 15, color: colors.textMuted),
+                        GestureDetector(
+                          onTap: () => setState(() => _leaveYear += 1),
+                          child: PhosphorIcon(PhosphorIconsRegular.caretRight, size: 15, color: colors.textMuted),
+                        ),
                       ],
                     )
                   else
@@ -64,7 +121,12 @@ class _StatsScreenState extends State<StatsScreen> {
                       child: Row(
                         children: [
                           for (final r in const ['Month', '6 Months', 'Year', 'Custom']) ...[
-                            _RangeChip(label: r, selected: _range == r, colors: colors, onTap: () => setState(() => _range = r)),
+                            _RangeChip(
+                              label: r,
+                              selected: _range == r,
+                              colors: colors,
+                              onTap: r == 'Custom' ? _pickCustomRange : () => setState(() => _range = r),
+                            ),
                             const SizedBox(width: 6),
                           ],
                         ],
@@ -85,31 +147,115 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
-  List<Widget> _cardsFor(StatsTab tab) {
-    Widget placeholder(String kicker) => Padding(
-          padding: const EdgeInsets.only(bottom: 14),
-          child: ChartCard(
-            kicker: kicker,
-            child: SizedBox(
-              height: 70,
-              child: Center(
-                child: Text(
-                  'Coming in Milestone 8',
-                  style: AppTextStyles.meta.copyWith(color: Theme.of(context).extension<AppColors>()!.textMuted),
-                ),
-              ),
-            ),
-          ),
-        );
+  Widget _card(String kicker, Widget child) => Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: ChartCard(kicker: kicker, child: child),
+      );
 
+  List<DayStat> _toDayStats(List<DayEntry> entries) => [
+        for (final e in entries)
+          DayStat(date: e.date, netWorkedHours: e.netWorkedHours, targetHours: e.targetHours, balanceDelta: e.balanceDelta),
+      ];
+
+  List<Widget> _cardsFor(StatsTab tab) {
     switch (tab) {
       case StatsTab.overview:
-        return [placeholder('Balance trend'), placeholder('Weekly target hit rate'), placeholder('Overtime accumulation rate')];
+        return _overviewCards(_resolveRange());
       case StatsTab.patterns:
-        return [placeholder('Monthly overview'), placeholder('Daily hours'), placeholder('By day of week'), placeholder('Check-in times')];
+        return _patternsCards(_resolveRange());
       case StatsTab.leave:
-        return [placeholder('Vacation used vs. quota'), placeholder('Sick days taken')];
+        return _leaveCards();
     }
+  }
+
+  List<Widget> _overviewCards(DateRange range) {
+    final balanceAsync = ref.watch(balanceSnapshotsInRangeProvider(range.start, range.endExclusive));
+    final daysAsync = ref.watch(dayEntriesInRangeProvider(range.start, range.endExclusive));
+
+    return [
+      _card(
+        'Balance trend',
+        balanceAsync.when(
+          data: (snapshots) => BalanceTrendChart(snapshots: snapshots),
+          loading: () => const ChartLoading(height: 140),
+          error: (_, __) => const ChartEmptyState(height: 140),
+        ),
+      ),
+      _card(
+        'Weekly target hit rate',
+        daysAsync.when(
+          data: (entries) => WeeklyHitRateChart(weeks: weeklyAggregates(_toDayStats(entries))),
+          loading: () => const ChartLoading(),
+          error: (_, __) => const ChartEmptyState(),
+        ),
+      ),
+      _card(
+        'Overtime accumulation rate',
+        daysAsync.when(
+          data: (entries) => OvertimeRateChart(weeks: weeklyAggregates(_toDayStats(entries))),
+          loading: () => const ChartLoading(),
+          error: (_, __) => const ChartEmptyState(),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _patternsCards(DateRange range) {
+    final daysAsync = ref.watch(dayEntriesInRangeProvider(range.start, range.endExclusive));
+    final sessionsAsync = ref.watch(workSessionsInRangeProvider(range.start, range.endExclusive));
+
+    return [
+      _card('Monthly overview', const MonthlyHeatmap()),
+      _card(
+        'Daily hours',
+        daysAsync.when(
+          data: (entries) => DailyHoursChart(days: _toDayStats(entries)),
+          loading: () => const ChartLoading(),
+          error: (_, __) => const ChartEmptyState(),
+        ),
+      ),
+      _card(
+        'By day of week',
+        daysAsync.when(
+          data: (entries) => WeekdayHoursChart(averages: averageHoursByWeekday(_toDayStats(entries))),
+          loading: () => const ChartLoading(),
+          error: (_, __) => const ChartEmptyState(),
+        ),
+      ),
+      _card(
+        'Check-in times',
+        sessionsAsync.when(
+          data: (sessions) => CheckinDistributionChart(
+            histogram: checkinHourHistogram([
+              for (final s in sessions)
+                if (s.status != SessionStatus.discarded) s.startTime,
+            ]),
+          ),
+          loading: () => const ChartLoading(),
+          error: (_, __) => const ChartEmptyState(),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _leaveCards() {
+    final quotaAsync = ref.watch(vacationQuotaForYearProvider(_leaveYear));
+    final entriesAsync = ref.watch(leaveForYearProvider(_leaveYear));
+
+    return [
+      _card(
+        'Leave breakdown',
+        quotaAsync.when(
+          data: (quota) => entriesAsync.when(
+            data: (entries) => LeaveBreakdown(quota: quota, entries: entries),
+            loading: () => const ChartLoading(height: 90),
+            error: (_, __) => const ChartEmptyState(height: 90),
+          ),
+          loading: () => const ChartLoading(height: 90),
+          error: (_, __) => const ChartEmptyState(height: 90),
+        ),
+      ),
+    ];
   }
 }
 
