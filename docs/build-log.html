@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TimeManager — Build Log</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --surface: #ffffff;
+    --text: #1c1c1c;
+    --muted: #6b6b6b;
+    --accent: #0f766e;
+    --accent-soft: #ccfbf1;
+    --border: #e6e4de;
+    --warn-bg: #fff4e5;
+    --warn-border: #f0c674;
+    --tech-bg: #1e1e1e;
+    --tech-text: #d4d4d4;
+    --tech-muted: #8a8a8a;
+    --tech-accent: #5eead4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --surface: #1c1f24;
+      --text: #eaeaea;
+      --muted: #9a9a9a;
+      --accent: #5eead4;
+      --accent-soft: #16332f;
+      --border: #2b2f36;
+      --warn-bg: #2c2416;
+      --warn-border: #6b5220;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    line-height: 1.55;
+  }
+  header.hero {
+    padding: 3rem 1.5rem 2rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  header.hero h1 {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    margin: 0 0 0.5rem;
+  }
+  header.hero p {
+    color: var(--muted);
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  main {
+    max-width: 840px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 5rem;
+  }
+  section.story h2.section-label {
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+  }
+  .entry {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+  .entry .date {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+  .entry h3 {
+    margin: 0.25rem 0 0.75rem;
+    font-size: 1.25rem;
+  }
+  .entry ul {
+    margin: 0.5rem 0;
+    padding-left: 1.25rem;
+  }
+  .entry li { margin: 0.3rem 0; }
+  .pill {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    margin-right: 0.4rem;
+  }
+  .problem {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem;
+    margin: 0.75rem 0;
+    font-size: 0.92rem;
+  }
+  .problem strong { display: block; margin-bottom: 0.25rem; }
+  .shots {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.6rem;
+    margin-top: 0.9rem;
+  }
+  .shots img {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    display: block;
+  }
+  .shots figcaption {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 0.25rem;
+    text-align: center;
+  }
+  .divider {
+    margin: 3rem 0 2rem;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .divider::before, .divider::after {
+    content: "";
+    display: inline-block;
+    width: 40px;
+    height: 1px;
+    background: var(--border);
+    vertical-align: middle;
+    margin: 0 0.75rem;
+  }
+  section.techlog {
+    background: var(--tech-bg);
+    color: var(--tech-text);
+    border-radius: 14px;
+    padding: 1.5rem 1.75rem;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+  }
+  section.techlog h2 {
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tech-accent);
+    margin: 0 0 1.25rem;
+  }
+  .log-entry { margin-bottom: 1.1rem; }
+  .log-entry .ts {
+    color: var(--tech-accent);
+    margin-right: 0.6rem;
+  }
+  .log-entry .tag {
+    color: var(--tech-muted);
+  }
+  .log-entry p {
+    margin: 0.2rem 0 0 1.6rem;
+    white-space: pre-wrap;
+    color: var(--tech-text);
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>TimeManager</h1>
+  <p>The story of a personal time-tracking app, built end to end by Claude
+  with Paul — from a locked design spec to a working Android app. Story up
+  top, full technical record below.</p>
+</header>
+
+<main>
+  <section class="story">
+    <h2 class="section-label">The Story</h2>
+
+    <!-- STORY_ENTRIES_START -->
+    <div class="entry">
+      <div class="date">09 August 2026</div>
+      <h3>Day 1 — Laying the foundation</h3>
+      <span class="pill">Milestone 1 · Scaffold</span>
+      <p>
+        The design phase wrapped up today: every question about how the app
+        should behave — break-law edge cases, how a running balance
+        recalculates, what happens at midnight, what every screen looks like —
+        got worked out in the Study vault before a single line of app code was
+        written. That's the whole point of doing it in that order: nothing in
+        this build should be an open design question anymore, just
+        translation.
+      </p>
+      <p>
+        Today's job was pure groundwork: a real Flutter project now exists at
+        <code>~/Code/time-manager</code>, with its dependencies chosen
+        (Drift for local storage, Riverpod for state, fl_chart for charts) and
+        a folder structure that keeps the tricky, correctness-critical logic
+        — the break-deduction math, the balance recalculation cascade — in
+        plain Dart files with no Flutter dependency, so they can be tested in
+        isolation before any UI touches them.
+      </p>
+      <ul>
+        <li>Flutter project created, dependencies resolved, project analyzes clean</li>
+        <li>Folder structure laid out for data / domain / UI, kept separate on purpose</li>
+        <li>A placeholder screen confirms the app boots — nothing to look at yet</li>
+      </ul>
+      <p>Next: turn the Data Model doc into an actual database.</p>
+    </div>
+    <!-- STORY_ENTRIES_END -->
+  </section>
+
+  <div class="divider">Technical Log</div>
+
+  <section class="techlog">
+    <h2>Full technical record</h2>
+
+    <!-- TECH_LOG_START -->
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M1/scaffold]</span>
+      <p>Ran `flutter create --org dev.paulwiench --project-name time_manager --platforms android .` in /home/paulos/Code/time-manager (previously empty). Generated standard Flutter project skeleton (android/, lib/main.dart, test/widget_test.dart, pubspec.yaml, analysis_options.yaml, .gitignore, .metadata).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M1/scaffold]</span>
+      <p>Rewrote pubspec.yaml: added drift ^2.20.3, sqlite3_flutter_libs ^0.5.27, path_provider ^2.1.5, path ^1.9.0, flutter_riverpod ^2.6.1, riverpod_annotation ^2.6.1, fl_chart ^0.69.2, intl ^0.19.0, uuid ^4.5.1; dev deps build_runner ^2.4.13, drift_dev ^2.20.3, riverpod_generator ^2.6.3 (on top of default flutter_lints ^5.0.0). Stripped default flutter create boilerplate comments. `flutter pub get` resolved cleanly (77 packages added/changed, no conflicts; some packages have newer versions gated by transitive constraints, noted via `flutter pub outdated`, not acted on).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M1/scaffold]</span>
+      <p>Created feature-first lib/ structure: core/theme, data/database, data/repositories, domain, providers, features/{onboarding,home,history,stats,settings}, widgets. Rationale: domain/ stays plain Dart (no Flutter imports) so break-law and recalculation-cascade logic is unit-testable without a widget test harness — this is where correctness actually matters per the Requirements doc's worked examples.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M1/scaffold]</span>
+      <p>Added lib/core/theme/app_theme.dart (placeholder Material 3 ColorScheme.fromSeed, teal, light+dark) — explicitly marked as superseded once the Milestone 5 design-system spec comes back from Claude Design. Added lib/app.dart (TimeManagerApp: MaterialApp, ThemeMode.system, placeholder Scaffold body "TimeManager — scaffold OK"). Rewrote lib/main.dart to wrap TimeManagerApp in a Riverpod ProviderScope (replacing default counter-app MyApp).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M1/scaffold]</span>
+      <p>Replaced test/widget_test.dart's default counter-increment test (referenced removed MyApp) with a smoke test that pumps ProviderScope(child: TimeManagerApp()) and asserts the placeholder text renders. `flutter analyze` → No issues found. `flutter test` → 1/1 passed.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M1/scaffold]</span>
+      <p>Created docs/ and docs/screenshots/ directories. Wrote CLAUDE.md (repo architecture, pointer to the Study vault as design source of truth, pointer to the plan file at ~/.claude/plans/groovy-twirling-meteor.md, the Milestone 5 hard-checkpoint rule, documentation obligations, toolchain notes, git-account note). Rewrote README.md to describe the actual project instead of the flutter create default, linking to this build log.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M1/scaffold]</span>
+      <p>Created this file (docs/build-log.html) — self-contained, no build step, dark/light aware via prefers-color-scheme. Structured with `&lt;!-- STORY_ENTRIES_END --&gt;` / `&lt;!-- TECH_LOG_END --&gt;` marker comments so future sessions append new entries above the marker rather than rewriting the file.</p>
+    </div>
+    <!-- TECH_LOG_END -->
+  </section>
+</main>
+
+</body>
+</html>
