@@ -155,4 +155,26 @@ class WorkSessionRepository {
 
     await recalc.recalculateFrom(session.date);
   }
+
+  /// Deletes [date]'s synthetic break and converts that time back to work,
+  /// by flagging the DayEntry `auto_break_overridden` so recalculation
+  /// never re-derives one for this date — Requirements § "tap a synthetic
+  /// break to delete it ... flags the day so it's never silently
+  /// reinserted." No confirmation dialog, per the UX doc.
+  Future<void> deleteSyntheticBreak(DateTime date) async {
+    final day = dateOnly(date);
+    await db.transaction(() async {
+      await db.dayEntryDao.upsert(DayEntriesCompanion(
+        date: Value(day),
+        autoBreakOverridden: const Value(true),
+      ));
+      await db.auditLogDao.record(AuditLogEntriesCompanion.insert(
+        action: 'update',
+        entityType: 'DayEntry',
+        entityId: Value(day.toIso8601String()),
+        newValue: Value(jsonEncode({'autoBreakOverridden': true})),
+      ));
+    });
+    await recalc.recalculateFrom(day);
+  }
 }

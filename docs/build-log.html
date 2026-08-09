@@ -370,6 +370,102 @@
       </p>
       <p><strong>Build paused here, waiting on Paul.</strong> The next milestone (Core UI) doesn't start until the visual direction comes back from Claude Design.</p>
     </div>
+
+    <div class="entry">
+      <div class="date">09 August 2026</div>
+      <h3>The app gets a face</h3>
+      <span class="pill">Milestone 6 · Core UI</span>
+      <p>
+        The design handoff came back from Claude Design — a "Nocturne" visual
+        language with a soft lavender-tinted background, outlined (never
+        filled) buttons, and a muted sage green for breaks against a warm
+        amber for warnings. Every color in it was specified in OKLCH, a color
+        space Flutter doesn't understand natively, so the first job was
+        porting the math (Björn Ottosson's OKLab matrices) into plain Dart
+        before a single screen could be built — otherwise the greens and
+        ambers would come out looking nothing like the mockups.
+      </p>
+      <p>
+        With the color system, type scale, and shared building blocks (the
+        progress ring, the timeline chips, the bottom nav) in place, the six
+        screens came together in roughly the order someone would actually
+        meet them: onboarding wizard, Home, History, Settings, then the Stats
+        shell (its charts are Milestone 8 — today it's the tab bar, range
+        chips, and "coming soon" cards, built now so the navigation is whole).
+      </p>
+      <div class="problem">
+        <strong>Discovery: "real" breaks were never supposed to be stored</strong>
+        Building Home's timeline surfaced something the earlier milestones
+        had gotten right without a UI to prove it: a break the user never
+        touched (just the natural gap between clocking out for lunch and
+        back in) isn't a database row anywhere — only the auto-inserted
+        legal breaks are. The timeline has to notice the gaps itself. That
+        became a small new pure-Dart module (timeline_builder.dart, unit
+        tested) that merges sessions and synthetic breaks and fills in
+        whatever's left over as a plain break — no schema changes needed,
+        the data was already sufficient.
+      </div>
+      <div class="problem">
+        <strong>Problem: onboarding's starting balance had nowhere to live</strong>
+        The Settings table was never designed to hold a one-time "carry over
+        this many hours" number — and it shouldn't be, since it's a fact
+        about a date, not an ongoing preference. Fix: seed it as a
+        pre-dated balance snapshot instead, the same mechanism the
+        recalculation cascade already uses to find "the last known balance
+        before today." Zero changes to the cascade logic itself.
+      </div>
+      <p>
+        Ran the whole thing on the emulator afterward: fresh install →
+        4-step onboarding → check in → watched the ring tick live →
+        checked out → balance updated → drilled History from Month down to
+        a single week → Settings reflected exactly what onboarding had
+        recorded → the Stats shell's tabs and range chips all switch
+        cleanly. One good scare along the way — the "Continue" button
+        looked unresponsive for a good ten minutes of tapping, until it
+        turned out the coordinates being tapped were nowhere near the
+        actual button (measured in the wrong screen-coordinate space); the
+        button itself was fine the whole time.
+      </p>
+      <div class="shots">
+        <figure>
+          <img src="screenshots/m6-01-onboarding-step1.png" alt="Onboarding step 1 — weekly hours">
+          <figcaption>Onboarding · Step 1</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/m6-02-onboarding-step2.png" alt="Onboarding step 2 — work days">
+          <figcaption>Onboarding · Step 2</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/m6-04-onboarding-step4.png" alt="Onboarding step 4 — auto-break toggle">
+          <figcaption>Onboarding · Step 4</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/m6-05-home-empty.png" alt="Home screen, empty state">
+          <figcaption>Home · empty state</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/m6-06-home-checked-in.png" alt="Home screen, tracking live">
+          <figcaption>Home · checked in</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/m6-08-history-month.png" alt="History screen, Day tab">
+          <figcaption>History · Day</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/m6-11-history-month-view.png" alt="History screen, Month tab">
+          <figcaption>History · Month</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/m6-09-settings.png" alt="Settings screen">
+          <figcaption>Settings</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/m6-10-stats.png" alt="Stats screen shell">
+          <figcaption>Stats · shell</figcaption>
+        </figure>
+      </div>
+      <p>50 tests passing, <code>flutter analyze</code> clean, golden path verified end-to-end on the emulator. Next: the home-screen widget — a native Kotlin + Glance surface reading the same database.</p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -510,6 +606,78 @@
     <div class="log-entry">
       <span class="ts">2026-08-09</span><span class="tag">[M5/design-spec]</span>
       <p>Wrote docs/design-system-spec.md — the Milestone 5 deliverable. Deliberately structured as a brief, not a finished design system: functional requirements (from Requirements & Scope / UX & Screen Architecture / Tech Stack) are stated as fixed, purely visual decisions (palette, type, spacing, motion, iconography) are explicitly deferred to §7 "Open Questions for the Design Pass" rather than invented here, since the whole point of this checkpoint is getting those decided by an external design tool. Sections: Product Context, Design Direction Brief (semantic color needs derived from the docs — a 3-state tracking/break/checked-out signal, a single warning treatment not a red/green dichotomy, distinct real/synthetic/leave block types), Platform & Technical Constraints (Flutter/Material 3 base, native Kotlin/Glance widget as the most constrained rendering surface, fl_chart+CustomPainter chart toolkit), Navigation Structure, full Screen-by-Screen spec (Onboarding, Home, History incl. all 3 drill levels and 3 empty-state cases, Stats incl. all 3 tabs and every chart, Settings, both widget sizes), an 11-item Component Inventory, and the 7 open questions. No implementation code — this is the one milestone that produces a document instead.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Design handoff received from Claude Design as ~/Downloads/Time manager app design.zip (design_handoff_time_manager_ui/: README.md, TimeManager UI.dc.html, BottomNav.dc.html). High-fidelity: exact hex/OKLCH color tokens for light+dark, an Inter type scale, an 8px/4px/14px radius system, a 0.7x-scaled spacing step system, Phosphor icons, and a literal HTML/CSS mockup of every screen (Home, History Day/Week/Month, Stats all 3 tabs, Onboarding, Settings, both widget sizes) inside device-bezel frames. Read in full before writing any UI code, per the plan's Milestone 6 gate.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Rewrote lib/core/theme/ from the M1 placeholder. app_colors.dart: AppColors ThemeExtension carrying every semantic role the handoff defines (background/surface/surface2/text/textMuted/divider, accent/break/warning fill+text+tint, idle, shadowSm) for both light and dark, exposed via a `context.colors` BuildContext extension since these roles don't map onto stock ColorScheme slots. app_dimens.dart: AppRadius (4/8/14) and AppSpace (the 2.8..22.4px step scale) constants. app_text_styles.dart: the Inter type scale (google_fonts package) as named static styles (heroNumber, screenTitle, body, meta, kicker, etc), colors deliberately omitted so callers compose type+color via copyWith, matching how the handoff separates the two token families. app_theme.dart: builds light/dark ThemeData from AppColors, Material components (AppBar, Card, Switch) themed to match.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p><strong>Problem:</strong> the handoff specifies the break and warning hues in OKLCH (`oklch(64% 0.10 168)` etc — chosen at the Nocturne accent's own lightness/chroma so tracking/break/idle/warning stay distinguishable without a fourth arbitrary hue), but Flutter's `Color` has no OKLCH constructor. <strong>Options considered:</strong> (1) hand-pick approximate hex equivalents by eye, (2) pull in a color-space conversion package, (3) reimplement the OKLab/OKLCH → linear-sRGB matrices directly. <strong>Chosen:</strong> (3) — wrote lib/core/theme/color_space.dart, a ~40-line pure-Dart port of Björn Ottosson's reference matrices (the same math CSS `oklch()` itself uses), so the app's colors are computed from the spec's own numbers instead of an eyeballed guess. Verified against the spec's two example colors via a throwaway script: break fill → #44a080 (teal, as expected), warning fill → #cd9130 (amber, as expected) before wiring it into AppColors.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Built shared widgets in lib/widgets/: progress_ring.dart (CustomPainter, round-capped arc from 12 o'clock — used by Home's daily-target ring and, later, Stats Leave's donut), app_bottom_nav.dart (Phosphor regular/fill icon swap + bold label on the active tab, matching the handoff's BottomNav.dc.html component exactly), timeline_chip.dart (work/real-break/synthetic-break/leave chip variants), stat_card.dart (the small Home stat cards + the full-width Stats "chart card" shell, same component per the handoff), outlined_primary_button.dart ("Nocturne buttons are never filled" per the Onboarding spec — used for onboarding's Continue and Home's empty-state Check In).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p><strong>Design decision not covered by the handoff:</strong> the mockup's Home/History timelines show three block types side by side (work, real break, synthetic break) plus mentions of a "leave block" in the UX doc, but the handoff's color tokens deliberately cap at two extra hues (break, warning) beyond the accent — no fourth hue is defined for leave. Rather than invent one and break the "one accent family, varied by ramp" system the design notes explicitly call out, `TimelineChip`'s leave variant uses a neutral bordered treatment (surface2 fill, divider border, a calendar glyph) instead of a color. Documented inline in timeline_chip.dart's doc comment as a deliberate interpretation, flagged for the next design pass if it needs a real look.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Discovered while wiring Home's timeline: the domain layer never persists "real" breaks as their own BreakEntry rows — `break_engine.calculateBreaks` computes the natural gap between two sessions (`realBreakTime`) purely for the balance math, and `RecalculationService._recalculateDay` only ever writes synthetic breaks back to the DB. So a "Break" chip in the UI can't just be queried; it has to be re-derived from the gaps between sessions the same way the balance math does. Wrote lib/domain/timeline_builder.dart (pure Dart, no Flutter/Drift imports, unit tested like the other domain engines) — `buildDayTimeline()` takes completed-session and synthetic-break intervals and fills any uncovered time between them in as a real-break block, generically handling the case of a synthetic break landing inside, or without, a natural gap. 5 new tests in test/domain/timeline_builder_test.dart covering: single unbroken session, a natural gap, a synthetic break splitting a gap, a synthetic break with no adjoining gap, and empty input.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Added `WorkSessionRepository.deleteSyntheticBreak(date)` (lib/data/repositories/work_session_repository.dart) — the repository method the UI needs for "tap a synthetic break's ✕ to delete it." Flags `DayEntry.autoBreakOverridden = true` (writing only that column via a partial DayEntriesCompanion, relying on `insertOnConflictUpdate`'s per-column update semantics to leave the rest of the row untouched) and audit-logs it, then calls `recalculateFrom(date)` — the existing recalculation engine already skips re-deriving a synthetic break once that flag is set (`recalculateDayEntry`'s `autoBreakOverridden` parameter), so no new domain logic was needed, only the repository plumbing to flip the flag from a UI action. No confirmation dialog, per the UX doc.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Added `dayEntriesInRangeProvider(start, endExclusive)` to lib/providers/day_providers.dart — a thin wrapper over the existing `DayEntryDao.forRange`, needed by History's Month/Week rows to aggregate worked hours and balance delta over a date range without a per-day provider each. Regenerated codegen (`dart run build_runner build --delete-conflicting-outputs`).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Built lib/features/home/home_screen.dart: header, tappable progress ring (ring tap toggles check-in/check-out, consistent with the widget's documented tap behavior — applied here too since Home has no separate button in the mockup), live H:MM:SS hero timer while tracking (ticks via a StreamBuilder on a 1-second Stream.periodic, only mounted while a session is active so there's no timer running at all while idle), daily-target bar and Remaining/Balance stat cards computed live (persisted netWorkedHours + the current session's live elapsed time, so the whole screen updates smoothly instead of freezing until checkout), and the "Today" timeline built from `buildDayTimeline` plus leave entries. Empty state (no activity yet today): centered prompt + outlined Check In button, ring/bar/stat cards still rendered against the computed target per the UX doc ("ring/progress bar still show 0/target; balance still shows the running total, not zero").</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p><strong>Scope clarification:</strong> the widget's illustrative 3-state reference shows Tracking/Break/Checked-out as distinct live states, but the Requirements only ever expose check-in/check-out as user actions — there's no "start a break" action anywhere in the data model, so the app can never actually *know* it's live mid-break (only that a session isn't currently active). Home's ring/state label therefore only ever shows Tracking (accent) or Checked out (idle gray) live — "Break" as a color only becomes meaningful retrospectively, once a completed day's gaps are analyzed by `buildDayTimeline`. Noted here rather than building a fake "start break" button that isn't part of the spec.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Built lib/features/history/history_screen.dart. Re-read the handoff mockup closely: Month and Week tabs are both year-scoped lists (header shows just the year, arrow steps by year) — Month rows aggregate each month, Week rows aggregate each ISO week, both via `dayEntriesInRangeProvider`; Day tab is week-scoped (header shows the date range, arrow steps by week) and lists the 7 days of that week individually. Tapping a Month row drills to Week (same year); tapping a Week row drills to Day (that week). Day rows use one of: the real expandable card (dayEntry exists — collapsed shows date/hours/delta, expanded shows the full chip timeline + italic notes, matching Home's chip rendering but with clock-time ranges instead of durations) or one of three empty-state treatments per the UX doc: missed workday (warning-color dot + text, delta = -target, only for *past* work days — today is deliberately excluded from "missed" since the day isn't over), rest day (50% opacity, em-dash delta), scheduled (future work day, em-dash, normal weight, never flagged).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Note on the mockup's Day-tab sample data: the demo rows (Mon Aug 10, Sun Aug 9 expanded, Sat Aug 8 missed, Fri Aug 7 rest day, Thu Aug 11 scheduled) aren't in a consistent chronological order and the dates/hours don't internally reconcile — read as illustrative placeholder content for showing off each state, not a literal ordering spec. Implemented Day tab as a real Mon→Sun ascending week list instead.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Built lib/features/onboarding/onboarding_screen.dart: 4-step wizard (weekly hours stepper, work-day pills, starting-balance stepper, auto-break toggle) matching the handoff's step-2 (work days) mockup exactly and extrapolating the same visual language (icon + title + helper + input + default caption, outlined Continue, muted Back) for the other 3 steps, which weren't in the mockup. Implemented "cancel keeps confirmed steps, defaults the rest" literally: separate committed-vs-draft state per field, so an in-progress edit on the *current* unconfirmed step is discarded on cancel rather than silently saved.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p><strong>Problem:</strong> onboarding's "starting balance" isn't a Settings field — the AppSettings table has no such column (by design; it's a one-time carried-over value, not an ongoing setting). <strong>Fix:</strong> added `SettingsRepository.seedStartingBalance(balance, effectiveFrom)`, which writes a BalanceSnapshot dated the day *before* effectiveFrom. `RecalculationService._cascadeBalanceFrom` already looks up the latest snapshot strictly before the date it's cascading from as its starting point, so this becomes every later day's base with no new column and no change to the cascade logic itself — just seeded before `SettingsRepository.save()` runs.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Built lib/features/settings/settings_screen.dart matching the handoff's grouped-list layout (Schedule / Breaks / Balance &amp; leave / Notifications, buried 60%-opacity Audit log below a divider) and lib/features/settings/audit_log_screen.dart (a plain read-only list from the existing `AuditLogDao.all()`). Weekly hours, work days, minimum session length, and both toggles (auto-break, restrict check-in) are fully wired to `SettingsRepository.save`. Floor/cap, rollover policy, and notification preferences are static placeholder rows — the AppSettings schema has no columns for any of these yet (confirmed by reading tables.dart), so wiring them up isn't a UI gap, it's a data-model gap out of scope for this milestone; vacation quota and public holiday count are real reads (VacationQuotaDao/PublicHolidayDao) but not yet editable from here.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Built lib/features/stats/stats_screen.dart: header, in-screen Overview/Patterns/Leave tab bar, and the range-chip row (Month/6 Months/Year/Custom, swapped for a year-only stepper on the Leave tab) exactly per the handoff. Chart bodies are "Coming in Milestone 8" placeholders inside the real ChartCard shell — per the plan, Milestone 6 only scopes the nav shell + tab bar, Milestone 8 scopes the actual fl_chart/CustomPainter chart implementations; building the shell now (rather than skipping Stats entirely) means the nav destination is complete and reviewable today, and Milestone 8 only has to fill in chart bodies inside an already-correct shell.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Rewrote lib/app.dart: `_RootGate` watches `latestSettingsProvider` (a DB stream) and routes to Onboarding when no Settings row exists yet, or `_AppShell` (IndexedStack + AppBottomNav over Home/History/Stats/Settings) once one does — since the provider is a live stream, onboarding completing needs no explicit navigation call, the gate just rebuilds on its own once `SettingsRepository.save` writes the row. `flutter analyze` → No issues found across the whole project.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
+      <p>Rewrote test/widget_test.dart's stale M1 smoke test (asserted on the placeholder scaffold text, now removed) into a real one: pumps the actual app with `appDatabaseProvider` overridden to an in-memory database (the default provider opens a file-backed DB via path_provider, which needs platform channels unavailable under `flutter test`) and asserts a fresh install lands on onboarding's step 1. <strong>Problem:</strong> the test failed flutter_test's end-of-test "no pending timers" invariant — drift's `StreamQueryStore` schedules a zero-duration `Timer` when a query stream's last listener detaches (a one-event-loop grace period, meant for `StreamBuilder` reconnect-on-rebuild patterns), which was still pending when the widget tree got torn down at test end. <strong>Fix:</strong> construct the test's `AppDatabase` from a `DatabaseConnection(NativeDatabase.memory(), closeStreamsSynchronously: true)` instead of a bare `NativeDatabase.memory()` — a documented drift option specifically for this test-framework interaction, closing streams synchronously instead of deferring via a timer. `flutter test` → 50/50 passing (45 prior + 5 new timeline_builder tests, widget test rewritten).</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>

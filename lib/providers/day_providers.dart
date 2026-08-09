@@ -30,3 +30,10 @@ Stream<List<LeaveEntry>> leaveForDate(Ref ref, DateTime date) {
 Stream<List<BreakEntry>> breaksForDate(Ref ref, DateTime date) {
   return ref.watch(appDatabaseProvider).breakEntryDao.watchForDate(date);
 }
+
+/// Used by History's Month/Week rows to aggregate worked hours + balance
+/// delta over a range without a per-day family provider each.
+@riverpod
+Future<List<DayEntry>> dayEntriesInRange(Ref ref, DateTime start, DateTime endExclusive) {
+  return ref.watch(appDatabaseProvider).dayEntryDao.forRange(start, endExclusive);
+}

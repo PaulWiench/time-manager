@@ -533,5 +533,158 @@ class _BreaksForDateProviderElement
   DateTime get date => (origin as BreaksForDateProvider).date;
 }
 
+String _$dayEntriesInRangeHash() => r'a57bf2fa4abe02828606a2261de0f1b6f2b5948b';
+
+/// Used by History's Month/Week rows to aggregate worked hours + balance
+/// delta over a range without a per-day family provider each.
+///
+/// Copied from [dayEntriesInRange].
+@ProviderFor(dayEntriesInRange)
+const dayEntriesInRangeProvider = DayEntriesInRangeFamily();
+
+/// Used by History's Month/Week rows to aggregate worked hours + balance
+/// delta over a range without a per-day family provider each.
+///
+/// Copied from [dayEntriesInRange].
+class DayEntriesInRangeFamily extends Family<AsyncValue<List<DayEntry>>> {
+  /// Used by History's Month/Week rows to aggregate worked hours + balance
+  /// delta over a range without a per-day family provider each.
+  ///
+  /// Copied from [dayEntriesInRange].
+  const DayEntriesInRangeFamily();
+
+  /// Used by History's Month/Week rows to aggregate worked hours + balance
+  /// delta over a range without a per-day family provider each.
+  ///
+  /// Copied from [dayEntriesInRange].
+  DayEntriesInRangeProvider call(DateTime start, DateTime endExclusive) {
+    return DayEntriesInRangeProvider(start, endExclusive);
+  }
+
+  @override
+  DayEntriesInRangeProvider getProviderOverride(
+    covariant DayEntriesInRangeProvider provider,
+  ) {
+    return call(provider.start, provider.endExclusive);
+  }
+
+  static const Iterable<ProviderOrFamily>? _dependencies = null;
+
+  @override
+  Iterable<ProviderOrFamily>? get dependencies => _dependencies;
+
+  static const Iterable<ProviderOrFamily>? _allTransitiveDependencies = null;
+
+  @override
+  Iterable<ProviderOrFamily>? get allTransitiveDependencies =>
+      _allTransitiveDependencies;
+
+  @override
+  String? get name => r'dayEntriesInRangeProvider';
+}
+
+/// Used by History's Month/Week rows to aggregate worked hours + balance
+/// delta over a range without a per-day family provider each.
+///
+/// Copied from [dayEntriesInRange].
+class DayEntriesInRangeProvider
+    extends AutoDisposeFutureProvider<List<DayEntry>> {
+  /// Used by History's Month/Week rows to aggregate worked hours + balance
+  /// delta over a range without a per-day family provider each.
+  ///
+  /// Copied from [dayEntriesInRange].
+  DayEntriesInRangeProvider(DateTime start, DateTime endExclusive)
+    : this._internal(
+        (ref) =>
+            dayEntriesInRange(ref as DayEntriesInRangeRef, start, endExclusive),
+        from: dayEntriesInRangeProvider,
+        name: r'dayEntriesInRangeProvider',
+        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+            ? null
+            : _$dayEntriesInRangeHash,
+        dependencies: DayEntriesInRangeFamily._dependencies,
+        allTransitiveDependencies:
+            DayEntriesInRangeFamily._allTransitiveDependencies,
+        start: start,
+        endExclusive: endExclusive,
+      );
+
+  DayEntriesInRangeProvider._internal(
+    super._createNotifier, {
+    required super.name,
+    required super.dependencies,
+    required super.allTransitiveDependencies,
+    required super.debugGetCreateSourceHash,
+    required super.from,
+    required this.start,
+    required this.endExclusive,
+  }) : super.internal();
+
+  final DateTime start;
+  final DateTime endExclusive;
+
+  @override
+  Override overrideWith(
+    FutureOr<List<DayEntry>> Function(DayEntriesInRangeRef provider) create,
+  ) {
+    return ProviderOverride(
+      origin: this,
+      override: DayEntriesInRangeProvider._internal(
+        (ref) => create(ref as DayEntriesInRangeRef),
+        from: from,
+        name: null,
+        dependencies: null,
+        allTransitiveDependencies: null,
+        debugGetCreateSourceHash: null,
+        start: start,
+        endExclusive: endExclusive,
+      ),
+    );
+  }
+
+  @override
+  AutoDisposeFutureProviderElement<List<DayEntry>> createElement() {
+    return _DayEntriesInRangeProviderElement(this);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is DayEntriesInRangeProvider &&
+        other.start == start &&
+        other.endExclusive == endExclusive;
+  }
+
+  @override
+  int get hashCode {
+    var hash = _SystemHash.combine(0, runtimeType.hashCode);
+    hash = _SystemHash.combine(hash, start.hashCode);
+    hash = _SystemHash.combine(hash, endExclusive.hashCode);
+
+    return _SystemHash.finish(hash);
+  }
+}
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+mixin DayEntriesInRangeRef on AutoDisposeFutureProviderRef<List<DayEntry>> {
+  /// The parameter `start` of this provider.
+  DateTime get start;
+
+  /// The parameter `endExclusive` of this provider.
+  DateTime get endExclusive;
+}
+
+class _DayEntriesInRangeProviderElement
+    extends AutoDisposeFutureProviderElement<List<DayEntry>>
+    with DayEntriesInRangeRef {
+  _DayEntriesInRangeProviderElement(super.provider);
+
+  @override
+  DateTime get start => (origin as DayEntriesInRangeProvider).start;
+  @override
+  DateTime get endExclusive =>
+      (origin as DayEntriesInRangeProvider).endExclusive;
+}
+
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

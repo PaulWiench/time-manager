@@ -60,4 +60,18 @@ class SettingsRepository {
     // every day already on record from effectiveFrom forward, not just one.
     await recalc.recalculateRangeFrom(day);
   }
+
+  /// Onboarding's "starting balance" isn't a Settings field — it's the
+  /// carried-over balance from before tracking began, so it's seeded as a
+  /// BalanceSnapshot dated the day before [effectiveFrom]. The balance
+  /// cascade (`RecalculationService._cascadeBalanceFrom`) always looks up
+  /// the latest snapshot strictly before the date it's cascading from, so
+  /// this becomes every later day's base without needing its own column.
+  Future<void> seedStartingBalance({required double balance, required DateTime effectiveFrom}) async {
+    final seedDate = dateOnly(effectiveFrom).subtract(const Duration(days: 1));
+    await db.balanceSnapshotDao.upsert(BalanceSnapshotsCompanion.insert(
+      date: seedDate,
+      balance: balance,
+    ));
+  }
 }
