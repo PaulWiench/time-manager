@@ -11,6 +11,9 @@ class WorkSessionDao extends DatabaseAccessor<AppDatabase>
     with _$WorkSessionDaoMixin {
   WorkSessionDao(super.db);
 
+  Future<WorkSession?> byId(String id) =>
+      (select(workSessions)..where((t) => t.id.equals(id))).getSingleOrNull();
+
   Future<List<WorkSession>> forDate(DateTime date) =>
       (select(workSessions)..where((t) => t.date.equals(date))).get();
 

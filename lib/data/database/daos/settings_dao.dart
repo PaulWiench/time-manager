@@ -11,15 +11,23 @@ class SettingsDao extends DatabaseAccessor<AppDatabase>
   SettingsDao(super.db);
 
   /// The active settings row for [date]: the one with the highest
-  /// `effectiveFrom` that is <= [date]. See Data Model § Settings.
+  /// `effectiveFrom` that is <= [date]. Ties (two rows saved with the same
+  /// `effectiveFrom`) break in favor of whichever was saved most recently —
+  /// "last write wins" for same-day changes. See Data Model § Settings.
   Future<AppSetting?> effectiveFor(DateTime date) => (select(appSettings)
         ..where((t) => t.effectiveFrom.isSmallerOrEqualValue(date))
-        ..orderBy([(t) => OrderingTerm.desc(t.effectiveFrom)])
+        ..orderBy([
+          (t) => OrderingTerm.desc(t.effectiveFrom),
+          (t) => OrderingTerm.desc(t.createdAt),
+        ])
         ..limit(1))
       .getSingleOrNull();
 
   Stream<AppSetting?> watchLatest() => (select(appSettings)
-        ..orderBy([(t) => OrderingTerm.desc(t.effectiveFrom)])
+        ..orderBy([
+          (t) => OrderingTerm.desc(t.effectiveFrom),
+          (t) => OrderingTerm.desc(t.createdAt),
+        ])
         ..limit(1))
       .watchSingleOrNull();
 
