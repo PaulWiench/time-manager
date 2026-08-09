@@ -253,6 +253,50 @@
       </ul>
       <p>Next: the tricky part — the break-law math and balance recalculation logic.</p>
     </div>
+
+    <div class="entry">
+      <div class="date">09 August 2026</div>
+      <h3>Teaching the app German labor law</h3>
+      <span class="pill">Milestone 3 · Domain engines</span>
+      <p>
+        This was the milestone the whole design phase existed to protect:
+        the math that decides how much of a work day actually counts,
+        automatically, the way German law requires. Five self-contained
+        pieces of logic went in today, each with no dependency on the app's
+        UI at all — they're just functions that take numbers in and give
+        numbers out, which means they can be tested exhaustively without
+        ever launching the app.
+      </p>
+      <ul>
+        <li><strong>Break law:</strong> works out how much unpaid break a day legally needs (30 minutes past 6 hours worked, 45 past 9), checks whether the real gaps between sessions already cover it, and if not, decides exactly where on the timeline to silently add the difference.</li>
+        <li><strong>Daily targets & balance:</strong> turns a weekly-hours goal into a daily one, adjusts it for holidays, and rolls each day's over/under into the running balance.</li>
+        <li><strong>Midnight cutoff:</strong> if you forget to check out and it rolls past midnight, the app knows to stop the clock.</li>
+        <li><strong>German holidays:</strong> calculated from scratch using a 200-year-old mathematical method for pinning down Easter each year (everything else — Christmas, German Unity Day — cascades off that one date), rather than depending on a third-party list that could go stale.</li>
+        <li><strong>Vacation rollover:</strong> carries unused vacation days into the next year under whichever policy is configured, and warns before they'd expire.</li>
+      </ul>
+      <p>
+        The break-law calculation was checked directly against the worked
+        example from the design notes — an 8am-to-2:30pm day with a 20-minute
+        lunch — and it landed on exactly the same numbers by hand: a 30-minute
+        break requirement, a 10-minute shortfall, and 6 hours flat of counted
+        work. The German-holiday math was double-checked against 1954 and
+        1981, two years famous (among people who calculate Easter dates,
+        anyway) for breaking naive versions of this algorithm — both came out
+        correct.
+      </p>
+      <div class="problem">
+        <strong>One judgment call worth flagging</strong>
+        The design notes describe extending a too-short break "to cover the
+        required minimum," which is exactly what happens when there's only
+        one break in the day. But if a day had several separate breaks, it's
+        genuinely ambiguous whether that phrase means "top up the shortfall"
+        or "make this specific gap exactly the legal minimum." Went with
+        "top up the shortfall," since it gives the right answer either way
+        and is safer if a day ever has multiple breaks — flagged in the code
+        for a second look later if it ever matters in practice.
+      </div>
+      <p>33 new tests, all passing. Next: wiring all of this up to the database so the app can actually react live as data changes.</p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -321,6 +365,34 @@
     <div class="log-entry">
       <span class="ts">2026-08-09</span><span class="tag">[M2/data-layer]</span>
       <p>Added test/data/database_test.dart against an in-memory NativeDatabase: FK invariant (DayEntry before WorkSession), enum round-trips for BreakEntry/LeaveEntry/PublicHoliday, AppSettings default work-days converter + defaults, BalanceSnapshot.latestBefore, AuditLogDao insert+query. `flutter test` → 6/6 passed. `flutter analyze` → No issues found. Committed (435cb51) and pushed to PaulWiench/time-manager.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M3/domain]</span>
+      <p>Wrote lib/domain/break_engine.dart: WorkPeriod, SyntheticBreakPlan, BreakCalculation value types; requiredBreakFor() (>6h->30min, >9h->45min); calculateBreaks() computing gross/real/required/deficit/net and, when there's a deficit, a SyntheticBreakPlan. Anchor logic per Requirements: default 12:00, shifts to 4h into the first session if noon falls outside the session window. Placement rule: if the anchor falls inside an existing real gap, the synthetic break is placed immediately after that gap (so together they read as one continuous break on the timeline, per UX's "shown distinctly" requirement — they remain two separate BreakEntry rows, real + synthetic); otherwise it's inserted directly at the anchor.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M3/domain][decision]</span>
+      <p><strong>Ambiguity in the spec:</strong> "the gap is extended to cover the required minimum" could mean the anchor gap's final duration equals exactly requiredBreakTime, or that the deficit is added on top of whatever real break time already exists (which could be spread across multiple gaps in a day, not just the anchor one). Implemented the latter (deficit-additive) since it's correct even with multiple real gaps in a day; the two interpretations coincide in the doc's single-gap worked example, which was used to verify correctness either way. Documented in the function's doc comment for whoever revisits this.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M3/domain]</span>
+      <p>Wrote lib/domain/holiday_calculator.dart: gaussEasterSunday() implementing the corrected Gauss algorithm (with the mod-30/mod-7 exception-day correction terms for the historically tricky 1954/1981 cases) rather than the naive uncorrected version. germanNationalHolidays(year) returns the 9 holidays observed in every German state (Neujahr, Karfreitag, Ostermontag, Tag der Arbeit, Christi Himmelfahrt, Pfingstmontag, Tag der Deutschen Einheit, 1./2. Weihnachtstag) — deliberately excludes state-specific holidays (e.g. Bavaria's Fronleichnam), out of scope per Requirements and covered by "fully editable by the user" regardless.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M3/domain]</span>
+      <p>Wrote lib/domain/midnight_cutoff.dart: TimeOfDayWindow (Flutter-free stand-in for TimeOfDay, minutes-since-midnight range, handles overnight wraparound) and evaluateMidnightCutoff() — auto-stops a session at 23:59:59 of its start day once it's crossed into the next calendar day, unless a configured work window covers the current time.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M3/domain]</span>
+      <p>Wrote lib/domain/vacation_rollover.dart: RolloverPolicy enum (indefinite/expireAtYearEnd/useByDeadline), computeNextYearRollover() computing next year's rolloverDays from this year's unused balance (totalDays + rolloverDays - usedDays, clamped at 0) per policy, isApproachingRolloverExpiry() for the expiry-warning notification/Stats state.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M3/domain]</span>
+      <p>Wrote lib/domain/recalculation_engine.dart as the orchestrator: computeTargetHours() (weekly target / work-day count, adjusted by holiday fraction, 0 on non-work days regardless of holiday), recalculateDayEntry() (delegates to break_engine unless autoBreakOverridden or !autoBreakEnabled, in which case net = raw session sum with no deficit subtracted — documented as a deliberate simplification where the Requirements doc doesn't fully specify how manual BreakEntry rows should interact with net hours in the overridden case), missedWorkdayDelta() (-target_hours per Data Model's "Design Principles" for workdays with no DayEntry), and cascadeBalance() (pure cumulative-sum arithmetic for BalanceSnapshot forward recalculation — deliberately takes pre-resolved per-day deltas rather than querying the DB itself, since date-range iteration + settings-versioning lookups belong in Milestone 4's repository layer, not here).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M3/domain]</span>
+      <p>Added 33 unit tests across test/domain/: break_engine_test.dart verifies the exact Requirements worked example (6:10 gross -> 30min required -> 20min real -> 10min deficit -> 6:00 net, synthetic break 12:20-12:30) plus the >9h/45min threshold, a sufficient-real-break no-op case, and both anchor-shift directions (noon before/after the session window). holiday_calculator_test.dart checks gaussEasterSunday against 4 reference years (2024-2027) and the classic 1954/1981 correction-term regression cases, then germanNationalHolidays(2026) end to end. midnight_cutoff_test.dart and vacation_rollover_test.dart cover their respective branches. recalculation_engine_test.dart covers target-hours/holiday interaction, the overridden/disabled break-skip paths, and cascadeBalance. `flutter test` → all passing (33 new domain tests, plus the existing widget + data-layer suites). `flutter analyze` → No issues found. Committed (f4796d9) and pushed to PaulWiench/time-manager.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
