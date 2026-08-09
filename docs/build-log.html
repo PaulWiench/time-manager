@@ -297,6 +297,52 @@
       </div>
       <p>33 new tests, all passing. Next: wiring all of this up to the database so the app can actually react live as data changes.</p>
     </div>
+
+    <div class="entry">
+      <div class="date">09 August 2026</div>
+      <h3>Wiring the brain to the body</h3>
+      <span class="pill">Milestone 4 · Riverpod wiring</span>
+      <p>
+        The last three milestones each stood alone: a database that stores
+        things, and a set of calculators that don't know the database
+        exists. Today they got connected — every check-in, check-out,
+        vacation day, and settings change now flows through one place that
+        recomputes exactly what needs recomputing and nothing more, then
+        the whole thing was hooked up to Riverpod so the (still-unbuilt) UI
+        will just be able to watch the numbers update live.
+      </p>
+      <p>
+        This is also where the app picked up its two most important safety
+        nets: only one active session at a time, and every mutation writes
+        an audit trail entry — the two rules the whole "personal record you
+        can trust" idea depends on.
+      </p>
+      <div class="problem">
+        <strong>A bug the tests caught before it ever ran</strong>
+        Early on, the recalculation logic would have quietly created a
+        database entry for every single day it touched — including days
+        with absolutely nothing on them. That directly breaks a rule from
+        the design phase: a day's record should only exist once something
+        actually happens on it. Caught this by re-reading the design notes
+        against the code before writing any tests, not by a test failing —
+        worth noting since it's the kind of bug that's invisible until
+        someone notices years of empty placeholder days cluttering their
+        history.
+      </div>
+      <div class="problem">
+        <strong>Why 4 of 6 new tests failed on the first run — and what it revealed</strong>
+        Every failure looked different on the surface (different numbers,
+        different fields) but traced back to the same cause: the
+        recalculation logic was reading the real current date directly off
+        the system clock. That's normally invisible, but it meant the exact
+        moment the tests happened to run could quietly change their outcome
+        — a classic "works on my machine, breaks in six months" bug. The
+        fix was to make "what day is it" something the tests can control
+        explicitly instead of leaving it to chance, which is a good habit
+        for any code that has a notion of "today."
+      </div>
+      <p>45 tests passing across the whole app now. Next: before writing a single screen, a full design-system and page-by-page spec — the one deliberate pause in this build, so the visual direction gets nailed down properly instead of guessed at.</p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -393,6 +439,46 @@
     <div class="log-entry">
       <span class="ts">2026-08-09</span><span class="tag">[M3/domain]</span>
       <p>Added 33 unit tests across test/domain/: break_engine_test.dart verifies the exact Requirements worked example (6:10 gross -> 30min required -> 20min real -> 10min deficit -> 6:00 net, synthetic break 12:20-12:30) plus the >9h/45min threshold, a sufficient-real-break no-op case, and both anchor-shift directions (noon before/after the session window). holiday_calculator_test.dart checks gaussEasterSunday against 4 reference years (2024-2027) and the classic 1954/1981 correction-term regression cases, then germanNationalHolidays(2026) end to end. midnight_cutoff_test.dart and vacation_rollover_test.dart cover their respective branches. recalculation_engine_test.dart covers target-hours/holiday interaction, the overridden/disabled break-skip paths, and cascadeBalance. `flutter test` → all passing (33 new domain tests, plus the existing widget + data-layer suites). `flutter analyze` → No issues found. Committed (f4796d9) and pushed to PaulWiench/time-manager.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M4/wiring]</span>
+      <p>Wrote lib/data/repositories/recalculation_service.dart: the single place every mutation routes through. `recalculateFrom(date)` recomputes one day + cascades balance forward to today; `recalculateRangeFrom(date)` recomputes every day from `date` through today then cascades once, for changes that can affect many days at once (a Settings change with a past effectiveFrom). `_recalculateDay` fetches settings/holiday/sessions/leave for a date, calls domain.recalculateDayEntry(), upserts DayEntry, and fully re-derives any synthetic BreakEntry (delete-then-reinsert rather than diffing). `_cascadeBalanceFrom` walks day-by-day from the changed date to today, resolving each day's delta via `_deltaFor` (existing DayEntry's, or missedWorkdayDelta for a scheduled workday with none, or 0) and calls domain.cascadeBalance().</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M4/wiring][bug]</span>
+      <p><strong>Problem caught during design, before it shipped:</strong> the first draft of `_recalculateDay` unconditionally upserted a DayEntry for whatever date it was asked to recompute. That's fine for a single-day trigger (something genuinely touched that date), but `recalculateRangeFrom` calls it for every day between a settings change and today — which would have force-created empty DayEntry rows for every day in that range, directly violating the Data Model's "DayEntry is created lazily" principle. <strong>Fix:</strong> added a `hasActivity` check (completed sessions, leave, or a holiday) and only write a DayEntry if one already exists or something actually touches that date.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M4/wiring]</span>
+      <p>Added `id: byId(String id)` to WorkSessionDao (needed for checkOut/edit/delete lookups, wasn't needed yet in Milestone 2). Wrote work_session_repository.dart: checkIn (rejects if a session's already active, upserts the day's DayEntry first to satisfy the FK, audit-logs), checkOut (looks up the session's effective minSessionMinutes, marks status=discarded instead of completed if under it, audit-logs 'discard' vs 'update', triggers recalculation), editSession (retroactive edits, re-triggers recalculation for both the old and new date if a session moved across midnight), deleteSession. Every mutating method ends with `await recalc.recalculateFrom(...)`.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M4/wiring]</span>
+      <p>Wrote settings_repository.dart (save() inserts a new versioned row + triggers recalculateRangeFrom since a target-hours change can ripple across many recorded days), leave_repository.dart, public_holiday_repository.dart (seedYear() only inserts holidays for dates that don't already have one, so it never clobbers a user's manual edit; setHoliday/removeHoliday for manual edits), vacation_quota_repository.dart (wraps domain.vacation_rollover, usedDaysForYear sums vacation-type LeaveEntry hours / 8 as a days conversion — documented as a Mon-Fri/8h-default simplification).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M4/wiring]</span>
+      <p>Wrote the Riverpod provider layer (lib/providers/): database_providers.dart (appDatabase, keepAlive), repository_providers.dart (one keepAlive provider per repository, wired to appDatabase + recalculationService), day_providers.dart (family StreamProviders keyed by date: sessionsForDate, dayEntryForDate, leaveForDate, breaksForDate — documented that callers must pass dateOnly()-normalized dates for provider caching to work), balance_providers.dart, settings_providers.dart, session_providers.dart (activeSession, derived by mapping today's sessions stream rather than composing off another provider's deprecated `.stream` accessor).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M4/wiring][bug]</span>
+      <p><strong>Problem:</strong> codegen for the provider files failed with "Undefined class 'Ref'" across every file. <strong>Cause:</strong> used the modern generic `Ref` parameter type (vs. the older per-provider typed `XyzRef` convention) without importing anything that exports it — `riverpod_annotation` doesn't re-export `Ref` itself. <strong>Fix:</strong> added `import 'package:flutter_riverpod/flutter_riverpod.dart'` to every provider file. Confirmed generic `Ref` does work with the installed riverpod_generator 2.6.5 once imported — no need to fall back to typed refs.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M4/wiring][bug]</span>
+      <p><strong>Problem:</strong> `flutter analyze` after adding the repositories flagged 3 argument-type errors — `Value&lt;HolidaySource&gt;` where `HolidaySource` was expected (public_holiday_repository.dart), and `int` where `Value&lt;int&gt;` was expected (vacation_quota_repository.dart, the `year` field on VacationQuotasCompanion.insert). <strong>Cause:</strong> drift_dev's `.insert()` factory only makes a field a plain (non-Value-wrapped) required parameter when the column has no default AND isn't a lone-integer primary key — a lone `IntColumn` primary key (VacationQuotas.year) gets SQLite's implicit rowid-aliasing treatment and stays `Value`-wrapped/optional even in `.insert()`, unlike a non-integer PK (PublicHolidays.date, a required plain `DateTime`) or a required non-PK column (PublicHolidays.source, a required plain `HolidaySource`). Read the actual generated Companion constructors in database.g.dart to confirm the exact rule rather than guessing twice. <strong>Fix:</strong> unwrapped `source` in both PublicHolidayRepository calls, wrapped `year` in Value() in VacationQuotaRepository.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M4/wiring][testing]</span>
+      <p>Wrote test/data/repositories/repositories_test.dart, an end-to-end suite exercising the real repositories against an in-memory DB (no mocks): check-in/check-out crossing the 6h break threshold, too-short-session discard, a vacation day's balance math, a retroactive settings change updating an already-recorded day's target, holiday seeding creating a DayEntry, and a 3-day balance cascade including a missed workday. First run: 4 of 6 failed with `Actual: &lt;0.0&gt;` across totally different fields (netWorkedHours, leaveHours, balanceDelta) — the common thread pointed at `_recalculateDay` returning early. Root cause: `RecalculationService` used real `DateTime.now()` for "today", and the test's shared `setUp` created the first Settings row with `effectiveFrom` set to the fixed "now" used for the LATER assertions — but several tests operate on dates *before* that, so `effectiveFor()` found no applicable settings row yet and every recalculation silently no-op'd. Symptom of a bigger smell: business logic reading the real wall clock is inherently hard to test. <strong>Fix (structural, not a workaround):</strong> gave RecalculationService an injectable `now` clock (`DateTime Function() now = DateTime.now`), defaulting to real time in the app but pinned to a fixed reference date in tests; moved `effectiveFrom` to the earliest date any test actually uses.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M4/wiring][bug]</span>
+      <p><strong>Problem:</strong> even after the clock fix, the "settings change retroactively updates a day" test failed — the new settings row wasn't winning. <strong>Cause:</strong> both the original and the new settings row ended up with the exact same `effectiveFrom` date (the test's target day itself, which is the only value that's both "<= that day" and "as late as possible") — a genuine tie in `ORDER BY effectiveFrom DESC LIMIT 1`, undefined which row SQLite returns. <strong>Fix:</strong> two parts — (1) added a `createdAt DESC` secondary sort to `SettingsDao.effectiveFor`/`watchLatest` as a real "last write wins" tiebreaker for genuine same-day version conflicts, since that's a real scenario the app needs to handle correctly, not just a test artifact; (2) rewrote the test itself to check in on a later day than the original settings' effective date, so the second (retroactive) settings row has a strictly later `effectiveFrom` than the first and wins without depending on the tiebreaker at all — a cleaner test that doesn't rely on tie-breaking behavior to prove the point.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M4/wiring]</span>
+      <p>`flutter test` → 45/45 passing (6 new repository-layer tests + all prior suites). `flutter analyze` → No issues found. Committed (fbe0d69) and pushed to PaulWiench/time-manager.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
