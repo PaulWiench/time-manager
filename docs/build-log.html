@@ -466,6 +466,62 @@
       </div>
       <p>50 tests passing, <code>flutter analyze</code> clean, golden path verified end-to-end on the emulator. Next: the home-screen widget — a native Kotlin + Glance surface reading the same database.</p>
     </div>
+
+    <div class="entry">
+      <div class="date">09 August 2026</div>
+      <h3>Stepping outside Flutter</h3>
+      <span class="pill">Milestone 7 · Android widget</span>
+      <p>
+        Everything so far has been one Flutter app. This milestone is a
+        second, much smaller program living inside the same APK: a native
+        Android home-screen widget, written in Kotlin against Jetpack
+        Glance, that reads the same SQLite file the Flutter app writes to.
+        No shared code, no shared framework — just an agreement about
+        where the data lives and what it means.
+      </p>
+      <p>
+        Before writing a line of it, the actual Glance library that ships
+        in this version got pulled apart rather than trusted from memory —
+        Gradle was told to fetch it, and the real compiled classes got
+        inspected directly. Good thing too: Glance's built-in progress
+        ring turned out to be decorative only, with no way to show a
+        partial fill. The fix was to draw the ring by hand — the same
+        round-capped-arc math as the Flutter version, just aimed at an
+        Android <code>Canvas</code> instead of Flutter's — and hand Glance
+        a finished picture instead of asking it to draw one.
+      </p>
+      <div class="problem">
+        <strong>The tap did nothing, and both sides of the bug looked innocent</strong>
+        For a while, tapping the widget produced no error, no crash, and
+        no visible change — just silence. The trap: the widget's read
+        path was <em>also</em> subtly broken, computing the database's
+        location one folder too deep, but it failed in a way that looked
+        correct — an empty, not-yet-onboarded app also shows a blank
+        "0:00," so the wrong-path bug and the right answer were
+        indistinguishable at a glance. Tracing it required checking the
+        real file location on the device rather than trusting the
+        assumption carried over from the Flutter side, which turned out
+        to be off by exactly one directory level. Fixed, and confirmed
+        properly this time — pulling the actual database off the device
+        after tapping, not just eyeballing the screen.
+      </div>
+      <p>
+        One more thing worth naming rather than glossing over: the design
+        called for three ring colors — tracking, on a break, checked out —
+        but the app's data model only ever records a session starting and
+        stopping, never a break beginning. "On a break" had to be
+        inferred (no active session, but some work already logged today,
+        short of the target) rather than read directly, the same kind of
+        judgment call made a few times already in this build.
+      </p>
+      <div class="shots">
+        <figure>
+          <img src="screenshots/m7-01-widget-tracking.png" alt="TimeManager widget on the emulator home screen">
+          <figcaption>Widget · home screen</figcaption>
+        </figure>
+      </div>
+      <p>Verified on the emulator: added to the home screen through the real widget picker (not simulated), tapped to check in, confirmed a genuine session row appeared in the database, tapped again to check out. <code>flutter analyze</code> clean, debug build succeeds with the widget included. Next: Milestone 8, Stats' real charts.</p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -678,6 +734,34 @@
     <div class="log-entry">
       <span class="ts">2026-08-09</span><span class="tag">[M6/core-ui]</span>
       <p>Rewrote test/widget_test.dart's stale M1 smoke test (asserted on the placeholder scaffold text, now removed) into a real one: pumps the actual app with `appDatabaseProvider` overridden to an in-memory database (the default provider opens a file-backed DB via path_provider, which needs platform channels unavailable under `flutter test`) and asserts a fresh install lands on onboarding's step 1. <strong>Problem:</strong> the test failed flutter_test's end-of-test "no pending timers" invariant — drift's `StreamQueryStore` schedules a zero-duration `Timer` when a query stream's last listener detaches (a one-event-loop grace period, meant for `StreamBuilder` reconnect-on-rebuild patterns), which was still pending when the widget tree got torn down at test end. <strong>Fix:</strong> construct the test's `AppDatabase` from a `DatabaseConnection(NativeDatabase.memory(), closeStreamsSynchronously: true)` instead of a bare `NativeDatabase.memory()` — a documented drift option specifically for this test-framework interaction, closing streams synchronously instead of deferring via a timer. `flutter test` → 50/50 passing (45 prior + 5 new timeline_builder tests, widget test rewritten).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M7/widget]</span>
+      <p>Confirmed the Kotlin toolchain per the plan's M7 startup check: `kotlinc` isn't on PATH, but `JAVA_HOME=~/Downloads/setup/android-studio/jbr` (Android Studio's bundled JBR, JDK 21) makes the Gradle wrapper work, and AGP 8.9.1 + `org.jetbrains.kotlin.android` 2.1.0 are already declared in settings.gradle.kts from scaffolding — Gradle's own Kotlin plugin covers compilation with no standalone kotlinc needed. Added `org.jetbrains.kotlin.plugin.compose` (same 2.1.0 version) since Kotlin 2.0+ moved the Compose compiler out of kotlin-android into its own plugin, required for any `@Composable` function including Glance's.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M7/widget]</span>
+      <p><strong>Investigation:</strong> before writing any widget code, resolved `androidx.glance:glance-appwidget:1.1.1` and `glance-material3:1.1.1` via a real Gradle dependency pull, then located and `javap`'d the actual downloaded classes (`~/.gradle/caches/8.12/transforms/.../classes.jar`) rather than guessing API signatures from memory. This surfaced that `androidx.glance.appwidget.CircularProgressIndicator` is <strong>indeterminate-only</strong> (`(GlanceModifier, ColorProvider, Composer, Int, Int)` — no `progress: Float` parameter) in this version, and glance-material3 has no progress composable either. <strong>Decision:</strong> render the progress ring as a pre-drawn `Bitmap` (`android.graphics.Canvas`/`Paint`, same round-capped-arc-from-12-o'clock math as `lib/widgets/progress_ring.dart`'s CustomPainter) and display it via `androidx.glance.Image(ImageProvider(bitmap))` — confirmed `ImageProvider(Bitmap): ImageProvider` exists via the same javap process. This is the standard technique for custom-drawn widget graphics under Glance/RemoteViews' constraints, and keeps the native ring pixel-faithful to the Flutter one instead of settling for a spinner.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M7/widget]</span>
+      <p>New files under `android/app/src/main/kotlin/dev/paulwiench/time_manager/widget/`: `ProgressRing.kt` (the bitmap-rendering function above), `WidgetRepository.kt` (SQLite read/write against the app's own DB file — see next two entries), `TimeManagerWidget.kt` (`GlanceAppWidget` subclass, `SizeMode.Responsive({90×90dp, 250×140dp})`, branches compact-ring-only vs. expanded-ring-plus-label layout on `LocalSize.current.width &lt; 180.dp`), `TimeManagerWidgetReceiver.kt` (`GlanceAppWidgetReceiver`), `ToggleTrackingAction.kt` (`ActionCallback`, wired via `GlanceModifier.clickable(actionRunCallback&lt;ToggleTrackingAction&gt;())` — single tap toggles check-in/out at any size, no separate "open app" zone, per the design handoff). Plus `res/xml/time_manager_widget_info.xml` (2×2 cell hint, `SizeMode.Responsive`'s two exact sizes as the min/max resize bounds, 30-min `updatePeriodMillis` as a periodic-refresh fallback alongside the click-driven `updateAll`) and a `&lt;receiver&gt;` entry in AndroidManifest.xml.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M7/widget]</span>
+      <p><strong>Design decision: the widget shows gross tracked time, not the break-deducted net figure.</strong> The break-law deduction (`break_engine.dart`) and balance cascade (`recalculation_engine.dart`) are Dart-only domain logic, deliberately not ported to Kotlin for a glance-only surface. `WidgetRepository.loadState` instead sums today's completed session durations directly (plus live elapsed if a session is active) and compares against a target computed either from `day_entries.target_hours` (if a recalculation has already run today) or a same-formula fallback from `app_settings` (weekly_hours ÷ workdays, 0 on a non-workday). Opening the app always shows the authoritative net number; the widget is for a glance, not the ledger — documented in the class doc so this reads as a decision, not a gap.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M7/widget]</span>
+      <p><strong>Design decision: no live "on-break" detection.</strong> The design handoff calls for three ring states (tracking/break/checked-out), but the app's single-active-session data model has no explicit "on break" flag — a break is only ever the gap between one completed session and the next. Heuristic used: TRACKING if a session is active; BREAK if there's no active session but at least one completed session today *and* today's gross worked hours are still under target; CHECKED_OUT otherwise (nothing logged yet today, or the target's already been hit). Same three-state enum (`TrackingState`) drives both the ring's fill color and (on the expanded layout) a text label.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M7/widget]</span>
+      <p><strong>Problem: the check-in/out tap silently wrote nothing.</strong> `WidgetRepository`'s DB path was computed as `context.filesDir/app_flutter/time_manager.sqlite`, mirroring an assumption from `lib/data/database/database.dart`'s doc comment about where `path_provider`'s `getApplicationDocumentsDirectory()` lands on Android. The widget's own *reads* worked fine against this path (loadState correctly showed CHECKED_OUT/0:00 on a fresh install), which masked the bug — reads only fail loudly if the path is wrong in a way that makes the file not exist at all, and `context.filesDir/app_flutter` happened to also not exist, so `loadState` silently fell back to its "no file yet" default (also CHECKED_OUT/0:00), matching what a correct empty state would show anyway. The tap handler's `ActionCallback.onAction` fired correctly (confirmed via logcat: process unfreeze, `AppWidgetServiceImpl: Trying to notify widget update`), but `toggleTracking`'s own `file.exists()` check was silently returning early. <strong>Root cause, found by adding temporary logging and inspecting the real on-device path</strong> (`adb shell run-as ... find`): the actual file lives at `context.dataDir/app_flutter/...`, one level higher than `context.filesDir` (which is `context.dataDir/files`) — `getApplicationDocumentsDirectory()` on Android resolves relative to the app's data-dir root, not its `files/` subdirectory. <strong>Fix:</strong> `dbFile()` now builds the path from `context.dataDir`. Re-verified end to end after the fix: a real tap now inserts a genuine `active` `work_sessions` row (confirmed by pulling the live DB via `adb shell run-as ... cat`), and a second tap correctly transitions it to `completed`/`discarded` per the existing minimum-session-length rule.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M7/widget]</span>
+      <p>Verified on the emulator: added the widget via the launcher's widget picker (bound successfully, `dumpsys appwidget` confirms `widgets.size=1`), confirmed the placed instance renders the compact (ring-only, &lt;180dp) layout matching the design handoff's idle-gray/no-fill state on a fresh install, tapped to check in (state flips to TRACKING, a genuine `active` session row appears in the DB), tapped again to check out (flips to CHECKED_OUT, session completes). One nuance confirmed rather than assumed: the ring's colored arc only becomes visible once `targetHours &gt; 0` (the underlying `_RingPainter`/`renderProgressRing` logic — shared by the Flutter and Kotlin implementations — skips drawing the foreground arc entirely at `progress &lt;= 0`), so on a non-work day the ring stays neutral-gray even while actively tracking; this matches the in-app Home screen's own ring behavior exactly, not a widget-specific gap. Also noted: right after an APK reinstall, the very first tap can transiently show the launcher's own "Can't load widget" placeholder for a few seconds while Glance's session re-establishes — cosmetic, tied to reinstall specifically, not something a real user hits between ordinary taps. `flutter analyze` clean, `flutter build apk --debug` succeeds with the widget code included.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
