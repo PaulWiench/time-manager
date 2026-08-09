@@ -450,7 +450,15 @@ class _ExpandableDayRow extends ConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(AppFormat.dayRow(date), style: AppTextStyles.body.copyWith(color: colors.text)),
+                  Row(
+                    children: [
+                      Text(AppFormat.dayRow(date), style: AppTextStyles.body.copyWith(color: colors.text)),
+                      if (dayEntry.autoBreakOverridden) ...[
+                        const SizedBox(width: 5),
+                        _RetroactiveEditBadge(colors: colors),
+                      ],
+                    ],
+                  ),
                   const SizedBox(height: 2),
                   Text('${AppFormat.hm(dayEntry.netWorkedHours)} worked', style: AppTextStyles.meta.copyWith(color: colors.textMuted, fontSize: 11)),
                 ],
@@ -491,7 +499,15 @@ class _ExpandableDayRow extends ConsumerWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(AppFormat.dayRow(date), style: AppTextStyles.heroNumber(14).copyWith(color: colors.text)),
+                    Row(
+                      children: [
+                        Text(AppFormat.dayRow(date), style: AppTextStyles.heroNumber(14).copyWith(color: colors.text)),
+                        if (dayEntry.autoBreakOverridden) ...[
+                          const SizedBox(width: 6),
+                          _RetroactiveEditBadge(colors: colors),
+                        ],
+                      ],
+                    ),
                     const SizedBox(height: 2),
                     Text('${AppFormat.hm(dayEntry.netWorkedHours)} worked', style: AppTextStyles.meta.copyWith(color: colors.textMuted, fontSize: 11)),
                   ],
@@ -549,5 +565,24 @@ class _ExpandableDayRow extends ConsumerWidget {
       case LeaveType.flexDay:
         return 'Flex day';
     }
+  }
+}
+
+/// Marks a day whose auto-break deduction was manually overridden (the
+/// "delete a synthetic break" action — Requirements § 6, the one
+/// retroactive-edit path currently exposed in the UI). Ambient and
+/// tooltip-free per the UX doc's error/warning philosophy ("no
+/// confirmation dialogs, ever"): `DayEntry.autoBreakOverridden` was already
+/// tracked in the DB since Milestone 6 but never surfaced, so a day's
+/// recalculated balance could silently differ from what the auto-break
+/// logic alone would have produced with no visible explanation why.
+class _RetroactiveEditBadge extends StatelessWidget {
+  final AppColors colors;
+
+  const _RetroactiveEditBadge({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return PhosphorIcon(PhosphorIconsRegular.pencilSimpleLine, size: 12, color: colors.textMuted);
   }
 }

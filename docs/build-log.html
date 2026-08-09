@@ -590,7 +590,67 @@
           <figcaption>Leave · vacation donut (the Home ring, reused)</figcaption>
         </figure>
       </div>
-      <p>63/63 tests passing (5 new for the aggregation module), <code>flutter analyze</code> clean, golden path — all three tabs, all four ranges including the native custom date-range picker, Leave's year navigation — verified on the emulator against real on-device data from earlier milestones' testing. Next: Milestone 9, polish and the signed release build.</p>
+      <p>58/58 tests passing (5 new for the aggregation module), <code>flutter analyze</code> clean, golden path — all three tabs, all four ranges including the native custom date-range picker, Leave's year navigation — verified on the emulator against real on-device data from earlier milestones' testing. Next: Milestone 9, polish and the signed release build.</p>
+    </div>
+    <div class="entry">
+      <div class="date">09 August 2026</div>
+      <h3>The last milestone: tying off loose ends</h3>
+      <span class="pill">Milestone 9 · Polish &amp; release build</span>
+      <p>
+        Nine milestones in, most of "polish" turned out to already be done.
+        The audit log screen was built back in Milestone 6, ahead of its
+        actual milestone, and just needed confirming it still works. Dark
+        mode was wired since Milestone 6 too — every screen reads color off
+        <code>AppColors.light</code>/<code>AppColors.dark</code> rather than
+        a hardcoded value — but had never actually been looked at. Switching
+        the emulator to system dark mode and paging through Home, History,
+        Stats, and onboarding turned up nothing to fix: the same semantic
+        tokens that made the OKLCH color system worth building back then
+        paid for themselves again here, with zero new code.
+      </p>
+      <p>
+        What genuinely was missing: the app has tracked
+        <code>DayEntry.auto_break_overridden</code> — whether a day's legal
+        break deduction was manually overridden by deleting a synthetic
+        break — since Milestone 2, and the recalculation engine has honored
+        it since Milestone 3, but nothing in the UI ever showed it. A day
+        could have a materially different balance than what the automatic
+        break logic alone would have produced, with no visible reason why.
+        Fixed with the smallest possible addition: a small pencil glyph
+        next to the date in History whenever that flag is set — no
+        tooltip, no dialog, just a quiet fact sitting where the date
+        already is, matching the design doc's "ambient, never a
+        confirmation dialog" rule for every other warning state in the app.
+      </p>
+      <div class="shots">
+        <figure>
+          <img src="screenshots/m9-01-dark-home.png" alt="Home screen in dark mode">
+          <figcaption>Dark mode · Home</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/m9-02-dark-history.png" alt="History day view in dark mode showing a timeline chip">
+          <figcaption>Dark mode · History, expanded day</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshots/m9-03-release-onboarding.png" alt="Signed release build freshly installed, showing onboarding step 1">
+          <figcaption>Signed release APK · fresh install</figcaption>
+        </figure>
+      </div>
+      <p>
+        The actual release build was the one piece of real, new work: a
+        proper keystore, generated locally and never checked in, with
+        <code>android/app/build.gradle.kts</code> wired to sign against it
+        when present and fall back to the debug key otherwise, so a fresh
+        checkout without the keystore still builds for development.
+        <code>flutter build apk --release</code> produced a signed 58.1MB
+        APK. Verifying it meant uninstalling the debug-signed build first —
+        Android refuses to install an update signed with a different key
+        over an existing app — then a clean install of the release APK,
+        which booted straight to onboarding with no crash, confirming the
+        signing config actually works end to end rather than just
+        compiling.
+      </p>
+      <p>58/58 tests passing, <code>flutter analyze</code> clean. This closes the plan: all nine milestones — scaffold, data layer, domain engines, Riverpod wiring, the design-system handoff, core UI, the Android widget, Stats' charts, and this polish pass — are done. TimeManager is a complete, working, sideload-only Android app.</p>
     </div>
     <!-- STORY_ENTRIES_END -->
   </section>
@@ -863,7 +923,31 @@
     </div>
     <div class="log-entry">
       <span class="ts">2026-08-09</span><span class="tag">[M8/stats]</span>
-      <p>Verified on the emulator against the same install used for Milestone 7 testing (so real, if sparse, device data rather than a fresh onboarding): Overview's weekly-hit-rate chart correctly read "1 of 1 weeks hit target"; Patterns' monthly heatmap and daily/weekday-hours charts correctly showed the "not enough data yet" empty state (no completed sessions yet this month on this install) while the check-in-time histogram rendered real buckets from actual check-in timestamps; Leave's donut correctly showed 0.0/30.0 days against the onboarding-configured quota; the native custom date-range picker opened pre-filled with the current 30-day window, saved, and updated every Overview chart. `flutter analyze` clean, `flutter test` → 63/63 passing (58 prior + 5 new), `flutter build apk --debug` succeeds with the new charts included.</p>
+      <p>Verified on the emulator against the same install used for Milestone 7 testing (so real, if sparse, device data rather than a fresh onboarding): Overview's weekly-hit-rate chart correctly read "1 of 1 weeks hit target"; Patterns' monthly heatmap and daily/weekday-hours charts correctly showed the "not enough data yet" empty state (no completed sessions yet this month on this install) while the check-in-time histogram rendered real buckets from actual check-in timestamps; Leave's donut correctly showed 0.0/30.0 days against the onboarding-configured quota; the native custom date-range picker opened pre-filled with the current 30-day window, saved, and updated every Overview chart. `flutter analyze` clean, `flutter test` → 58/58 passing (53 prior + 5 new), `flutter build apk --debug` succeeds with the new charts included.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M9/polish]</span>
+      <p>Confirmed the audit log screen (`lib/features/settings/audit_log_screen.dart`) already existed and is already wired via `Navigator.push` from the Settings screen's buried "Audit log" row — built ahead of schedule during Milestone 6, so no new work needed here beyond re-verifying it on-device.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M9/polish]</span>
+      <p><strong>Scope call: "retroactive-edit warnings" interpreted as surfacing the one retroactive-edit path that actually exists in the UI.</strong> The Requirements doc's "any past entry can be edited/deleted, balance recalculates immediately and retroactively" is fully true at the data layer (`WorkSessionRepository.deleteSyntheticBreak` → `recalculateFrom`, built in Milestone 6), but the only retroactive edit actually exposed as a UI action is deleting a synthetic break — there's no general session start/end-time editor anywhere, and adding one would be new-feature scope, not polish, for a screen spec that never called for it. Added a small `_RetroactiveEditBadge` (a muted `pencilSimpleLine` glyph) to both the collapsed and expanded History day rows in `lib/features/history/history_screen.dart`, shown whenever `DayEntry.autoBreakOverridden` is true — a flag that's been tracked and honored by the recalculation engine since Milestone 2/3 but never once surfaced to the user. Ambient, no tooltip, no dialog, matching every other warning treatment in the app.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M9/polish]</span>
+      <p>Dark mode visual pass: `adb shell cmd uimode night yes`, then reviewed Home, History (collapsed and expanded day rows), and Stats (all three tabs) against `AppColors.dark`. No changes needed — every screen already reads color exclusively through the `context.colors` `ThemeExtension` rather than hardcoded values, so the Milestone 6 dark palette just worked. Reverted with `uimode night no` after.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M9/polish]</span>
+      <p>Release signing: generated a 2048-bit RSA keystore via the JBR's `keytool` (`JAVA_HOME`'s bundled JDK, same one used for the Milestone 7 Kotlin toolchain) at `android/app/time-manager-release.jks`, with credentials in `android/key.properties` — both already covered by `android/.gitignore`'s existing `key.properties`/`**/*.jks` rules from the Flutter scaffold, so neither needed a new gitignore entry. Wired `android/app/build.gradle.kts`: reads `key.properties` via `java.util.Properties`, declares a `signingConfigs["release"]` when the file exists, and the `release` buildType uses it — falling back to `signingConfigs["debug"]` (the scaffold's original behavior) when `key.properties` is absent, so a fresh clone without the keystore still builds for local development.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M9/polish]</span>
+      <p><code>flutter build apk --release</code> → signed APK, `build/app/outputs/flutter-apk/app-release.apk` (58.1MB). Verified the signing actually took effect rather than just trusting a clean compile: `adb uninstall` the existing debug-signed install first (installing a differently-signed APK over an existing app fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` otherwise), then `adb install` the release APK fresh. Launched via the launcher (not `flutter run`, which would reinstall its own debug build) — booted straight to onboarding step 1 with no crash and no `FlutterError`/`FATAL` in logcat, confirming the release build is genuinely installable end to end, not just theoretically signed. `flutter analyze` clean, `flutter test` → 58/58 passing.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M9/polish]</span>
+      <p><strong>Plan complete.</strong> All 9 milestones from `~/.claude/plans/groovy-twirling-meteor.md` are done: scaffold, Drift data layer, domain engines (break law, holidays, recalculation, vacation rollover), Riverpod wiring, the design-system spec handoff to Claude Design, core UI, the native Kotlin/Glance widget, Stats' real charts, and this polish/release pass. Added a short "Installing" section to README.md documenting the sideload flow (`flutter build apk --release` + `adb install`) and the `key.properties` requirement.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
