@@ -216,6 +216,43 @@
       </ul>
       <p>Next: turn the Data Model doc into an actual database.</p>
     </div>
+
+    <div class="entry">
+      <div class="date">09 August 2026</div>
+      <h3>The database comes online</h3>
+      <span class="pill">Milestone 2 · Data layer</span>
+      <p>
+        Every entity from the Data Model doc — sessions, breaks, leave,
+        holidays, the daily summary, the running balance, vacation quotas,
+        settings, and an audit trail — is now a real table in a real SQLite
+        database on disk, nine of them in total.
+      </p>
+      <p>
+        One design decision worth calling out: the doc's "Design Principles"
+        section says a day's summary record shouldn't exist until something
+        actually happens on that day (a check-in, a leave request). Rather
+        than trust the app to always remember that rule, it's now enforced by
+        the database itself — a session or a leave entry literally cannot be
+        saved for a day that doesn't have a summary record yet. Get the order
+        wrong, and the save fails loudly instead of quietly corrupting data
+        later.
+      </p>
+      <div class="problem">
+        <strong>Hit a snag: that rule wasn't actually being enforced</strong>
+        A test written specifically to check the DayEntry-before-WorkSession
+        rule passed... for the wrong reason — turns out SQLite ships with
+        that kind of protection switched off unless you explicitly ask for
+        it. One line (turning the protection on when the database opens)
+        fixed it, and the test then failed correctly until the real rule was
+        satisfied.
+      </div>
+      <ul>
+        <li>All 9 tables created, matching the design doc field-for-field</li>
+        <li>Data-integrity rule enforced at the database level, not just trusted to application code</li>
+        <li>6 automated tests confirm the whole thing round-trips correctly</li>
+      </ul>
+      <p>Next: the tricky part — the break-law math and balance recalculation logic.</p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -252,6 +289,38 @@
     <div class="log-entry">
       <span class="ts">2026-08-09</span><span class="tag">[M1/scaffold]</span>
       <p>Created this file (docs/build-log.html) — self-contained, no build step, dark/light aware via prefers-color-scheme. Structured with `&lt;!-- STORY_ENTRIES_END --&gt;` / `&lt;!-- TECH_LOG_END --&gt;` marker comments so future sessions append new entries above the marker rather than rewriting the file.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M2/data-layer]</span>
+      <p>Wrote lib/data/database/enums.dart (SessionStatus, BreakType, LeaveType, HolidaySource). Deliberately did NOT make AuditLogEntry.action a Dart enum — the Data Model doc lists it with a trailing "…", i.e. open-ended, so it's a plain TextColumn instead; noted as a documented deviation from the doc's literal "Enum" label.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M2/data-layer]</span>
+      <p>Wrote lib/data/database/converters.dart: WeekdayListConverter (TypeConverter&lt;List&lt;int&gt;, String&gt;) storing AppSettings.workDays as a comma-separated string of ISO-8601 weekday numbers (1=Mon..7=Sun), default '1,2,3,4,5'.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M2/data-layer]</span>
+      <p>Wrote lib/data/database/tables.dart: all 9 Drift tables (WorkSessions, BreakEntries, LeaveEntries, PublicHolidays, DayEntries, BalanceSnapshots, VacationQuotas, AppSettings, AuditLogEntries) matching the Data Model doc's fields/types/defaults 1:1. Settings table renamed AppSettings (class) to avoid any ambiguity with framework-level "Settings" naming — table name in SQL is still settings-shaped via Drift's default snake_case. WorkSessions.date, BreakEntries.date, LeaveEntries.date declared as FKs to DayEntries.date via `.references(DayEntries, #date)`, matching the Data Model's implicit invariant that these entities always belong to a day; PublicHolidays and BalanceSnapshots deliberately left un-FK'd since Data Model's "Design Principles" section says DayEntry is created lazily and these two don't strictly require one to exist first.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M2/data-layer]</span>
+      <p>Wrote one DAO per entity under lib/data/database/daos/ (WorkSessionDao, BreakEntryDao, LeaveEntryDao, PublicHolidayDao, DayEntryDao, BalanceSnapshotDao, VacationQuotaDao, SettingsDao, AuditLogDao) as @DriftAccessor mixins — CRUD plus the specific lookups the recalculation engine (Milestone 3) and Riverpod providers (Milestone 4) will need: forDate/watchForDate on the day-scoped entities, SettingsDao.effectiveFor(date) implementing the "highest effectiveFrom &lt;= date" versioned-settings rule, BalanceSnapshotDao.latestBefore(date) for cascade recalculation, AuditLogDao exposing only insert+query (no update/delete, matching "entries are read-only").</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M2/data-layer]</span>
+      <p>Wrote lib/data/database/database.dart (@DriftDatabase over all 9 tables + 9 DAOs), opening a NativeDatabase file at getApplicationDocumentsDirectory()/time_manager.sqlite via LazyDatabase.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M2/data-layer][bug]</span>
+      <p><strong>Problem:</strong> first `dart run build_runner build` produced 78 analyzer errors in database.g.dart — "Undefined class SessionStatus/BreakType/LeaveType/HolidaySource/WeekdayListConverter/Uuid". <strong>Cause:</strong> database.g.dart is `part of 'database.dart'`, so it only sees symbols database.dart itself imports — importing tables.dart (which defines the tables using those enums/converter/Uuid internally) does not transitively re-export them into database.dart's scope; Dart imports aren't transitive. <strong>Fix:</strong> added direct imports of enums.dart, converters.dart, and package:uuid/uuid.dart to database.dart. Re-ran build_runner → 0 errors, `flutter analyze` clean.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M2/data-layer][bug]</span>
+      <p><strong>Problem:</strong> wrote a test asserting that inserting a WorkSession before its DayEntry exists throws (FK violation) — it didn't throw, and a second insert after creating the DayEntry succeeded too, leaving 2 rows instead of 1. <strong>Cause:</strong> SQLite does not enforce foreign-key constraints by default on a given connection; drift's NativeDatabase doesn't turn this on for you. <strong>Fix:</strong> added `MigrationStrategy(beforeOpen: ...)` to AppDatabase running `PRAGMA foreign_keys = ON` on every connection open. Re-ran tests → the FK violation now throws as expected, all 6 data-layer tests pass.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-09</span><span class="tag">[M2/data-layer]</span>
+      <p>Added test/data/database_test.dart against an in-memory NativeDatabase: FK invariant (DayEntry before WorkSession), enum round-trips for BreakEntry/LeaveEntry/PublicHoliday, AppSettings default work-days converter + defaults, BalanceSnapshot.latestBefore, AuditLogDao insert+query. `flutter test` → 6/6 passed. `flutter analyze` → No issues found. Committed (435cb51) and pushed to PaulWiench/time-manager.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
