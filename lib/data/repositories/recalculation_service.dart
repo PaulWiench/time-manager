@@ -21,8 +21,10 @@ class RecalculationService {
       : _now = now;
 
   /// Recalculates [date]'s DayEntry, then cascades the balance forward from
-  /// [date] through today (or through [date] itself, if it's in the
-  /// future). Use for a single-day change (a session/leave/holiday edit).
+  /// [date] through today. A future [date] still gets its DayEntry
+  /// recalculated (e.g. a newly-added upcoming holiday), but no balance
+  /// snapshot is written for it — see [_cascadeBalanceFrom]. Use for a
+  /// single-day change (a session/leave/holiday edit).
   Future<void> recalculateFrom(DateTime date) async {
     final day = dateOnly(date);
     await db.transaction(() async {
@@ -124,15 +126,23 @@ class RecalculationService {
     }
   }
 
+  /// No-op for a [day] beyond today — a future date (e.g. an upcoming
+  /// holiday) has nothing "cumulative" to compute yet, and writing a
+  /// speculative snapshot for it would corrupt `watchLatest()`: `ORDER BY
+  /// date DESC` would then return that stale future row instead of today's
+  /// real balance the next time something in the *past* changes without
+  /// happening to also touch that same future date (e.g. a newly-seeded
+  /// holiday only recalculates from its own date forward, not any
+  /// already-existing future snapshots beyond it).
   Future<void> _cascadeBalanceFrom(DateTime day) async {
+    final today = dateOnly(_now());
+    if (day.isAfter(today)) return;
+
     final previous = await db.balanceSnapshotDao.latestBefore(day);
     final startingBalance = previous?.balance ?? 0.0;
 
-    final today = dateOnly(_now());
-    final end = day.isAfter(today) ? day : today;
-
     final deltas = <MapEntry<DateTime, double>>[];
-    for (var d = day; !d.isAfter(end); d = shiftDays(d, 1)) {
+    for (var d = day; !d.isAfter(today); d = shiftDays(d, 1)) {
       deltas.add(MapEntry(d, await _deltaFor(d)));
     }
 
@@ -144,6 +154,16 @@ class RecalculationService {
         balance: s.balance,
       ));
     }
+  }
+
+  /// One-time cleanup for a bug where earlier code wrote speculative
+  /// BalanceSnapshots for future holiday dates (before [_cascadeBalanceFrom]
+  /// was scoped to never do that) — those stale rows could outrank today's
+  /// real balance in `watchLatest()`'s `ORDER BY date DESC`. Deletes every
+  /// snapshot dated after today; a harmless no-op once none remain.
+  Future<void> purgeFutureSnapshots() async {
+    final today = dateOnly(_now());
+    await db.balanceSnapshotDao.deleteFromDate(shiftDays(today, 1));
   }
 
   /// A date's balance_delta: its DayEntry's, if one exists; otherwise

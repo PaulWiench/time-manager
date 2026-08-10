@@ -62,6 +62,12 @@ VacationQuotaRepository vacationQuotaRepository(Ref ref) {
 @Riverpod(keepAlive: true)
 Future<void> holidaySeed(Ref ref) async {
   final repo = ref.watch(publicHolidayRepositoryProvider);
+  // One-time cleanup of stray future BalanceSnapshots from before
+  // recalculation_service.dart's _cascadeBalanceFrom was scoped to never
+  // write speculative snapshots past today — see RecalculationService.
+  // purgeFutureSnapshots for why those could corrupt the displayed
+  // balance. Runs every launch; a no-op once none remain.
+  await ref.watch(recalculationServiceProvider).purgeFutureSnapshots();
   final year = DateTime.now().year;
   await repo.seedYear(year);
   await repo.seedYear(year + 1);

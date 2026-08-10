@@ -193,6 +193,26 @@ void main() {
     expect(dayEntry?.balanceDelta, 0);
   });
 
+  test('seeding a future holiday does not write a speculative BalanceSnapshot', () async {
+    // fixedNow is 2026-08-12; Christmas is well in the future from there.
+    final christmas = DateTime(2026, 12, 25);
+    await holidays.setHoliday(date: christmas, name: '1. Weihnachtstag');
+
+    expect(await db.balanceSnapshotDao.forDate(christmas), isNull);
+  });
+
+  test('purgeFutureSnapshots removes stray future rows but leaves past ones alone', () async {
+    final past = DateTime(2026, 8, 10);
+    final future = DateTime(2027, 12, 26);
+    await db.balanceSnapshotDao.upsert(BalanceSnapshotsCompanion.insert(date: past, balance: -25.07));
+    await db.balanceSnapshotDao.upsert(BalanceSnapshotsCompanion.insert(date: future, balance: -33.7));
+
+    await recalc.purgeFutureSnapshots();
+
+    expect(await db.balanceSnapshotDao.forDate(past), isNotNull);
+    expect(await db.balanceSnapshotDao.forDate(future), isNull);
+  });
+
   test('editSession retroactively shifts a session and recalculates its balance', () async {
     final day = DateTime(2026, 8, 10); // Monday
 
