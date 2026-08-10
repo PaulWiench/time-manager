@@ -27,6 +27,18 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color warningText;
   final Color warningTint;
 
+  final Color holidayFill;
+  final Color holidayText;
+  final Color holidayTint;
+
+  final Color vacationFill;
+  final Color vacationText;
+  final Color vacationTint;
+
+  final Color sickFill;
+  final Color sickText;
+  final Color sickTint;
+
   final Color idle;
   final List<BoxShadow> shadowSm;
 
@@ -46,6 +58,15 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.warningFill,
     required this.warningText,
     required this.warningTint,
+    required this.holidayFill,
+    required this.holidayText,
+    required this.holidayTint,
+    required this.vacationFill,
+    required this.vacationText,
+    required this.vacationTint,
+    required this.sickFill,
+    required this.sickText,
+    required this.sickTint,
     required this.idle,
     required this.shadowSm,
   });
@@ -66,6 +87,15 @@ class AppColors extends ThemeExtension<AppColors> {
     warningFill: oklch(0.70, 0.13, 75),
     warningText: oklch(0.40, 0.11, 75),
     warningTint: oklch(0.95, 0.035, 75),
+    holidayFill: oklch(0.64, 0.10, 220),
+    holidayText: oklch(0.38, 0.10, 220),
+    holidayTint: oklch(0.94, 0.03, 220),
+    vacationFill: oklch(0.64, 0.10, 145),
+    vacationText: oklch(0.38, 0.10, 145),
+    vacationTint: oklch(0.94, 0.03, 145),
+    sickFill: oklch(0.70, 0.13, 25),
+    sickText: oklch(0.40, 0.11, 25),
+    sickTint: oklch(0.95, 0.035, 25),
     idle: const Color(0xFFB2B6CA),
     shadowSm: [BoxShadow(color: const Color(0xFF1E1E2D).withValues(alpha: 0.07), blurRadius: 2, offset: const Offset(0, 1))],
   );
@@ -86,6 +116,15 @@ class AppColors extends ThemeExtension<AppColors> {
     warningFill: oklch(0.70, 0.13, 75),
     warningText: oklch(0.85, 0.07, 75),
     warningTint: oklch(0.26, 0.07, 75),
+    holidayFill: oklch(0.64, 0.10, 220),
+    holidayText: oklch(0.82, 0.06, 220),
+    holidayTint: oklch(0.24, 0.06, 220),
+    vacationFill: oklch(0.64, 0.10, 145),
+    vacationText: oklch(0.82, 0.06, 145),
+    vacationTint: oklch(0.24, 0.06, 145),
+    sickFill: oklch(0.70, 0.13, 25),
+    sickText: oklch(0.85, 0.07, 25),
+    sickTint: oklch(0.26, 0.07, 25),
     idle: const Color(0xFF595D6C),
     shadowSm: [BoxShadow(color: const Color(0xFF3F424D), spreadRadius: 1)],
   );
@@ -107,6 +146,15 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? warningFill,
     Color? warningText,
     Color? warningTint,
+    Color? holidayFill,
+    Color? holidayText,
+    Color? holidayTint,
+    Color? vacationFill,
+    Color? vacationText,
+    Color? vacationTint,
+    Color? sickFill,
+    Color? sickText,
+    Color? sickTint,
     Color? idle,
     List<BoxShadow>? shadowSm,
   }) {
@@ -126,6 +174,15 @@ class AppColors extends ThemeExtension<AppColors> {
       warningFill: warningFill ?? this.warningFill,
       warningText: warningText ?? this.warningText,
       warningTint: warningTint ?? this.warningTint,
+      holidayFill: holidayFill ?? this.holidayFill,
+      holidayText: holidayText ?? this.holidayText,
+      holidayTint: holidayTint ?? this.holidayTint,
+      vacationFill: vacationFill ?? this.vacationFill,
+      vacationText: vacationText ?? this.vacationText,
+      vacationTint: vacationTint ?? this.vacationTint,
+      sickFill: sickFill ?? this.sickFill,
+      sickText: sickText ?? this.sickText,
+      sickTint: sickTint ?? this.sickTint,
       idle: idle ?? this.idle,
       shadowSm: shadowSm ?? this.shadowSm,
     );
@@ -150,6 +207,15 @@ class AppColors extends ThemeExtension<AppColors> {
       warningFill: Color.lerp(warningFill, other.warningFill, t)!,
       warningText: Color.lerp(warningText, other.warningText, t)!,
       warningTint: Color.lerp(warningTint, other.warningTint, t)!,
+      holidayFill: Color.lerp(holidayFill, other.holidayFill, t)!,
+      holidayText: Color.lerp(holidayText, other.holidayText, t)!,
+      holidayTint: Color.lerp(holidayTint, other.holidayTint, t)!,
+      vacationFill: Color.lerp(vacationFill, other.vacationFill, t)!,
+      vacationText: Color.lerp(vacationText, other.vacationText, t)!,
+      vacationTint: Color.lerp(vacationTint, other.vacationTint, t)!,
+      sickFill: Color.lerp(sickFill, other.sickFill, t)!,
+      sickText: Color.lerp(sickText, other.sickText, t)!,
+      sickTint: Color.lerp(sickTint, other.sickTint, t)!,
       idle: Color.lerp(idle, other.idle, t)!,
       shadowSm: shadowSm,
     );

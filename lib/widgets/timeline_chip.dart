@@ -4,17 +4,16 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 
-enum ChipRole { work, realBreak, syntheticBreak, leave }
+enum ChipRole { work, realBreak, syntheticBreak, leave, holiday, vacation, sick }
 
 /// The filled rounded chip used on Home's timeline and History's expanded
-/// day rows to represent a work/break/leave block. Three of the four roles
-/// come straight from the handoff (work = accent tint, real break = teal
-/// tint, synthetic break = dashed outline with a delete affordance); leave
-/// has no color spec in the handoff (only mentioned as needing to be
-/// "tellable apart" from the other two) — since the design's semantic
-/// palette deliberately caps at accent/break/warning (no fourth hue),
-/// leave is given a neutral bordered treatment with a calendar glyph
-/// instead of inventing an unspecified color.
+/// day rows to represent a work/break/leave block. Work, real break, and
+/// synthetic break come straight from the handoff (accent tint / teal tint /
+/// dashed outline with a delete affordance). Holiday, vacation, and sick
+/// each get their own filled hue (added for History's day-category
+/// color-coding) so they're tellable apart at a glance; `leave` remains the
+/// neutral bordered fallback for leave types without a dedicated hue (e.g.
+/// flex days), instead of inventing an unspecified color for them.
 class TimelineChip extends StatelessWidget {
   final ChipRole role;
   final String label;
@@ -30,6 +29,12 @@ class TimelineChip extends StatelessWidget {
         return _filled(background: colors.accentTint, textColor: colors.accentText);
       case ChipRole.realBreak:
         return _filled(background: colors.breakTint, textColor: colors.breakText);
+      case ChipRole.holiday:
+        return _filled(background: colors.holidayTint, textColor: colors.holidayText);
+      case ChipRole.vacation:
+        return _filled(background: colors.vacationTint, textColor: colors.vacationText);
+      case ChipRole.sick:
+        return _filled(background: colors.sickTint, textColor: colors.sickText);
       case ChipRole.leave:
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

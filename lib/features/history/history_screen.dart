@@ -14,6 +14,7 @@ import '../../domain/timeline_builder.dart';
 import '../../providers/day_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/settings_providers.dart';
+import '../../widgets/edit_session_sheet.dart';
 import '../../widgets/timeline_chip.dart';
 
 enum HistoryMode { month, week, day }
@@ -295,7 +296,56 @@ class _RangeRow extends StatelessWidget {
   }
 }
 
-enum _DayStatus { normal, missed, rest, scheduled, today }
+enum _DayStatus { normal, missed, rest, scheduled, today, holiday }
+
+/// A day's category for History's background-tint color-coding — holiday
+/// takes priority over leave (Requirements § 4: a holiday landing on a
+/// leave day still shows as a holiday), and among leave types the more
+/// "unplanned" ones surface first when a day somehow has more than one.
+enum _DayCategory { holiday, sick, vacation, flexDay, missed, normal }
+
+class _CategoryStyle {
+  final Color? background;
+  final Color text;
+  final Color subtitle;
+  const _CategoryStyle({this.background, required this.text, required this.subtitle});
+}
+
+_CategoryStyle _styleFor(AppColors colors, _DayCategory category) {
+  switch (category) {
+    case _DayCategory.holiday:
+      return _CategoryStyle(background: colors.holidayTint, text: colors.holidayText, subtitle: colors.holidayText);
+    case _DayCategory.sick:
+      return _CategoryStyle(background: colors.sickTint, text: colors.sickText, subtitle: colors.sickText);
+    case _DayCategory.vacation:
+      return _CategoryStyle(background: colors.vacationTint, text: colors.vacationText, subtitle: colors.vacationText);
+    case _DayCategory.flexDay:
+      return _CategoryStyle(background: colors.surface2, text: colors.text, subtitle: colors.textMuted);
+    case _DayCategory.missed:
+      return _CategoryStyle(background: colors.warningTint, text: colors.warningText, subtitle: colors.warningText);
+    case _DayCategory.normal:
+      return _CategoryStyle(background: null, text: colors.text, subtitle: colors.textMuted);
+  }
+}
+
+_DayCategory _categoryForLeaveAndHoliday(List<LeaveEntry> leave, PublicHoliday? holiday) {
+  if (holiday != null) return _DayCategory.holiday;
+  if (leave.any((l) => l.type == LeaveType.sick)) return _DayCategory.sick;
+  if (leave.any((l) => l.type == LeaveType.vacation)) return _DayCategory.vacation;
+  if (leave.any((l) => l.type == LeaveType.flexDay)) return _DayCategory.flexDay;
+  return _DayCategory.normal;
+}
+
+ChipRole _chipRoleForLeave(LeaveType type) {
+  switch (type) {
+    case LeaveType.vacation:
+      return ChipRole.vacation;
+    case LeaveType.sick:
+      return ChipRole.sick;
+    case LeaveType.flexDay:
+      return ChipRole.leave;
+  }
+}
 
 class _DayList extends ConsumerWidget {
   final DateTime weekStart;
@@ -331,6 +381,7 @@ class _DayRowConsumer extends ConsumerWidget {
     final colors = context.colors;
     final dayEntry = ref.watch(dayEntryForDateProvider(date)).valueOrNull;
     final settings = ref.watch(effectiveSettingsForProvider(date)).valueOrNull;
+    final holiday = ref.watch(publicHolidayForDateProvider(date)).valueOrNull;
 
     if (dayEntry != null) {
       return _ExpandableDayRow(
@@ -343,7 +394,9 @@ class _DayRowConsumer extends ConsumerWidget {
 
     final isWorkDay = settings?.workDays.contains(date.weekday) ?? false;
     late final _DayStatus status;
-    if (!isWorkDay) {
+    if (holiday != null) {
+      status = _DayStatus.holiday;
+    } else if (!isWorkDay) {
       status = _DayStatus.rest;
     } else if (date.isAfter(today)) {
       status = _DayStatus.scheduled;
@@ -355,9 +408,16 @@ class _DayRowConsumer extends ConsumerWidget {
 
     final target = settings == null
         ? 0.0
-        : computeTargetHours(date: date, workDays: settings.workDays, weeklyHours: settings.weeklyHours);
+        : computeTargetHours(
+            date: date,
+            workDays: settings.workDays,
+            weeklyHours: settings.weeklyHours,
+            holidayFraction: holiday?.fraction,
+          );
 
     switch (status) {
+      case _DayStatus.holiday:
+        return _SimpleDayRow(date: date, subtitle: holiday!.name, delta: -target, colors: colors, category: _DayCategory.holiday);
       case _DayStatus.rest:
         return Opacity(
           opacity: 0.5,
@@ -373,7 +433,7 @@ class _DayRowConsumer extends ConsumerWidget {
           subtitle: 'No entry',
           delta: -target,
           colors: colors,
-          warning: true,
+          category: _DayCategory.missed,
         );
       case _DayStatus.normal:
         return const SizedBox.shrink();
@@ -386,39 +446,34 @@ class _SimpleDayRow extends StatelessWidget {
   final String subtitle;
   final double? delta;
   final AppColors colors;
-  final bool warning;
+  final _DayCategory category;
 
-  const _SimpleDayRow({required this.date, required this.subtitle, required this.delta, required this.colors, this.warning = false});
+  const _SimpleDayRow({required this.date, required this.subtitle, required this.delta, required this.colors, this.category = _DayCategory.normal});
 
   @override
   Widget build(BuildContext context) {
-    final textColor = warning ? colors.warningText : colors.text;
-    final subColor = warning ? colors.warningText : colors.textMuted;
+    final style = _styleFor(colors, category);
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: colors.divider))),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: style.background,
+        borderRadius: style.background != null ? BorderRadius.circular(AppRadius.md) : null,
+        border: style.background == null ? Border(bottom: BorderSide(color: colors.divider)) : null,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (warning) ...[
-                Container(width: 6, height: 6, decoration: BoxDecoration(color: colors.warningFill, shape: BoxShape.circle)),
-                const SizedBox(width: 8),
-              ],
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(AppFormat.dayRow(date), style: AppTextStyles.body.copyWith(color: textColor)),
-                  const SizedBox(height: 2),
-                  Text(subtitle, style: AppTextStyles.meta.copyWith(color: subColor, fontSize: 11)),
-                ],
-              ),
+              Text(AppFormat.dayRow(date), style: AppTextStyles.body.copyWith(color: style.text)),
+              const SizedBox(height: 2),
+              Text(subtitle, style: AppTextStyles.meta.copyWith(color: style.subtitle, fontSize: 11)),
             ],
           ),
           Text(
             delta == null ? '—' : AppFormat.hm(delta!, signed: true),
-            style: AppTextStyles.heroNumber(13).copyWith(color: warning ? colors.warningText : colors.textMuted),
+            style: AppTextStyles.heroNumber(13).copyWith(color: style.subtitle),
           ),
         ],
       ),
@@ -437,13 +492,21 @@ class _ExpandableDayRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
+    final leave = ref.watch(leaveForDateProvider(date)).valueOrNull ?? const [];
+    final holiday = ref.watch(publicHolidayForDateProvider(date)).valueOrNull;
+    final category = _categoryForLeaveAndHoliday(leave, holiday);
+    final style = _styleFor(colors, category);
 
     if (!expanded) {
       return InkWell(
         onTap: onToggle,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: colors.divider))),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          decoration: BoxDecoration(
+            color: style.background,
+            borderRadius: style.background != null ? BorderRadius.circular(AppRadius.md) : null,
+            border: style.background == null ? Border(bottom: BorderSide(color: colors.divider)) : null,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -452,7 +515,7 @@ class _ExpandableDayRow extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      Text(AppFormat.dayRow(date), style: AppTextStyles.body.copyWith(color: colors.text)),
+                      Text(AppFormat.dayRow(date), style: AppTextStyles.body.copyWith(color: style.text)),
                       if (dayEntry.autoBreakOverridden) ...[
                         const SizedBox(width: 5),
                         _RetroactiveEditBadge(colors: colors),
@@ -460,7 +523,7 @@ class _ExpandableDayRow extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 2),
-                  Text('${AppFormat.hm(dayEntry.netWorkedHours)} worked', style: AppTextStyles.meta.copyWith(color: colors.textMuted, fontSize: 11)),
+                  Text('${AppFormat.hm(dayEntry.netWorkedHours)} worked', style: AppTextStyles.meta.copyWith(color: style.subtitle, fontSize: 11)),
                 ],
               ),
               Text(AppFormat.hm(dayEntry.balanceDelta, signed: true), style: AppTextStyles.heroNumber(13).copyWith(color: colors.accentText)),
@@ -472,11 +535,11 @@ class _ExpandableDayRow extends ConsumerWidget {
 
     final sessions = ref.watch(sessionsForDateProvider(date)).valueOrNull ?? const [];
     final breaks = ref.watch(breaksForDateProvider(date)).valueOrNull ?? const [];
-    final leave = ref.watch(leaveForDateProvider(date)).valueOrNull ?? const [];
 
     final completedIntervals = [
       for (final s in sessions)
-        if (s.status == SessionStatus.completed && s.endTime != null) TimelineInterval(start: s.startTime, end: s.endTime!),
+        if (s.status == SessionStatus.completed && s.endTime != null)
+          TimelineInterval(start: s.startTime, end: s.endTime!, id: s.id),
     ];
     final syntheticBreaks = [
       for (final b in breaks)
@@ -487,7 +550,7 @@ class _ExpandableDayRow extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(AppRadius.md)),
+      decoration: BoxDecoration(color: style.background ?? colors.surface, borderRadius: BorderRadius.circular(AppRadius.md)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -527,9 +590,10 @@ class _ExpandableDayRow extends ConsumerWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final b in blocks) _chipFor(context, ref, b),
+              if (holiday != null) TimelineChip(role: ChipRole.holiday, label: holiday.name),
+              for (final b in blocks) _chipFor(context, ref, b, sessions),
               for (final l in leave)
-                TimelineChip(role: ChipRole.leave, label: '${_leaveLabel(l.type)} · ${AppFormat.hm(l.hours)}'),
+                TimelineChip(role: _chipRoleForLeave(l.type), label: '${_leaveLabel(l.type)} · ${AppFormat.hm(l.hours)}'),
             ],
           ),
           if (dayEntry.notes != null && dayEntry.notes!.isNotEmpty) ...[
@@ -541,10 +605,13 @@ class _ExpandableDayRow extends ConsumerWidget {
     );
   }
 
-  Widget _chipFor(BuildContext context, WidgetRef ref, TimelineBlock b) {
+  Widget _chipFor(BuildContext context, WidgetRef ref, TimelineBlock b, List<WorkSession> sessions) {
     switch (b.type) {
       case TimelineBlockType.work:
-        return TimelineChip(role: ChipRole.work, label: 'Work · ${AppFormat.time(b.start)} – ${AppFormat.time(b.end)}');
+        final chip = TimelineChip(role: ChipRole.work, label: 'Work · ${AppFormat.time(b.start)} – ${AppFormat.time(b.end)}');
+        final matches = sessions.where((s) => s.id == b.id);
+        if (matches.isEmpty) return chip;
+        return GestureDetector(onTap: () => EditSessionSheet.show(context, matches.first), child: chip);
       case TimelineBlockType.realBreak:
         return TimelineChip(role: ChipRole.realBreak, label: 'Break · ${AppFormat.time(b.start)} – ${AppFormat.time(b.end)}');
       case TimelineBlockType.syntheticBreak:

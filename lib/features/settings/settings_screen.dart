@@ -6,12 +6,13 @@ import '../../core/format.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../data/database/database.dart';
 import '../../domain/date_only.dart';
-import '../../providers/database_providers.dart';
+import '../../providers/holiday_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/settings_providers.dart';
+import '../../providers/vacation_quota_providers.dart';
 import 'audit_log_screen.dart';
+import 'holiday_list_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -320,17 +321,43 @@ class _VacationQuotaRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final year = DateTime.now().year;
-    return FutureBuilder<VacationQuota?>(
-      future: ref.read(appDatabaseProvider).vacationQuotaDao.forYear(year),
-      builder: (context, snapshot) {
-        final quota = snapshot.data;
-        return _NavRow(
-          label: 'Vacation quota',
-          value: quota == null ? '30 days/yr' : '${quota.totalDays.round()} days/yr',
-          colors: colors,
-          onTap: () {},
-        );
-      },
+    final quota = ref.watch(vacationQuotaForYearProvider(year)).valueOrNull;
+    final totalDays = quota?.totalDays ?? 30;
+    return _NavRow(
+      label: 'Vacation quota',
+      value: '${totalDays.round()} days/yr',
+      colors: colors,
+      onTap: () => _editVacationQuota(context, ref, year: year, current: totalDays),
+    );
+  }
+
+  Future<void> _editVacationQuota(BuildContext context, WidgetRef ref, {required int year, required double current}) async {
+    var value = current;
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Vacation quota'),
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(onPressed: () => setState(() => value = (value - 1).clamp(0, 60)), icon: const Icon(Icons.remove)),
+              SizedBox(width: 70, child: Text('${value.round()} days', textAlign: TextAlign.center)),
+              IconButton(onPressed: () => setState(() => value = (value + 1).clamp(0, 60)), icon: const Icon(Icons.add)),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                ref.read(vacationQuotaRepositoryProvider).setQuota(year: year, totalDays: value);
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -342,12 +369,13 @@ class _PublicHolidaysRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final year = DateTime.now().year;
-    return FutureBuilder<List<PublicHoliday>>(
-      future: ref.read(appDatabaseProvider).publicHolidayDao.forYear(year),
-      builder: (context, snapshot) {
-        final count = snapshot.data?.length ?? 0;
-        return _NavRow(label: 'Public holidays', value: 'DE · $count', colors: colors, onTap: () {}, isLast: true);
-      },
+    final count = ref.watch(publicHolidaysForYearProvider(year)).valueOrNull?.length ?? 0;
+    return _NavRow(
+      label: 'Public holidays',
+      value: 'DE (BW) · $count',
+      colors: colors,
+      isLast: true,
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HolidayListScreen())),
     );
   }
 }

@@ -6,8 +6,10 @@ import '../database/database.dart';
 import '../database/enums.dart';
 import 'recalculation_service.dart';
 
-/// German public holidays — auto-seeded via [germanNationalHolidays], fully
-/// user-editable afterward (Requirements & Scope § 4).
+/// German public holidays — auto-seeded via [germanNationalHolidays] plus
+/// [badenWuerttembergHolidays] (the only region this app's user is in),
+/// fully user-editable afterward for any other region/company holiday
+/// (Requirements & Scope § 4).
 class PublicHolidayRepository {
   final AppDatabase db;
   final RecalculationService recalc;
@@ -17,17 +19,25 @@ class PublicHolidayRepository {
   Future<PublicHoliday?> forDate(DateTime date) =>
       db.publicHolidayDao.forDate(dateOnly(date));
 
+  Stream<PublicHoliday?> watchForDate(DateTime date) =>
+      db.publicHolidayDao.watchForDate(dateOnly(date));
+
   Future<List<PublicHoliday>> forYear(int year) =>
       db.publicHolidayDao.forYear(year);
 
-  /// Seeds [year]'s national holidays if they aren't already present —
-  /// won't overwrite a holiday the user has already edited/removed, since
-  /// it only inserts rows that don't yet exist for those dates.
+  Stream<List<PublicHoliday>> watchForYear(int year) =>
+      db.publicHolidayDao.watchForYear(year);
+
+  /// Seeds [year]'s national + Baden-Württemberg holidays if they aren't
+  /// already present — won't overwrite a holiday the user has already
+  /// edited/removed, since it only inserts rows that don't yet exist for
+  /// those dates.
   Future<void> seedYear(int year) async {
     final existing = await db.publicHolidayDao.forYear(year);
     final existingDates = existing.map((h) => h.date).toSet();
 
-    for (final seed in germanNationalHolidays(year)) {
+    final seeds = [...germanNationalHolidays(year), ...badenWuerttembergHolidays(year)];
+    for (final seed in seeds) {
       if (existingDates.contains(seed.date)) continue;
       await db.publicHolidayDao.upsertHoliday(PublicHolidaysCompanion.insert(
         date: seed.date,

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../domain/date_only.dart';
 import '../database/database.dart';
@@ -45,8 +46,11 @@ class WorkSessionRepository {
         newValue: Value(jsonEncode({'startTime': at.toIso8601String()})),
       ));
     });
-    // No recalculation needed yet — an active session has no end time and
-    // doesn't contribute to net worked hours until it's checked out.
+    // An active session has no end time and doesn't contribute to net
+    // worked hours yet, but the DayEntry row was just created with default
+    // (zero) target_hours — recalc so target/balance are correct while the
+    // session is still running, not just after checkout.
+    await recalc.recalculateFrom(day);
   }
 
   /// Stops the active session at [at]. Sessions shorter than the
@@ -176,5 +180,86 @@ class WorkSessionRepository {
       ));
     });
     await recalc.recalculateFrom(day);
+  }
+
+  /// Records a user-added break within a session's span. Per Data Model §
+  /// DayEntry (see `domain/recalculation_engine.dart`'s doc comment), a
+  /// manual break is treated as an annotation only — it doesn't reduce
+  /// net worked hours the way the auto-break deduction does — so the
+  /// recalc call here is just to keep `DayEntry.updatedAt` fresh, not
+  /// because the numbers change.
+  Future<void> addManualBreak({required DateTime date, required DateTime start, required DateTime end}) async {
+    final day = dateOnly(date);
+    final breakId = const Uuid().v4();
+    await db.transaction(() async {
+      await db.breakEntryDao.insertBreak(BreakEntriesCompanion.insert(
+        id: Value(breakId),
+        date: day,
+        startTime: start,
+        endTime: end,
+        type: BreakType.manual,
+      ));
+      await db.auditLogDao.record(AuditLogEntriesCompanion.insert(
+        action: 'create',
+        entityType: 'BreakEntry',
+        entityId: Value(breakId),
+        newValue: Value(jsonEncode({
+          'startTime': start.toIso8601String(),
+          'endTime': end.toIso8601String(),
+        })),
+      ));
+    });
+    await recalc.recalculateFrom(day);
+  }
+
+  Future<void> updateManualBreak({required String breakId, required DateTime start, required DateTime end}) async {
+    final existing = await (db.select(db.breakEntries)..where((t) => t.id.equals(breakId))).getSingleOrNull();
+    if (existing == null) return;
+
+    final oldValue = jsonEncode({
+      'startTime': existing.startTime.toIso8601String(),
+      'endTime': existing.endTime.toIso8601String(),
+    });
+
+    await db.transaction(() async {
+      await db.breakEntryDao.updateBreak(BreakEntriesCompanion(
+        id: Value(existing.id),
+        date: Value(existing.date),
+        startTime: Value(start),
+        endTime: Value(end),
+        type: Value(existing.type),
+        updatedAt: Value(DateTime.now()),
+      ));
+      await db.auditLogDao.record(AuditLogEntriesCompanion.insert(
+        action: 'update',
+        entityType: 'BreakEntry',
+        entityId: Value(existing.id),
+        oldValue: Value(oldValue),
+        newValue: Value(jsonEncode({
+          'startTime': start.toIso8601String(),
+          'endTime': end.toIso8601String(),
+        })),
+      ));
+    });
+    await recalc.recalculateFrom(existing.date);
+  }
+
+  Future<void> deleteManualBreak(String breakId) async {
+    final existing = await (db.select(db.breakEntries)..where((t) => t.id.equals(breakId))).getSingleOrNull();
+    if (existing == null) return;
+
+    await db.transaction(() async {
+      await db.breakEntryDao.deleteBreak(breakId);
+      await db.auditLogDao.record(AuditLogEntriesCompanion.insert(
+        action: 'delete',
+        entityType: 'BreakEntry',
+        entityId: Value(breakId),
+        oldValue: Value(jsonEncode({
+          'startTime': existing.startTime.toIso8601String(),
+          'endTime': existing.endTime.toIso8601String(),
+        })),
+      ));
+    });
+    await recalc.recalculateFrom(existing.date);
   }
 }

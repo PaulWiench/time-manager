@@ -13,6 +13,15 @@ class VacationQuotaRepository {
 
   Future<VacationQuota?> forYear(int year) => db.vacationQuotaDao.forYear(year);
 
+  Stream<VacationQuota?> watchForYear(int year) => db.vacationQuotaDao.watchForYear(year);
+
+  Future<void> setQuota({required int year, required double totalDays}) {
+    return db.vacationQuotaDao.upsert(VacationQuotasCompanion(
+      year: Value(year),
+      totalDays: Value(totalDays),
+    ));
+  }
+
   Future<double> usedDaysForYear(int year) async {
     final leave = await db.leaveEntryDao.forYear(year);
     var hours = 0.0;

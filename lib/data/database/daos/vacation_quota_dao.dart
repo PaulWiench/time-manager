@@ -14,6 +14,10 @@ class VacationQuotaDao extends DatabaseAccessor<AppDatabase>
       (select(vacationQuotas)..where((t) => t.year.equals(year)))
           .getSingleOrNull();
 
+  Stream<VacationQuota?> watchForYear(int year) =>
+      (select(vacationQuotas)..where((t) => t.year.equals(year)))
+          .watchSingleOrNull();
+
   Future<int> upsert(VacationQuotasCompanion entry) =>
       into(vacationQuotas).insertOnConflictUpdate(entry);
 }

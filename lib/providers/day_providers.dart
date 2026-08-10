@@ -31,6 +31,11 @@ Stream<List<BreakEntry>> breaksForDate(Ref ref, DateTime date) {
   return ref.watch(appDatabaseProvider).breakEntryDao.watchForDate(date);
 }
 
+@riverpod
+Stream<PublicHoliday?> publicHolidayForDate(Ref ref, DateTime date) {
+  return ref.watch(publicHolidayRepositoryProvider).watchForDate(date);
+}
+
 /// Used by History's Month/Week rows to aggregate worked hours + balance
 /// delta over a range without a per-day family provider each.
 @riverpod

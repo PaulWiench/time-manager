@@ -37,4 +37,19 @@ void main() {
       expect(byName['Pfingstmontag'], easter.add(const Duration(days: 50)));
     });
   });
+
+  group('badenWuerttembergHolidays', () {
+    test('includes all 3 BW-specific holidays with correct dates for 2026', () {
+      final holidays = badenWuerttembergHolidays(2026);
+      final byName = {for (final h in holidays) h.name: h.date};
+
+      expect(holidays, hasLength(3));
+      expect(byName['Heilige Drei Könige'], DateTime(2026, 1, 6));
+      expect(byName['Allerheiligen'], DateTime(2026, 11, 1));
+
+      // Fronleichnam 2026 is June 4 — the date the user reported the app
+      // incorrectly showing as a missed workday (Problems.md).
+      expect(byName['Fronleichnam'], DateTime(2026, 6, 4));
+    });
+  });
 }

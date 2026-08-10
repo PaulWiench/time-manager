@@ -6,6 +6,7 @@ import 'package:time_manager/data/repositories/leave_repository.dart';
 import 'package:time_manager/data/repositories/public_holiday_repository.dart';
 import 'package:time_manager/data/repositories/recalculation_service.dart';
 import 'package:time_manager/data/repositories/settings_repository.dart';
+import 'package:time_manager/data/repositories/vacation_quota_repository.dart';
 import 'package:time_manager/data/repositories/work_session_repository.dart';
 
 void main() {
@@ -20,6 +21,7 @@ void main() {
   late SettingsRepository settings;
   late LeaveRepository leave;
   late PublicHolidayRepository holidays;
+  late VacationQuotaRepository vacationQuota;
 
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
@@ -28,6 +30,7 @@ void main() {
     settings = SettingsRepository(db, recalc);
     leave = LeaveRepository(db, recalc);
     holidays = PublicHolidayRepository(db, recalc);
+    vacationQuota = VacationQuotaRepository(db);
 
     // effectiveFrom matches the earliest date any test uses (Monday), so
     // settings are actually effective for every test date, while still
@@ -72,6 +75,17 @@ void main() {
     final synthetic = (await db.breakEntryDao.forDate(day))
         .where((b) => b.type == BreakType.synthetic);
     expect(synthetic, hasLength(1));
+  });
+
+  test('checking in populates target hours immediately, before checkout', () async {
+    final day = DateTime(2026, 8, 10); // Monday, work day
+
+    await sessions.checkIn(day.add(const Duration(hours: 8)));
+
+    final dayEntry = await db.dayEntryDao.forDate(day);
+    expect(dayEntry, isNotNull);
+    expect(dayEntry!.targetHours, 8.0);
+    expect(dayEntry.netWorkedHours, 0);
   });
 
   test('too-short sessions are discarded and do not affect DayEntry', () async {
@@ -153,6 +167,103 @@ void main() {
     expect(dayEntry, isNotNull);
     expect(dayEntry!.targetHours, 0);
     expect(dayEntry.balanceDelta, 0);
+  });
+
+  test('seedYear auto-populates Baden-Württemberg holidays, including Fronleichnam', () async {
+    // Fronleichnam (June 4) falls before setUp's settings row takes effect
+    // (Aug 10), so a settings row covering it is needed for the day to
+    // resolve to a work day at all.
+    await settings.save(
+      effectiveFrom: DateTime(2026, 1, 1),
+      weeklyHours: 40,
+      workDays: const [1, 2, 3, 4, 5],
+      minSessionMinutes: 5,
+      autoBreakEnabled: true,
+      restrictCheckin: false,
+    );
+    await holidays.seedYear(2026);
+
+    final fronleichnam = DateTime(2026, 6, 4); // a Thursday, a work day
+    final holiday = await holidays.forDate(fronleichnam);
+    expect(holiday?.name, 'Fronleichnam');
+    expect(holiday?.source, HolidaySource.auto);
+
+    final dayEntry = await db.dayEntryDao.forDate(fronleichnam);
+    expect(dayEntry?.targetHours, 0);
+    expect(dayEntry?.balanceDelta, 0);
+  });
+
+  test('editSession retroactively shifts a session and recalculates its balance', () async {
+    final day = DateTime(2026, 8, 10); // Monday
+
+    await sessions.checkIn(day.add(const Duration(hours: 8)));
+    var active = await sessions.activeSession();
+    await sessions.checkOut(sessionId: active!.id, at: day.add(const Duration(hours: 12)));
+
+    final before = await db.dayEntryDao.forDate(day);
+    expect(before?.netWorkedHours, 4.0); // 4h gross, no gap, under 6h -> no break deduction
+
+    await sessions.editSession(sessionId: active.id, end: day.add(const Duration(hours: 14, minutes: 30)));
+
+    final after = await db.dayEntryDao.forDate(day);
+    // 6.5h gross now crosses the >6h threshold -> 30 min synthetic break -> 6.0h net.
+    expect(after?.netWorkedHours, 6.0);
+    expect(after?.balanceDelta, 6.0 - 8.0);
+  });
+
+  test('deleteSession removes a session and recalculates the day back down', () async {
+    final day = DateTime(2026, 8, 10); // Monday
+
+    await sessions.checkIn(day.add(const Duration(hours: 8)));
+    var active = await sessions.activeSession();
+    await sessions.checkOut(sessionId: active!.id, at: day.add(const Duration(hours: 12)));
+
+    expect((await db.dayEntryDao.forDate(day))?.netWorkedHours, 4.0);
+
+    await sessions.deleteSession(active.id);
+
+    final after = await db.dayEntryDao.forDate(day);
+    expect(after?.netWorkedHours, 0);
+    expect(after?.balanceDelta, -8.0); // missed target, same as an unworked day
+  });
+
+  test('manual breaks are annotations only and do not reduce net worked hours', () async {
+    final day = DateTime(2026, 8, 10); // Monday
+
+    await sessions.checkIn(day.add(const Duration(hours: 8)));
+    var active = await sessions.activeSession();
+    await sessions.checkOut(sessionId: active!.id, at: day.add(const Duration(hours: 12)));
+
+    final before = await db.dayEntryDao.forDate(day);
+    expect(before?.netWorkedHours, 4.0);
+
+    await sessions.addManualBreak(
+      date: day,
+      start: day.add(const Duration(hours: 10)),
+      end: day.add(const Duration(hours: 10, minutes: 15)),
+    );
+
+    final after = await db.dayEntryDao.forDate(day);
+    expect(after?.netWorkedHours, 4.0); // unchanged -- a manual break is an annotation, not a deduction
+
+    final stored = await db.breakEntryDao.forDate(day);
+    final manual = stored.where((b) => b.type == BreakType.manual).single;
+
+    await sessions.deleteManualBreak(manual.id);
+    final storedAfterDelete = await db.breakEntryDao.forDate(day);
+    expect(storedAfterDelete.where((b) => b.type == BreakType.manual), isEmpty);
+  });
+
+  test('setQuota creates and updates a year\'s vacation quota', () async {
+    expect(await vacationQuota.forYear(2026), isNull);
+
+    await vacationQuota.setQuota(year: 2026, totalDays: 25);
+    var quota = await vacationQuota.forYear(2026);
+    expect(quota?.totalDays, 25);
+
+    await vacationQuota.setQuota(year: 2026, totalDays: 28);
+    quota = await vacationQuota.forYear(2026);
+    expect(quota?.totalDays, 28);
   });
 
   test('balance carries forward across multiple days including a missed workday', () async {

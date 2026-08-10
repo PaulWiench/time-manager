@@ -15,6 +15,7 @@ import '../../providers/day_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/session_providers.dart';
 import '../../providers/settings_providers.dart';
+import '../../widgets/edit_session_sheet.dart';
 import '../../widgets/outlined_primary_button.dart';
 import '../../widgets/progress_ring.dart';
 import '../../widgets/stat_card.dart';
@@ -80,7 +81,7 @@ class _HomeBody extends ConsumerWidget {
     final completedIntervals = [
       for (final s in sessions)
         if (s.status == SessionStatus.completed && s.endTime != null)
-          TimelineInterval(start: s.startTime, end: s.endTime!),
+          TimelineInterval(start: s.startTime, end: s.endTime!, id: s.id),
     ];
     final syntheticBreaks = [
       for (final b in breaks)
@@ -219,6 +220,7 @@ class _HomeBody extends ConsumerWidget {
                   ? _TodayTimeline(
                       blocks: blocks,
                       leave: leave,
+                      sessions: sessions,
                       activeSession: isTracking ? activeSession : null,
                     )
                   : _EmptyState(onCheckIn: () => _toggleCheckInOut(context, ref, isTracking: false)),
@@ -267,9 +269,10 @@ class _EmptyState extends StatelessWidget {
 class _TodayTimeline extends StatelessWidget {
   final List<TimelineBlock> blocks;
   final List<dynamic> leave; // List<LeaveEntry>
+  final List<dynamic> sessions; // List<WorkSession>
   final dynamic activeSession; // WorkSession?
 
-  const _TodayTimeline({required this.blocks, required this.leave, required this.activeSession});
+  const _TodayTimeline({required this.blocks, required this.leave, required this.sessions, required this.activeSession});
 
   @override
   Widget build(BuildContext context) {
@@ -300,8 +303,9 @@ class _TodayTimeline extends StatelessWidget {
     }
 
     for (final l in leave) {
-      final label = '${_leaveLabel(l.type as LeaveType)} · ${AppFormat.hm(l.hours as double)}';
-      items.add(_ChipRow(colors: colors, child: TimelineChip(role: ChipRole.leave, label: label)));
+      final type = l.type as LeaveType;
+      final label = '${_leaveLabel(type)} · ${AppFormat.hm(l.hours as double)}';
+      items.add(_ChipRow(colors: colors, child: TimelineChip(role: _chipRoleForLeave(type), label: label)));
     }
 
     return ListView(padding: const EdgeInsets.fromLTRB(AppSpace.screenPadding, 0, AppSpace.screenPadding, 16), children: items);
@@ -310,7 +314,10 @@ class _TodayTimeline extends StatelessWidget {
   Widget _chipForBlock(BuildContext context, TimelineBlock block) {
     switch (block.type) {
       case TimelineBlockType.work:
-        return TimelineChip(role: ChipRole.work, label: 'Work session · ${AppFormat.hm(block.duration.inMinutes / 60.0)}');
+        final chip = TimelineChip(role: ChipRole.work, label: 'Work session · ${AppFormat.hm(block.duration.inMinutes / 60.0)}');
+        final matches = sessions.where((s) => s.id == block.id);
+        if (matches.isEmpty) return chip;
+        return GestureDetector(onTap: () => EditSessionSheet.show(context, matches.first), child: chip);
       case TimelineBlockType.realBreak:
         return TimelineChip(role: ChipRole.realBreak, label: 'Break · ${AppFormat.hm(block.duration.inMinutes / 60.0)}');
       case TimelineBlockType.syntheticBreak:
@@ -330,6 +337,17 @@ class _TodayTimeline extends StatelessWidget {
         return 'Sick';
       case LeaveType.flexDay:
         return 'Flex day';
+    }
+  }
+
+  ChipRole _chipRoleForLeave(LeaveType type) {
+    switch (type) {
+      case LeaveType.vacation:
+        return ChipRole.vacation;
+      case LeaveType.sick:
+        return ChipRole.sick;
+      case LeaveType.flexDay:
+        return ChipRole.leave;
     }
   }
 

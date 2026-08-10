@@ -533,6 +533,128 @@ class _BreaksForDateProviderElement
   DateTime get date => (origin as BreaksForDateProvider).date;
 }
 
+String _$publicHolidayForDateHash() =>
+    r'7492319437d06ed89070313163b14fccc9cf856a';
+
+/// See also [publicHolidayForDate].
+@ProviderFor(publicHolidayForDate)
+const publicHolidayForDateProvider = PublicHolidayForDateFamily();
+
+/// See also [publicHolidayForDate].
+class PublicHolidayForDateFamily extends Family<AsyncValue<PublicHoliday?>> {
+  /// See also [publicHolidayForDate].
+  const PublicHolidayForDateFamily();
+
+  /// See also [publicHolidayForDate].
+  PublicHolidayForDateProvider call(DateTime date) {
+    return PublicHolidayForDateProvider(date);
+  }
+
+  @override
+  PublicHolidayForDateProvider getProviderOverride(
+    covariant PublicHolidayForDateProvider provider,
+  ) {
+    return call(provider.date);
+  }
+
+  static const Iterable<ProviderOrFamily>? _dependencies = null;
+
+  @override
+  Iterable<ProviderOrFamily>? get dependencies => _dependencies;
+
+  static const Iterable<ProviderOrFamily>? _allTransitiveDependencies = null;
+
+  @override
+  Iterable<ProviderOrFamily>? get allTransitiveDependencies =>
+      _allTransitiveDependencies;
+
+  @override
+  String? get name => r'publicHolidayForDateProvider';
+}
+
+/// See also [publicHolidayForDate].
+class PublicHolidayForDateProvider
+    extends AutoDisposeStreamProvider<PublicHoliday?> {
+  /// See also [publicHolidayForDate].
+  PublicHolidayForDateProvider(DateTime date)
+    : this._internal(
+        (ref) => publicHolidayForDate(ref as PublicHolidayForDateRef, date),
+        from: publicHolidayForDateProvider,
+        name: r'publicHolidayForDateProvider',
+        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+            ? null
+            : _$publicHolidayForDateHash,
+        dependencies: PublicHolidayForDateFamily._dependencies,
+        allTransitiveDependencies:
+            PublicHolidayForDateFamily._allTransitiveDependencies,
+        date: date,
+      );
+
+  PublicHolidayForDateProvider._internal(
+    super._createNotifier, {
+    required super.name,
+    required super.dependencies,
+    required super.allTransitiveDependencies,
+    required super.debugGetCreateSourceHash,
+    required super.from,
+    required this.date,
+  }) : super.internal();
+
+  final DateTime date;
+
+  @override
+  Override overrideWith(
+    Stream<PublicHoliday?> Function(PublicHolidayForDateRef provider) create,
+  ) {
+    return ProviderOverride(
+      origin: this,
+      override: PublicHolidayForDateProvider._internal(
+        (ref) => create(ref as PublicHolidayForDateRef),
+        from: from,
+        name: null,
+        dependencies: null,
+        allTransitiveDependencies: null,
+        debugGetCreateSourceHash: null,
+        date: date,
+      ),
+    );
+  }
+
+  @override
+  AutoDisposeStreamProviderElement<PublicHoliday?> createElement() {
+    return _PublicHolidayForDateProviderElement(this);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is PublicHolidayForDateProvider && other.date == date;
+  }
+
+  @override
+  int get hashCode {
+    var hash = _SystemHash.combine(0, runtimeType.hashCode);
+    hash = _SystemHash.combine(hash, date.hashCode);
+
+    return _SystemHash.finish(hash);
+  }
+}
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+mixin PublicHolidayForDateRef on AutoDisposeStreamProviderRef<PublicHoliday?> {
+  /// The parameter `date` of this provider.
+  DateTime get date;
+}
+
+class _PublicHolidayForDateProviderElement
+    extends AutoDisposeStreamProviderElement<PublicHoliday?>
+    with PublicHolidayForDateRef {
+  _PublicHolidayForDateProviderElement(super.provider);
+
+  @override
+  DateTime get date => (origin as PublicHolidayForDateProvider).date;
+}
+
 String _$dayEntriesInRangeHash() => r'a57bf2fa4abe02828606a2261de0f1b6f2b5948b';
 
 /// Used by History's Month/Week rows to aggregate worked hours + balance

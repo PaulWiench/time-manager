@@ -12,8 +12,9 @@ class TimelineBlock {
   final DateTime start;
   final DateTime end;
 
-  /// Set only for [TimelineBlockType.syntheticBreak] — the BreakEntry id,
-  /// needed to resolve a delete tap back to a specific row.
+  /// The originating row id — a WorkSession id for [TimelineBlockType.work]
+  /// blocks, a BreakEntry id for [TimelineBlockType.syntheticBreak] blocks.
+  /// Null for [TimelineBlockType.realBreak], which is never its own row.
   final String? id;
 
   const TimelineBlock({required this.type, required this.start, required this.end, this.id});
@@ -24,7 +25,13 @@ class TimelineBlock {
 class TimelineInterval {
   final DateTime start;
   final DateTime end;
-  const TimelineInterval({required this.start, required this.end});
+
+  /// The originating WorkSession id, threaded through to the resulting
+  /// [TimelineBlock] so a tap on a work block can be resolved back to the
+  /// session it came from (for editing/deleting it).
+  final String? id;
+
+  const TimelineInterval({required this.start, required this.end, this.id});
 }
 
 class TimelineSyntheticBreak {
@@ -52,7 +59,7 @@ List<TimelineBlock> buildDayTimeline({
   required List<TimelineSyntheticBreak> syntheticBreaks,
 }) {
   final occupied = <TimelineBlock>[
-    for (final s in sessions) TimelineBlock(type: TimelineBlockType.work, start: s.start, end: s.end),
+    for (final s in sessions) TimelineBlock(type: TimelineBlockType.work, start: s.start, end: s.end, id: s.id),
     for (final b in syntheticBreaks)
       TimelineBlock(type: TimelineBlockType.syntheticBreak, start: b.start, end: b.end, id: b.id),
   ]..sort((a, b) => a.start.compareTo(b.start));

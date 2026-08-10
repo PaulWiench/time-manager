@@ -2,10 +2,11 @@
 /// from a package — see Tech Stack § notable technical decisions. Movable
 /// feasts are derived from Easter Sunday via the corrected Gauss algorithm
 /// (including the 1954/1981 exception-day correction terms it's known for
-/// needing). Only the 9 holidays observed nationwide in every German state
-/// are included; state-specific holidays (e.g. Bavaria's Fronleichnam) are
-/// out of scope for v1 per Requirements § Out of Scope, and holidays are
-/// "fully editable by the user" regardless (Requirements § 4).
+/// needing). [germanNationalHolidays] covers the 9 holidays observed
+/// nationwide in every German state; [badenWuerttembergHolidays] adds the 3
+/// additional ones Baden-Württemberg observes, since that's the only region
+/// this app's user is in — holidays remain "fully editable by the user"
+/// regardless (Requirements § 4), for any other region/company holiday.
 library;
 
 import 'date_only.dart';
@@ -77,5 +78,17 @@ List<HolidaySeed> germanNationalHolidays(int year) {
     ),
     HolidaySeed(date: DateTime(year, 12, 25), name: '1. Weihnachtstag'),
     HolidaySeed(date: DateTime(year, 12, 26), name: '2. Weihnachtstag'),
+  ];
+}
+
+/// The 3 additional public holidays Baden-Württemberg observes on top of
+/// the 9 nationwide ones, for [year].
+List<HolidaySeed> badenWuerttembergHolidays(int year) {
+  final easter = gaussEasterSunday(year);
+
+  return [
+    HolidaySeed(date: DateTime(year, 1, 6), name: 'Heilige Drei Könige'),
+    HolidaySeed(date: shiftDays(easter, 60), name: 'Fronleichnam'),
+    HolidaySeed(date: DateTime(year, 11, 1), name: 'Allerheiligen'),
   ];
 }

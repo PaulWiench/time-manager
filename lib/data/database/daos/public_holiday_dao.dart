@@ -14,14 +14,20 @@ class PublicHolidayDao extends DatabaseAccessor<AppDatabase>
       (select(publicHolidays)..where((t) => t.date.equals(date)))
           .getSingleOrNull();
 
-  Future<List<PublicHoliday>> forYear(int year) {
+  Stream<PublicHoliday?> watchForDate(DateTime date) =>
+      (select(publicHolidays)..where((t) => t.date.equals(date)))
+          .watchSingleOrNull();
+
+  Future<List<PublicHoliday>> forYear(int year) => _forYearQuery(year).get();
+
+  Stream<List<PublicHoliday>> watchForYear(int year) => _forYearQuery(year).watch();
+
+  SimpleSelectStatement<PublicHolidays, PublicHoliday> _forYearQuery(int year) {
     final start = DateTime(year);
     final end = DateTime(year + 1);
-    return (select(publicHolidays)
-          ..where((t) =>
-              t.date.isBiggerOrEqualValue(start) &
-              t.date.isSmallerThanValue(end)))
-        .get();
+    return select(publicHolidays)
+      ..where((t) =>
+          t.date.isBiggerOrEqualValue(start) & t.date.isSmallerThanValue(end));
   }
 
   Future<int> upsertHoliday(PublicHolidaysCompanion entry) =>
