@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -38,19 +40,32 @@ class HomeScreen extends ConsumerWidget {
     if (activeSession != null) {
       return StreamBuilder<int>(
         stream: Stream.periodic(const Duration(seconds: 1), (i) => i),
-        builder: (context, snapshot) => _HomeBody(now: DateTime.now(), activeSession: activeSession, onOpenSettings: onOpenSettings),
+        builder: (context, snapshot) => _HomeBody(
+          now: DateTime.now(),
+          activeSession: activeSession,
+          onOpenSettings: onOpenSettings,
+        ),
       );
     }
-    return _HomeBody(now: DateTime.now(), activeSession: null, onOpenSettings: onOpenSettings);
+    return _HomeBody(
+      now: DateTime.now(),
+      activeSession: null,
+      onOpenSettings: onOpenSettings,
+    );
   }
 }
 
 class _HomeBody extends ConsumerWidget {
   final DateTime now;
-  final dynamic activeSession; // WorkSession?, kept dynamic to avoid importing the row type twice
+  final dynamic
+  activeSession; // WorkSession?, kept dynamic to avoid importing the row type twice
   final VoidCallback onOpenSettings;
 
-  const _HomeBody({required this.now, required this.activeSession, required this.onOpenSettings});
+  const _HomeBody({
+    required this.now,
+    required this.activeSession,
+    required this.onOpenSettings,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -59,24 +74,41 @@ class _HomeBody extends ConsumerWidget {
 
     final settings = ref.watch(effectiveSettingsForProvider(today)).valueOrNull;
     final dayEntry = ref.watch(dayEntryForDateProvider(today)).valueOrNull;
-    final sessions = ref.watch(sessionsForDateProvider(today)).valueOrNull ?? const [];
-    final breaks = ref.watch(breaksForDateProvider(today)).valueOrNull ?? const [];
-    final leave = ref.watch(leaveForDateProvider(today)).valueOrNull ?? const [];
+    final sessions =
+        ref.watch(sessionsForDateProvider(today)).valueOrNull ?? const [];
+    final breaks =
+        ref.watch(breaksForDateProvider(today)).valueOrNull ?? const [];
+    final leave =
+        ref.watch(leaveForDateProvider(today)).valueOrNull ?? const [];
     final balance = ref.watch(latestBalanceProvider).valueOrNull;
 
     if (settings == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final targetHours = dayEntry?.targetHours ??
-        computeTargetHours(date: today, workDays: settings.workDays, weeklyHours: settings.weeklyHours);
+    final targetHours =
+        dayEntry?.targetHours ??
+        computeTargetHours(
+          date: today,
+          workDays: settings.workDays,
+          weeklyHours: settings.weeklyHours,
+        );
 
     final isTracking = activeSession != null;
-    final liveElapsed = isTracking ? now.difference(activeSession.startTime as DateTime) : null;
-    final liveNetWorkedHours = (dayEntry?.netWorkedHours ?? 0) + (liveElapsed?.inSeconds ?? 0) / 3600.0;
-    final targetRatio = targetHours > 0 ? liveNetWorkedHours / targetHours : 0.0;
+    final liveElapsed = isTracking
+        ? now.difference(activeSession.startTime as DateTime)
+        : null;
+    final liveNetWorkedHours =
+        (dayEntry?.netWorkedHours ?? 0) +
+        (liveElapsed?.inSeconds ?? 0) / 3600.0;
+    final targetRatio = targetHours > 0
+        ? liveNetWorkedHours / targetHours
+        : 0.0;
     final lap = lapProgressFor(targetRatio);
-    final remaining = (targetHours - liveNetWorkedHours).clamp(0.0, double.infinity);
+    final remaining = (targetHours - liveNetWorkedHours).clamp(
+      0.0,
+      double.infinity,
+    );
     final balanceHours = balance?.balance ?? 0.0;
 
     // The ring is the sole fill indicator (no separate linear bar below it)
@@ -84,7 +116,10 @@ class _HomeBody extends ConsumerWidget {
     // than only jumping on check-in/out. Past the daily target it keeps
     // lapping instead of stopping at 100%, darkening one step per extra lap
     // so overtime reads as "still filling," not "stuck full."
-    final ringColor = darkenForLap(isTracking ? colors.accentFill : colors.idle, lap.lapIndex);
+    final ringColor = darkenForLap(
+      isTracking ? colors.accentFill : colors.idle,
+      lap.lapIndex,
+    );
 
     final completedIntervals = [
       for (final s in sessions)
@@ -93,9 +128,13 @@ class _HomeBody extends ConsumerWidget {
     ];
     final syntheticBreaks = [
       for (final b in breaks)
-        if (b.type == BreakType.synthetic) TimelineSyntheticBreak(id: b.id, start: b.startTime, end: b.endTime),
+        if (b.type == BreakType.synthetic)
+          TimelineSyntheticBreak(id: b.id, start: b.startTime, end: b.endTime),
     ];
-    final blocks = buildDayTimeline(sessions: completedIntervals, syntheticBreaks: syntheticBreaks);
+    final blocks = buildDayTimeline(
+      sessions: completedIntervals,
+      syntheticBreaks: syntheticBreaks,
+    );
     final hasAnyActivity = sessions.isNotEmpty || leave.isNotEmpty;
 
     return Scaffold(
@@ -103,27 +142,47 @@ class _HomeBody extends ConsumerWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpace.screenPadding, 14, AppSpace.screenPadding, 4),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.screenPadding,
+                14,
+                AppSpace.screenPadding,
+                4,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('TimeManager', style: AppTextStyles.screenTitle.copyWith(color: colors.text)),
+                      Text(
+                        'TimeManager',
+                        style: AppTextStyles.screenTitle.copyWith(
+                          color: colors.text,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text(AppFormat.headerDate(now), style: AppTextStyles.meta.copyWith(color: colors.textMuted)),
+                      Text(
+                        AppFormat.headerDate(now),
+                        style: AppTextStyles.meta.copyWith(
+                          color: colors.textMuted,
+                        ),
+                      ),
                     ],
                   ),
                   GestureDetector(
                     onTap: onOpenSettings,
-                    child: PhosphorIcon(PhosphorIconsRegular.gearSix, size: 20, color: colors.textMuted),
+                    child: PhosphorIcon(
+                      PhosphorIconsRegular.gearSix,
+                      size: 20,
+                      color: colors.textMuted,
+                    ),
                   ),
                 ],
               ),
             ),
             GestureDetector(
-              onTap: () => _toggleCheckInOut(context, ref, isTracking: isTracking),
+              onTap: () =>
+                  _toggleCheckInOut(context, ref, isTracking: isTracking),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: ProgressRing(
@@ -146,7 +205,9 @@ class _HomeBody extends ConsumerWidget {
                           Text(
                             isTracking ? 'TRACKING' : 'CHECKED OUT',
                             style: AppTextStyles.metaMedium.copyWith(
-                              color: isTracking ? colors.accentText : colors.textMuted,
+                              color: isTracking
+                                  ? colors.accentText
+                                  : colors.textMuted,
                               letterSpacing: 0.6,
                             ),
                           ),
@@ -154,12 +215,20 @@ class _HomeBody extends ConsumerWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        isTracking ? AppFormat.hms(liveElapsed!) : AppFormat.hm(liveNetWorkedHours),
-                        style: AppTextStyles.heroNumber(30).copyWith(color: colors.text),
+                        isTracking
+                            ? AppFormat.hms(liveElapsed!)
+                            : AppFormat.hm(liveNetWorkedHours),
+                        style: AppTextStyles.heroNumber(
+                          30,
+                        ).copyWith(color: colors.text),
                       ),
                       Text(
-                        isTracking ? 'since ${AppFormat.time(activeSession.startTime as DateTime)}' : 'today',
-                        style: AppTextStyles.meta.copyWith(color: colors.textMuted),
+                        isTracking
+                            ? 'since ${AppFormat.time(activeSession.startTime as DateTime)}'
+                            : 'today',
+                        style: AppTextStyles.meta.copyWith(
+                          color: colors.textMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -167,26 +236,50 @@ class _HomeBody extends ConsumerWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpace.screenPadding, 6, AppSpace.screenPadding, 0),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.screenPadding,
+                6,
+                AppSpace.screenPadding,
+                0,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Daily target', style: AppTextStyles.metaMedium.copyWith(color: colors.textMuted, fontSize: 12)),
+                  Text(
+                    'Daily target',
+                    style: AppTextStyles.metaMedium.copyWith(
+                      color: colors.textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
                   Text(
                     '${AppFormat.hm(liveNetWorkedHours)} / ${AppFormat.hm(targetHours)}',
-                    style: AppTextStyles.metaMedium.copyWith(color: colors.text, fontSize: 12),
+                    style: AppTextStyles.metaMedium.copyWith(
+                      color: colors.text,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpace.screenPadding, 16, AppSpace.screenPadding, 0),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.screenPadding,
+                16,
+                AppSpace.screenPadding,
+                0,
+              ),
               child: Row(
                 children: [
                   Expanded(
                     child: StatCard(
                       label: 'Remaining today',
-                      value: Text(AppFormat.hm(remaining), style: AppTextStyles.heroNumber(20).copyWith(color: colors.text)),
+                      value: Text(
+                        AppFormat.hm(remaining),
+                        style: AppTextStyles.heroNumber(
+                          20,
+                        ).copyWith(color: colors.text),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -195,7 +288,9 @@ class _HomeBody extends ConsumerWidget {
                       label: 'Balance',
                       value: Text(
                         AppFormat.hm(balanceHours, signed: true),
-                        style: AppTextStyles.heroNumber(20).copyWith(color: colors.accentText),
+                        style: AppTextStyles.heroNumber(
+                          20,
+                        ).copyWith(color: colors.accentText),
                       ),
                     ),
                   ),
@@ -203,10 +298,20 @@ class _HomeBody extends ConsumerWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpace.screenPadding, 20, AppSpace.screenPadding, 6),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.screenPadding,
+                20,
+                AppSpace.screenPadding,
+                6,
+              ),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('TODAY', style: AppTextStyles.kickerSm.copyWith(color: colors.textMuted)),
+                child: Text(
+                  'TODAY',
+                  style: AppTextStyles.kickerSm.copyWith(
+                    color: colors.textMuted,
+                  ),
+                ),
               ),
             ),
             Expanded(
@@ -217,7 +322,10 @@ class _HomeBody extends ConsumerWidget {
                       sessions: sessions,
                       activeSession: isTracking ? activeSession : null,
                     )
-                  : _EmptyState(onCheckIn: () => _toggleCheckInOut(context, ref, isTracking: false)),
+                  : _EmptyState(
+                      onCheckIn: () =>
+                          _toggleCheckInOut(context, ref, isTracking: false),
+                    ),
             ),
           ],
         ),
@@ -225,10 +333,17 @@ class _HomeBody extends ConsumerWidget {
     );
   }
 
-  Future<void> _toggleCheckInOut(BuildContext context, WidgetRef ref, {required bool isTracking}) async {
+  Future<void> _toggleCheckInOut(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool isTracking,
+  }) async {
     final repo = ref.read(workSessionRepositoryProvider);
     if (isTracking) {
-      await repo.checkOut(sessionId: activeSession.id as String, at: DateTime.now());
+      await repo.checkOut(
+        sessionId: activeSession.id as String,
+        at: DateTime.now(),
+      );
     } else {
       await repo.checkIn(DateTime.now());
     }
@@ -248,9 +363,16 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            PhosphorIcon(PhosphorIconsRegular.playCircle, size: 34, color: colors.textMuted),
+            PhosphorIcon(
+              PhosphorIconsRegular.playCircle,
+              size: 34,
+              color: colors.textMuted,
+            ),
             const SizedBox(height: 12),
-            Text('Nothing logged yet today', style: AppTextStyles.bodyLarge.copyWith(color: colors.text)),
+            Text(
+              'Nothing logged yet today',
+              style: AppTextStyles.bodyLarge.copyWith(color: colors.text),
+            ),
             const SizedBox(height: 18),
             OutlinedPrimaryButton(label: 'Check In', onPressed: onCheckIn),
           ],
@@ -266,7 +388,12 @@ class _TodayTimeline extends StatelessWidget {
   final List<dynamic> sessions; // List<WorkSession>
   final dynamic activeSession; // WorkSession?
 
-  const _TodayTimeline({required this.blocks, required this.leave, required this.sessions, required this.activeSession});
+  const _TodayTimeline({
+    required this.blocks,
+    required this.leave,
+    required this.sessions,
+    required this.activeSession,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -274,50 +401,146 @@ class _TodayTimeline extends StatelessWidget {
     final items = <Widget>[];
 
     if (blocks.isNotEmpty) {
-      items.add(_DotRow(
-        time: AppFormat.time(blocks.first.start),
-        label: 'Check in',
-        colors: colors,
-        pulsing: false,
-        isLast: false,
-      ));
-      for (final block in blocks) {
-        items.add(_ChipRow(colors: colors, child: _chipForBlock(context, block)));
+      // A dot for every check-in/out boundary, not just the first one — the
+      // line connecting two dots is styled after the block that spans
+      // them (solid accent for work, dashed break-color for a real break,
+      // fine-dotted for a synthetic one), so the rail itself tells the
+      // story before you even read a chip.
+      items.add(
+        _RailDot(
+          time: AppFormat.time(blocks.first.start),
+          label: 'Check in',
+          dotColor: _segmentColor(colors, blocks.first.type),
+          lineBelow: _lineStyleFor(colors, blocks.first.type),
+        ),
+      );
+
+      for (var i = 0; i < blocks.length; i++) {
+        final block = blocks[i];
+        items.add(
+          _RailContent(
+            lineBelow: _lineStyleFor(colors, block.type),
+            child: _chipForBlock(context, block),
+          ),
+        );
+
+        final next = i + 1 < blocks.length ? blocks[i + 1] : null;
+        if (next != null) {
+          items.add(
+            _RailDot(
+              time: AppFormat.time(block.end),
+              label: next.type == TimelineBlockType.work
+                  ? 'Check in'
+                  : 'Check out',
+              dotColor: _segmentColor(colors, next.type),
+              lineBelow: _lineStyleFor(colors, next.type),
+            ),
+          );
+        } else if (activeSession == null) {
+          items.add(
+            _RailDot(
+              time: AppFormat.time(block.end),
+              label: 'Check out',
+              dotColor: colors.idle,
+              lineBelow: null,
+              isLast: true,
+            ),
+          );
+        } else if ((activeSession.startTime as DateTime).isAfter(block.end)) {
+          // Still tracking, but not right where the last block left off —
+          // the gap before resuming reads as its own break segment.
+          final breakStyle = _RailLineStyle(
+            color: colors.breakFill,
+            dashed: true,
+            dashLength: 6,
+            gapLength: 4,
+          );
+          items.add(
+            _RailDot(
+              time: AppFormat.time(block.end),
+              label: 'Check out',
+              dotColor: colors.breakFill,
+              lineBelow: breakStyle,
+            ),
+          );
+          final breakHours =
+              (activeSession.startTime as DateTime)
+                  .difference(block.end)
+                  .inMinutes /
+              60.0;
+          items.add(
+            _RailContent(
+              lineBelow: breakStyle,
+              child: TimelineChip(
+                role: ChipRole.realBreak,
+                label: 'Break · ${AppFormat.hm(breakHours)}',
+              ),
+            ),
+          );
+        }
       }
     }
 
     if (activeSession != null) {
-      items.add(_DotRow(
-        time: null,
-        label: 'Tracking since ${AppFormat.time(activeSession.startTime as DateTime)}',
-        colors: colors,
-        pulsing: true,
-        isLast: true,
-      ));
+      items.add(
+        _RailDot(
+          time: null,
+          label:
+              'Tracking since ${AppFormat.time(activeSession.startTime as DateTime)}',
+          dotColor: colors.accentFill,
+          lineBelow: null,
+          isLast: true,
+          pulsing: true,
+        ),
+      );
     }
 
     for (final l in leave) {
       final type = l.type as LeaveType;
       final label = '${_leaveLabel(type)} · ${AppFormat.hm(l.hours as double)}';
-      items.add(_ChipRow(colors: colors, child: TimelineChip(role: _chipRoleForLeave(type), label: label)));
+      items.add(
+        _RailContent(
+          lineBelow: _RailLineStyle(color: colors.divider),
+          child: TimelineChip(role: _chipRoleForLeave(type), label: label),
+        ),
+      );
     }
 
-    return ListView(padding: const EdgeInsets.fromLTRB(AppSpace.screenPadding, 0, AppSpace.screenPadding, 16), children: items);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.screenPadding,
+        0,
+        AppSpace.screenPadding,
+        16,
+      ),
+      children: items,
+    );
   }
 
   Widget _chipForBlock(BuildContext context, TimelineBlock block) {
     switch (block.type) {
       case TimelineBlockType.work:
-        final chip = TimelineChip(role: ChipRole.work, label: 'Work session · ${AppFormat.hm(block.duration.inMinutes / 60.0)}');
+        final chip = TimelineChip(
+          role: ChipRole.work,
+          label:
+              'Work session · ${AppFormat.hm(block.duration.inMinutes / 60.0)}',
+        );
         final matches = sessions.where((s) => s.id == block.id);
         if (matches.isEmpty) return chip;
-        return GestureDetector(onTap: () => EditSessionSheet.show(context, matches.first), child: chip);
+        return GestureDetector(
+          onTap: () => EditSessionSheet.show(context, matches.first),
+          child: chip,
+        );
       case TimelineBlockType.realBreak:
-        return TimelineChip(role: ChipRole.realBreak, label: 'Break · ${AppFormat.hm(block.duration.inMinutes / 60.0)}');
+        return TimelineChip(
+          role: ChipRole.realBreak,
+          label: 'Break · ${AppFormat.hm(block.duration.inMinutes / 60.0)}',
+        );
       case TimelineBlockType.syntheticBreak:
         return TimelineChip(
           role: ChipRole.syntheticBreak,
-          label: 'Synthetic break · ${AppFormat.hm(block.duration.inMinutes / 60.0)}',
+          label:
+              'Synthetic break · ${AppFormat.hm(block.duration.inMinutes / 60.0)}',
           onDelete: () => _deleteSynthetic(context, block.start),
         );
     }
@@ -351,74 +574,232 @@ class _TodayTimeline extends StatelessWidget {
   }
 }
 
-class _DotRow extends StatelessWidget {
-  final String? time;
-  final String label;
-  final AppColors colors;
-  final bool pulsing;
-  final bool isLast;
+/// How the rail segment leading into the next dot/chip should render — a
+/// solid line for a work block, a dashed one (color + rhythm both carrying
+/// meaning) for a break. `null` means no line at all, i.e. this is the
+/// bottom of the rail.
+class _RailLineStyle {
+  final Color color;
+  final bool dashed;
+  final double dashLength;
+  final double gapLength;
 
-  const _DotRow({required this.time, required this.label, required this.colors, required this.pulsing, required this.isLast});
+  const _RailLineStyle({
+    required this.color,
+    this.dashed = false,
+    this.dashLength = 5,
+    this.gapLength = 4,
+  });
+}
+
+_RailLineStyle _lineStyleFor(AppColors colors, TimelineBlockType type) {
+  switch (type) {
+    case TimelineBlockType.work:
+      return _RailLineStyle(color: colors.accentFill);
+    case TimelineBlockType.realBreak:
+      return _RailLineStyle(
+        color: colors.breakFill,
+        dashed: true,
+        dashLength: 6,
+        gapLength: 4,
+      );
+    case TimelineBlockType.syntheticBreak:
+      return _RailLineStyle(
+        color: colors.textMuted,
+        dashed: true,
+        dashLength: 2,
+        gapLength: 3,
+      );
+  }
+}
+
+/// The dot that opens a block's segment is colored the same as the line
+/// below it, so the dot itself previews what kind of time is coming next.
+Color _segmentColor(AppColors colors, TimelineBlockType type) {
+  switch (type) {
+    case TimelineBlockType.work:
+      return colors.accentFill;
+    case TimelineBlockType.realBreak:
+      return colors.breakFill;
+    case TimelineBlockType.syntheticBreak:
+      return colors.textMuted;
+  }
+}
+
+class _RailLine extends StatelessWidget {
+  final _RailLineStyle? style;
+  const _RailLine({required this.style});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 16,
-          child: Column(
-            children: [
-              if (pulsing)
-                _PulsingDot(color: colors.accentFill, size: 9)
-              else
-                Container(width: 9, height: 9, margin: const EdgeInsets.only(top: 5), decoration: BoxDecoration(color: colors.accentFill, shape: BoxShape.circle)),
-              if (!isLast) Expanded(child: Container(width: 2, color: colors.divider, margin: const EdgeInsets.only(top: 2))),
-            ],
-          ),
+    final style = this.style;
+    if (style == null) return const SizedBox.shrink();
+    if (!style.dashed) {
+      return Container(
+        width: 2.5,
+        margin: const EdgeInsets.only(top: 2),
+        color: style.color,
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: CustomPaint(
+        size: const Size(2.5, 10),
+        painter: _DashedVerticalLinePainter(
+          color: style.color,
+          dashLength: style.dashLength,
+          gapLength: style.gapLength,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(time == null ? label : 'Check in', style: AppTextStyles.body.copyWith(color: colors.text)),
-                if (time != null) Text(time!, style: AppTextStyles.body.copyWith(color: colors.textMuted)),
-              ],
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _ChipRow extends StatelessWidget {
-  final Widget child;
-  final AppColors colors;
-  const _ChipRow({required this.child, required this.colors});
+class _DashedVerticalLinePainter extends CustomPainter {
+  final Color color;
+  final double dashLength;
+  final double gapLength;
+
+  _DashedVerticalLinePainter({
+    required this.color,
+    required this.dashLength,
+    required this.gapLength,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = size.width
+      ..strokeCap = StrokeCap.round;
+    final x = size.width / 2;
+    var y = 0.0;
+    while (y < size.height) {
+      final yEnd = math.min(y + dashLength, size.height);
+      canvas.drawLine(Offset(x, y), Offset(x, yEnd), paint);
+      y += dashLength + gapLength;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedVerticalLinePainter oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.dashLength != dashLength ||
+      oldDelegate.gapLength != gapLength;
+}
+
+/// A single check-in/out event on the rail — a colored dot plus its clock
+/// time, with the connecting line to whatever comes next living in the
+/// same row so the two always move together.
+class _RailDot extends StatelessWidget {
+  final String? time;
+  final String label;
+  final Color dotColor;
+  final _RailLineStyle? lineBelow;
+  final bool isLast;
+  final bool pulsing;
+
+  const _RailDot({
+    required this.time,
+    required this.label,
+    required this.dotColor,
+    required this.lineBelow,
+    this.isLast = false,
+    this.pulsing = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 16,
-          child: Column(
-            children: [Expanded(child: Container(width: 2, color: colors.divider))],
+    final colors = context.colors;
+    // IntrinsicHeight is load-bearing here, not decorative: a plain Row
+    // inside a ListView gets an unbounded height from the scroll axis, so
+    // the Expanded rail line below the dot has nothing to fill and
+    // collapses to a sliver instead of reaching the next dot. Forcing an
+    // intrinsic pass first gives the Row a real, bounded height (matching
+    // the label/time text) that the line can actually stretch to fill.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 16,
+            child: Column(
+              children: [
+                if (pulsing)
+                  _PulsingDot(color: dotColor, size: 9)
+                else
+                  Container(
+                    width: 9,
+                    height: 9,
+                    margin: const EdgeInsets.only(top: 5),
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                if (!isLast) Expanded(child: _RailLine(style: lineBelow)),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Align(alignment: Alignment.centerLeft, child: child),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    label,
+                    style: AppTextStyles.body.copyWith(color: colors.text),
+                  ),
+                  if (time != null)
+                    Text(
+                      time!,
+                      style: AppTextStyles.body.copyWith(
+                        color: colors.textMuted,
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A block's content (chip) sitting between its two boundary dots, with
+/// the rail continuing past it in the same style as the segment it's part
+/// of — so the color/dash pattern reads as one continuous line, not a
+/// dot-only affordance with plain gray in between.
+class _RailContent extends StatelessWidget {
+  final Widget child;
+  final _RailLineStyle? lineBelow;
+  const _RailContent({required this.child, required this.lineBelow});
+
+  @override
+  Widget build(BuildContext context) {
+    // Same IntrinsicHeight requirement as _RailDot — see its comment.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 16,
+            child: Column(
+              children: [Expanded(child: _RailLine(style: lineBelow))],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Align(alignment: Alignment.centerLeft, child: child),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -432,13 +813,17 @@ class _PulsingDot extends StatefulWidget {
   State<_PulsingDot> createState() => _PulsingDotState();
 }
 
-class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderStateMixin {
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))..repeat(reverse: true);
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat(reverse: true);
   }
 
   @override
@@ -450,7 +835,10 @@ class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderState
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
-      opacity: Tween(begin: 1.0, end: 0.25).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
+      opacity: Tween(
+        begin: 1.0,
+        end: 0.25,
+      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
       child: Container(
         width: widget.size,
         height: widget.size,

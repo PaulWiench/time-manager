@@ -835,6 +835,124 @@
         screen isn't something to automate.
       </p>
     </div>
+    <div class="entry">
+      <div class="date">10 August 2026</div>
+      <h3>One ring to fill them all</h3>
+      <span class="pill">Post-launch · Progress ring redesign</span>
+      <p>
+        Paul's next piece of feedback, right after the widget sizing/dark
+        mode fix: Home's progress ring and the separate linear "Daily
+        target" bar underneath it were both showing the same number in two
+        different shapes, and neither felt like it was actually
+        <em>filling</em> — the bar just snapped to a new value whenever
+        something recalculated, and the widget's ring only ever changed on
+        a check-in/out tap. He wanted one indicator, not two: the ring
+        should be the fill, it should visibly creep forward on its own
+        rather than jump, and once the daily target is hit it should keep
+        going around — overtime as another lap of the same ring, each lap
+        one shade darker than the last, instead of stopping dead at 100%.
+      </p>
+      <p>
+        Dropped the linear bar entirely (kept the "Daily target 8:38 /
+        7:54"-style text above it, just not its own progress fill) and
+        wrote the lap math once, in parallel, on both sides of the
+        Dart/Kotlin boundary this project always has to straddle:
+        <code>lib/domain/lap_progress.dart</code> and the widget's new
+        <code>LapProgress.kt</code> both turn a raw worked/target ratio
+        into "which lap, how far through it" — a ratio of exactly 1.0
+        reads as a <em>full</em> lap 0, not an empty lap 1, so the ring
+        never flickers back to zero right at the target. Darkening per lap
+        is HSL lightness scaling on the Dart side
+        (<code>core/theme/color_space.dart</code>) and the platform's
+        built-in HSV value scaling on the Kotlin side (no new dependency
+        needed) — not pixel-identical between the two, but both read as
+        "one shade deeper each lap," which is all the cue needs to do.
+      </p>
+      <p>
+        Home's ring was already ticking once a second while a session is
+        active, so "fills continuously" was mostly free there. The widget
+        was the real gap — a home-screen widget has no way to just
+        animate on its own, and the OS won't let a manifest-declared
+        widget refresh faster than every 30 minutes on its own periodic
+        schedule. Worked around it with a small self-rescheduling
+        WorkManager chain (<code>WidgetRefreshWorker</code>): a one-shot
+        work request that redraws the widget, checks whether a session is
+        still active, and if so enqueues another copy of itself a minute
+        later — started on check-in, and it stops on its own at checkout
+        rather than needing an explicit cancel. <code>provideGlance</code>
+        also opportunistically resumes the chain any time it renders and
+        finds a session active, so check-ins started from the app itself
+        (which has no direct hook into the widget process) or a reboot
+        mid-session both self-heal within, at worst, the existing 30-minute
+        window. Honest caveat carried over from the sizing/dark-mode fix:
+        WorkManager ticks are best-effort under Doze/battery optimization,
+        not a hard guarantee of exactly once a minute — but they always
+        catch up, never drift forever.
+      </p>
+      <p>
+        Verified the same way as the previous widget change: 79/79 tests
+        passing (including new coverage for the lap math and the
+        darkening curve), <code>flutter analyze</code> clean, keystore
+        signature matched before and after the rebuild,
+        <code>firstInstallTime</code> unchanged after
+        <code>adb install -r</code>, no crash anywhere in logcat after
+        launch. This time a real on-device screenshot of Home confirmed
+        the bar is gone and the ring shows a small darkened sliver for the
+        44 minutes of that day's overtime — the widget's own on-screen
+        look (both the lap-darkening and the once-a-minute tick) still
+        needs Paul's own eyes, the same standing limitation as ever for a
+        widget that isn't visible from this environment's home-screen
+        checks.
+      </p>
+    </div>
+    <div class="entry">
+      <div class="date">10 August 2026</div>
+      <h3>A rail with only one dot on it</h3>
+      <span class="pill">Post-launch · Home timeline redesign</span>
+      <p>
+        Right after the progress ring change, one more piece of feedback
+        about the same screen: Home's "Today" list only ever put a dot at
+        the very first check-in of the day — everything after that (a
+        checkout, a break, checking back in, the final checkout) was just
+        a run of identically-styled chips hanging off one long gray line,
+        with no visual sense of it being a sequence of actual moments in
+        the day. Paul wanted a dot at every check-in and check-out, and
+        the connecting lines between them styled distinctly enough to read
+        as a real timeline rather than a decorative sidebar.
+      </p>
+      <p>
+        The fix is mostly a reframing rather than new data: `buildDayTimeline`
+        already produces the alternating work/break blocks that drive the
+        chips, so every block boundary <em>is</em> a check-in or check-out
+        — the only change needed was to stop only drawing a dot at the
+        very first one. Each dot now carries its own clock time and a
+        "Check in"/"Check out" label (derived from whether the block that
+        starts there is work or a break), and the rail segment between two
+        dots is colored and dashed to match the block spanning them —
+        solid lavender for work, a looser teal dash for a real break, a
+        fine muted dot-dash for a synthetic one — so the dot's own color
+        previews what's coming next before you even read the chip label
+        below it. A currently-active session still ends the rail with the
+        familiar pulsing dot; if there's a gap between the last checkout
+        and resuming (an in-progress break that hasn't been checked back
+        in from yet), that now shows up as its own dashed segment too,
+        rather than silently vanishing between two dots.
+      </p>
+      <p>
+        Building it exposed a genuine, easy-to-miss Flutter footgun along
+        the way: the very first on-device screenshot showed the dots
+        connected by only a stub of line a few pixels long, not a
+        continuous line reaching the next dot — the vertical connector
+        line was an `Expanded` sitting inside a `Column` that gets an
+        effectively unbounded height (a plain `Row` placed directly in a
+        `ListView` is handed infinite max-height by the scroll axis), so
+        it had nothing finite to fill and collapsed. Wrapping each rail
+        row in `IntrinsicHeight` — which forces a real, bounded height
+        from the row's own content before doling constraints back out —
+        fixed it outright; re-verified with a fresh on-device screenshot
+        showing continuous, correctly colored lines all the way down.
+      </p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -1171,6 +1289,38 @@
     <div class="log-entry">
       <span class="ts">2026-08-10</span><span class="tag">[post-launch/widget]</span>
       <p>Widget: fixed dark mode always rendering the light palette. Decompiled the actual `androidx.glance:glance:1.1.1` / `glance-appwidget:1.1.1` `.aar` classes (`javap` against the unzipped `classes.jar`, not assumed from memory) and confirmed: (1) the top-level `ColorProvider` function only has fixed-`Color`/resource-id overloads — no public day/night pair like `ColorProvider(day=, night=)`, that mechanism is internal (`androidx.glance.appwidget.translators.DayNightColorStateList`), used only by Glance's own checkbox/switch translators; (2) `CircularProgressIndicator` in this version is indeterminate-only (no `progress: Float` param), so the ring necessarily stays the existing hand-rendered `Bitmap`, which can't defer color resolution to the launcher process the way a resource-id-backed RemoteViews color could. Given that constraint, resolving background/text/track colors via resource ids (auto day/night, no redraw needed) while the bitmap still needed an explicit redraw would produce a visually inconsistent half-old/half-new widget during the lag window — so instead added a `WidgetPalette` data class with `Light`/`Dark` instances (dark values mirrored from `lib/core/theme/app_colors.dart`'s `AppColors.dark`) and a `paletteFor(context)` helper reading `context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK`, resolved once per `provideGlance()` call and applied uniformly to every element including the bitmap. Confirmed `ACTION_CONFIGURATION_CHANGED` is not delivered to manifest-declared `BroadcastReceiver`s (Android platform behavior, not something a widget receiver can subscribe to short of runtime registration, which a widget process can't sustain) — so a bare system theme flip with nothing else happening can lag up to the existing 30-minute periodic update; every check-in/out tap already calls `updateAll` via `ToggleTrackingAction`, which is the common-case trigger. Rebuilt, signature-verified, installed in place (`firstInstallTime` unchanged); confirmed no crash via `adb logcat` showing Glance's `SessionWorker` completing with `Worker result SUCCESS` after install. Full on-device visual confirmation (both new sizes, both themes) left for Paul — the widget wasn't on any of the first three home-screen pages checked, and placing/resizing a widget on his actual home screen isn't something to automate from here.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/feature]</span>
+      <p>Progress ring redesign, part 1 (shared math). New `lib/domain/lap_progress.dart` (pure Dart, no Flutter import — matches the rest of `domain/`'s convention): `lapProgressFor(ratio)` returns `LapProgress(lapIndex, fraction)` from a raw worked/target ratio that can exceed 1.0; `ratio.ceil() - 1` gives the 0-based lap, `ratio - lapIndex` the fraction, with the boundary case (`ratio == 1.0` reads as a full lap 0, not an empty lap 1) deliberate so the ring never flickers to empty right at the target. `darkenForLap(Color, lapIndex)` lives in `lib/core/theme/color_space.dart` instead (not `domain/`, since `HSLColor` requires `package:flutter/painting.dart`) — HSL lightness scaled by `0.82^lapIndex`, floored at 0.12 lightness so far-overtime laps stay legible instead of going black. New tests: `test/domain/lap_progress_test.dart` (6 cases covering the zero/boundary/overtime ratios) and `test/core/theme/color_space_test.dart` (monotonic darkening + floor).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/feature]</span>
+      <p>Progress ring redesign, part 2 (Home). Removed the `LinearProgressIndicator` "Daily target" bar from `home_screen.dart` entirely — kept the `Daily target  8:38 / 7:54` text row above where it was, just not its own fill. `_HomeBody.build` now computes `targetRatio = liveNetWorkedHours / targetHours` (unclamped, can exceed 1.0), runs it through `lapProgressFor`, and feeds `ProgressRing` the lap's `fraction` (0..1, safe for the existing painter, no changes needed there) and a `darkenForLap(baseColor, lap.lapIndex)`-derived color instead of the flat `accentFill`/`idle`. No animation framework needed — Home already rebuilds every second while a session is active (the existing `StreamBuilder<int>` in `HomeScreen.build`), so the lap math just gets fed fresh values on the same cadence it already had.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/widget]</span>
+      <p>Progress ring redesign, part 3 (widget lap math). New `LapProgress.kt`: `lapProgressFor(ratio: Double)` mirrors the Dart version's formula exactly (same boundary handling). `darkenForLap(colorArgb, lapIndex)` uses `android.graphics.Color.colorToHSV`/`HSVToColor` — platform SDK, no new dependency — scaling HSV *value* rather than Dart's HSL *lightness* (not pixel-identical between the two renderers, but both read as "darker each lap," which is all a glance-surface cue needs). `TimeManagerWidget.kt`'s `WidgetContent` now computes `ratio`/`lap` the same way as Home and applies `darkenForLap` to whichever base color (`accentFill`/`breakFill`/`idle`) the tracking state already picked, replacing the old flat `coerceIn(0f, 1f)` clamp that silently discarded all overtime progress past 100%.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/widget]</span>
+      <p>Progress ring redesign, part 4 (widget self-tick). Added `androidx.work:work-runtime-ktx:2.9.1` to `android/app/build.gradle.kts` — Glance itself already pulls in WorkManager transitively (its own `SessionWorker`), but declared it explicitly rather than relying on an undeclared transitive dependency. New `WidgetRefreshWorker` (`CoroutineWorker`): `doWork()` calls `TimeManagerWidget().updateAll(...)`, then re-enqueues itself via `WorkManager.enqueueUniqueWork("widget_refresh_tick", REPLACE, ...)` with a 1-minute `setInitialDelay` only if `WidgetRepository.loadState(...).trackingState == TRACKING` — otherwise the chain simply stops, no explicit cancel needed. Started from two places: `ToggleTrackingAction.onAction` (after a check-in, `ExistingWorkPolicy.REPLACE`) and opportunistically from `TimeManagerWidget.provideGlance` on every render that observes `TRACKING` (`ExistingWorkPolicy.KEEP`, so it never disrupts a chain already ticking) — the latter is what self-heals a chain that stalled after a reboot, or a check-in that happened from the app itself rather than a widget tap (the app has no direct hook into widget code, so that path was never going to trigger the chain directly; it now gets picked up at the widget's next render instead, which happens at latest within the existing 30-minute periodic floor). Chose a self-rescheduling `OneTimeWorkRequest` over `AlarmManager` deliberately: sub-15-minute cadence with `AlarmManager` needs exact alarms, which require the `SCHEDULE_EXACT_ALARM`/`USE_EXACT_ALARM` permission (a user-facing grant on Android 12+) for a purely cosmetic feature — a `OneTimeWorkRequest`'s `setInitialDelay` isn't clamped to 15 minutes the way `PeriodicWorkRequest` is, so the chain gets minute-level cadence with no extra permission and no user-facing prompt. Traded off deliberately: ticks are best-effort under Doze/battery optimization, not a hard once-a-minute guarantee, same honest caveat already on record for the 30-minute periodic floor it supplements.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/deploy]</span>
+      <p>79/79 tests passing (71 existing + 8 new), `flutter analyze` clean. Installed in place: keystore SHA-256 matched before/after rebuild (`ef72...ffff`, unchanged from the previous widget release), `firstInstallTime` unchanged (2026-08-09 19:30:56), no `FATAL EXCEPTION`/`AndroidRuntime`/process-died lines anywhere in logcat after a fresh launch. This time got an actual on-device screenshot of Home confirming the redesign: the linear bar is gone, and the ring shows a small darkened sliver at the top for that day's ~44 minutes of overtime (8:38 worked / 7:54 target, checked-out `idle` color one lap darker). `dumpsys appwidget` shows the TimeManager widget still bound under a new id (28, previously 27) — consistent with Paul having removed and re-added it since the last session, presumably to try the new 1x1 size — but its own on-screen rendering (the lap darkening and the once-a-minute self-tick specifically) still wasn't independently visually confirmed from here; same standing limitation as the sizing/dark-mode release, left for Paul to check directly.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/feature]</span>
+      <p>Home timeline redesign: `_TodayTimeline` in `home_screen.dart` now emits a dot at every block boundary, not just the first. Replaced `_DotRow`/`_ChipRow` with generalized `_RailDot`/`_RailContent`, both driven by a new `_RailLineStyle` (color + optional dashed/dashLength/gapLength) computed per `TimelineBlockType` via `_lineStyleFor`/`_segmentColor`: solid `accentFill` for work, dashed `breakFill` for a real break, fine dashed `textMuted` for a synthetic one. New `_RailLine`/`_DashedVerticalLinePainter` render the connector (a plain `Container` for solid, a `CustomPaint` round-capped dash painter for dashed). Boundary dot labels are derived, not stored: `next.type == work ? 'Check in' : 'Check out'`. A currently-active session with a gap since the last checkout (on break, not yet resumed) now renders that gap as its own dashed `_RailContent` segment with a live-computed duration, instead of silently skipping straight to the pulsing "tracking" dot.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/bugfix]</span>
+      <p><strong>Real bug, caught by the first on-device screenshot before shipping:</strong> the new rail's connector lines rendered as a short stub instead of spanning to the next dot. Root cause: each `_RailDot`/`_RailContent` is a plain `Row` placed directly as a `ListView` child; a `ListView`'s scroll axis hands its children an unbounded (`double.infinity`) max-height, which `Row` (with `crossAxisAlignment: start`, not `stretch`) passes straight through to its non-flex children — including the left-hand `SizedBox(width: 16)` wrapping a `Column` with an `Expanded` line. An `Expanded`/`Flexible` inside a `Column` with unbounded max-height is invalid Flutter layout (`RenderFlex` throws in debug; in a release build the assertion is stripped and the flex child instead collapses toward zero instead of erroring loudly, which is what made it easy to miss in `flutter analyze`/`flutter test` and only visible on an actual screenshot). Fixed by wrapping each row's `Row` in `IntrinsicHeight`, which forces a bounded intrinsic height from the row's own content (the label/time text) before constraints propagate down, giving the `Expanded` line something finite to fill. No test coverage added — this is a pure layout/rendering behavior with no meaningful non-visual assertion, caught and confirmed the same way it was found: an actual on-device screenshot, not a widget test.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/deploy]</span>
+      <p>79/79 tests passing (unchanged — this was a pure UI change with no new domain logic), `flutter analyze` clean. Installed in place twice this pass (once before finding the `IntrinsicHeight` bug, once after the fix): keystore SHA-256 matched both times (`ef72...ffff`, unchanged from the ring-redesign release), `firstInstallTime` unchanged, no crash in logcat either time. Final on-device screenshot confirms the fix: continuous solid lavender line through both work segments, continuous dashed teal line through the break segment, and the closing gray "Check out" dot correctly has no trailing line.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
