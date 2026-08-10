@@ -6,8 +6,10 @@ import '../../core/format.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/color_space.dart';
 import '../../data/database/enums.dart';
 import '../../domain/date_only.dart';
+import '../../domain/lap_progress.dart';
 import '../../domain/recalculation_engine.dart';
 import '../../domain/timeline_builder.dart';
 import '../../providers/balance_providers.dart';
@@ -72,11 +74,17 @@ class _HomeBody extends ConsumerWidget {
     final isTracking = activeSession != null;
     final liveElapsed = isTracking ? now.difference(activeSession.startTime as DateTime) : null;
     final liveNetWorkedHours = (dayEntry?.netWorkedHours ?? 0) + (liveElapsed?.inSeconds ?? 0) / 3600.0;
-    final ringProgress = targetHours > 0 ? (liveNetWorkedHours / targetHours).clamp(0.0, 1.0) : 0.0;
+    final targetRatio = targetHours > 0 ? liveNetWorkedHours / targetHours : 0.0;
+    final lap = lapProgressFor(targetRatio);
     final remaining = (targetHours - liveNetWorkedHours).clamp(0.0, double.infinity);
     final balanceHours = balance?.balance ?? 0.0;
 
-    final ringColor = isTracking ? colors.accentFill : colors.idle;
+    // The ring is the sole fill indicator (no separate linear bar below it)
+    // and ticks continuously with liveNetWorkedHours while tracking, rather
+    // than only jumping on check-in/out. Past the daily target it keeps
+    // lapping instead of stopping at 100%, darkening one step per extra lap
+    // so overtime reads as "still filling," not "stuck full."
+    final ringColor = darkenForLap(isTracking ? colors.accentFill : colors.idle, lap.lapIndex);
 
     final completedIntervals = [
       for (final s in sessions)
@@ -121,7 +129,7 @@ class _HomeBody extends ConsumerWidget {
                 child: ProgressRing(
                   size: 176,
                   strokeWidth: 10,
-                  progress: ringProgress,
+                  progress: lap.fraction,
                   color: ringColor,
                   trackColor: colors.divider,
                   child: Column(
@@ -160,27 +168,13 @@ class _HomeBody extends ConsumerWidget {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(AppSpace.screenPadding, 6, AppSpace.screenPadding, 0),
-              child: Column(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Daily target', style: AppTextStyles.metaMedium.copyWith(color: colors.textMuted, fontSize: 12)),
-                      Text(
-                        '${AppFormat.hm(liveNetWorkedHours)} / ${AppFormat.hm(targetHours)}',
-                        style: AppTextStyles.metaMedium.copyWith(color: colors.text, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: LinearProgressIndicator(
-                      value: ringProgress,
-                      minHeight: 6,
-                      backgroundColor: colors.divider,
-                      valueColor: AlwaysStoppedAnimation(colors.accentFill),
-                    ),
+                  Text('Daily target', style: AppTextStyles.metaMedium.copyWith(color: colors.textMuted, fontSize: 12)),
+                  Text(
+                    '${AppFormat.hm(liveNetWorkedHours)} / ${AppFormat.hm(targetHours)}',
+                    style: AppTextStyles.metaMedium.copyWith(color: colors.text, fontSize: 12),
                   ),
                 ],
               ),

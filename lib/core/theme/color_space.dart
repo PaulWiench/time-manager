@@ -41,3 +41,18 @@ Color oklch(double lightness, double chroma, double hueDegrees, [double alpha = 
     (toSrgb(bLin) * 255).round().clamp(0, 255),
   );
 }
+
+/// Darkens [base] by a fixed step per completed [lapIndex] (see
+/// `domain/lap_progress.dart`), so each additional overtime lap of the
+/// progress ring reads as a progressively deeper shade of the same hue
+/// instead of an unchanging or arbitrarily different color. Plain HSL
+/// lightness scaling rather than an OKLCH round-trip — this is a minor
+/// per-lap visual cue, not a spec'd design-system token, and [oklch] above
+/// has no inverse (RGB -> OKLCH) to scale an arbitrary input [Color] with.
+Color darkenForLap(Color base, int lapIndex) {
+  if (lapIndex <= 0) return base;
+  final hsl = HSLColor.fromColor(base);
+  final factor = math.pow(0.82, lapIndex).toDouble();
+  final lightness = (hsl.lightness * factor).clamp(0.12, 1.0);
+  return hsl.withLightness(lightness).toColor();
+}

@@ -5,6 +5,7 @@ import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.updateAll
+import androidx.work.ExistingWorkPolicy
 
 /** Single tap toggles check-in/out at any widget size — no separate "open
  * app" zone, per the design handoff's compact-widget spec. */
@@ -12,5 +13,8 @@ class ToggleTrackingAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         WidgetRepository.toggleTracking(context)
         TimeManagerWidget().updateAll(context)
+        if (WidgetRepository.loadState(context).trackingState == TrackingState.TRACKING) {
+            WidgetRefreshWorker.scheduleNext(context, ExistingWorkPolicy.REPLACE)
+        }
     }
 }

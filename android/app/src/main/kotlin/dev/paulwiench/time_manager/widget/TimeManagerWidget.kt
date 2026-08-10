@@ -95,6 +95,16 @@ class TimeManagerWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val state = WidgetRepository.loadState(context)
         val palette = paletteFor(context)
+        // Opportunistically resumes the per-minute refresh chain (see
+        // WidgetRefreshWorker) whenever a render observes an active
+        // session — covers check-in started from the app itself (which
+        // has no direct hook into the widget) and recovery after a
+        // reboot, both picked up here at the latest by the next periodic
+        // update. ExistingWorkPolicy.KEEP (the default) means this never
+        // disrupts a chain already ticking from a widget-side check-in.
+        if (state.trackingState == TrackingState.TRACKING) {
+            WidgetRefreshWorker.scheduleNext(context)
+        }
         provideContent {
             val size = LocalSize.current
             val tier = when {
@@ -109,16 +119,18 @@ class TimeManagerWidget : GlanceAppWidget() {
 
 @Composable
 private fun WidgetContent(context: Context, state: WidgetState, palette: WidgetPalette, tier: WidgetTier) {
-    val ringColorInt = when (state.trackingState) {
+    val baseColorInt = when (state.trackingState) {
         TrackingState.TRACKING -> palette.accentFill
         TrackingState.BREAK -> palette.breakFill
         TrackingState.CHECKED_OUT -> palette.idle
     }
-    val progress = if (state.targetHours > 0) {
-        (state.workedHours / state.targetHours).toFloat().coerceIn(0f, 1f)
-    } else {
-        0f
-    }
+    // The ring is the only fill indicator (no separate bar); past the
+    // daily target it keeps lapping instead of stopping at 100%, one shade
+    // darker per extra lap — see LapProgress.kt.
+    val ratio = if (state.targetHours > 0) state.workedHours / state.targetHours else 0.0
+    val lap = lapProgressFor(ratio)
+    val ringColorInt = darkenForLap(baseColorInt, lap.lapIndex)
+    val progress = lap.fraction
     val ringSizeDp = when (tier) {
         WidgetTier.TINY -> 34
         WidgetTier.COMPACT -> 68
