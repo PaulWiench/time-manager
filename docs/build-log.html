@@ -726,6 +726,115 @@
         independently-computed expected values.
       </p>
     </div>
+    <div class="entry">
+      <div class="date">10 August 2026</div>
+      <h3>Living with it: seven real bugs, a holiday problem, and a corrupted balance</h3>
+      <span class="pill">Post-launch · Real-world usage bugs</span>
+      <p>
+        With ten days of real daily use behind it, Paul logged seven
+        problems he'd actually hit (<code>Study/Projects/TimeManager/Problems.md</code>):
+        check-in not updating the ring/target/remaining-time until
+        checkout, the Public Holidays and Vacation Quota settings rows
+        being dead stubs, 4 June (Fronleichnam, a Baden-Württemberg-only
+        holiday) showing as a missed workday, History having no visual
+        distinction between holiday/vacation/sick/worked days, and no way
+        to edit or delete a session once created. All seven root causes
+        traced back to logic that already existed correctly somewhere in
+        the app but was never wired up to the screen that needed it — most
+        notably <code>checkIn()</code> never calling
+        <code>recalculateFrom()</code> the way every other mutation does,
+        and <code>germanNationalHolidays()</code> deliberately excluding
+        regional holidays because the plan had assumed Paul would add them
+        by hand. He didn't want that: holidays needed to just know he's in
+        Baden-Württemberg. Added <code>badenWuerttembergHolidays()</code>
+        (Heilige Drei Könige, Fronleichnam, Allerheiligen) and folded it
+        into <code>seedYear()</code> alongside the nationwide list, plus
+        built out the previously-dead Settings screens, holiday-aware
+        History coloring, and a session/manual-break editing sheet.
+      </p>
+      <p>
+        Shipped it to Paul's phone (in place, keystore-verified,
+        <code>firstInstallTime</code> confirmed unchanged) and he came back
+        within minutes: Fronleichnam now correctly showed 0 delta, but
+        Home's overall Balance was still frozen at the old wrong number —
+        eight hours short of what fixing that one day should have restored.
+        Nothing in the code read wrong on paper. Chasing it required
+        temporarily instrumenting the buried Audit Log screen to dump raw
+        <code>BalanceSnapshot</code> rows directly off the device (a
+        release build can't be inspected any other way without root), which
+        turned up the actual cause: <code>_cascadeBalanceFrom</code> had
+        always written a snapshot for whatever date it was recalculating,
+        including <em>future</em> dates like upcoming holidays — so the
+        original nationwide-only holiday seed on 9 August had planted a
+        stale snapshot out at December 2027, and
+        <code>watchLatest()</code>'s <code>ORDER BY date DESC</code> kept
+        returning that stray future row instead of today's real balance,
+        no matter how correctly the past got recalculated. Fixed by making
+        future dates a no-op for snapshot writes and purging the
+        already-corrupted rows on startup. Balance corrected live,
+        on-device, from -33:42 to -25:04 — exactly the eight hours the
+        Fronleichnam fix should have restored.
+      </p>
+      <p>
+        The diagnostic panel was fully reverted afterward (confirmed via
+        a clean <code>git diff</code> on that file). <strong>Lesson kept in
+        memory for next time:</strong> a per-date fix reading correctly on
+        paper doesn't prove it propagated — for anything touching the
+        balance cascade, verify the actual number on the device, not just
+        the day's own entry.
+      </p>
+    </div>
+    <div class="entry">
+      <div class="date">10 August 2026</div>
+      <h3>A widget that only knew one season</h3>
+      <span class="pill">Post-launch · Widget sizing &amp; dark mode</span>
+      <p>
+        Two more real complaints from daily use: the home-screen widget
+        only ever offered the 2x2 footprint at placement time (no way to
+        drop a smaller 1x1 tile), and it always rendered the light palette
+        regardless of the phone's system theme — a deliberate scope call
+        from the Milestone 7 build ("one consistent look reads better than
+        a day/night swap most launchers don't reliably signal to widgets
+        anyway"), but not one Paul wanted kept. Fixed the sizing by
+        widening <code>time_manager_widget_info.xml</code>'s
+        <code>minWidth</code>/<code>targetCellWidth</code> down to a true
+        1-cell footprint and adding a third <code>SizeMode.Responsive</code>
+        tier below the existing compact/expanded pair, with its own
+        (smaller) ring and type scale.
+      </p>
+      <p>
+        Dark mode turned out to need real investigation rather than a
+        one-line fix: Jetpack Glance 1.1.1 has no public day/night
+        <code>ColorProvider</code> (confirmed by decompiling the actual
+        library classes rather than trusting memory — the only day/night
+        color mechanism in that version is internal, used by its own
+        checkbox/switch translators) and no determinate circular progress
+        composable, so the ring stays a hand-rendered bitmap that can't
+        defer its color resolution to the launcher process the way a
+        resource-id-backed color could. Resolved the whole palette —
+        background, text, track, and the ring itself — uniformly from the
+        system's current <code>uiMode</code> once per render, so the
+        widget never shows a half-flipped, inconsistent mix of old and new
+        colors. The tradeoff, noted honestly rather than glossed over: a
+        bare system theme toggle with nothing else happening can lag up to
+        the existing 30-minute refresh window, since Android doesn't
+        deliver <code>ACTION_CONFIGURATION_CHANGED</code> to a
+        manifest-declared widget receiver at all — every check-in/out tap
+        already forces an immediate refresh via <code>updateAll</code>,
+        which covers the common case.
+      </p>
+      <p>
+        Verified end to end: keystore signatures matched before and after
+        the rebuild, <code>firstInstallTime</code> unchanged after
+        <code>adb install -r</code>, and Glance's own
+        <code>SessionWorker</code> completing successfully in logcat with
+        no crash on the first post-install render. The widget's actual
+        on-screen appearance in both new sizes and both themes still needs
+        Paul's own eyes — it wasn't visible on the first few home-screen
+        pages checked, and repositioning a widget on someone's real home
+        screen isn't something to automate.
+      </p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -1038,6 +1147,30 @@
     <div class="log-entry">
       <span class="ts">2026-08-09</span><span class="tag">[post-launch]</span>
       <p>Historical data import: built `tool/import_history.dart` (temporary, removed after use — not committed) driving `AppDatabase`/the real repositories/`RecalculationService` against a file-backed `NativeDatabase`, seeded from two source PDFs (ZIM Stundennachweis for March–May, cross-validated by summing extracted daily values against the PDF's own printed monthly totals; a public time-tracker export for 20 April onward with real check-in/out timestamps, parsed via `pdftotext -layout` and validated day-by-day against the export's own printed "Gearb. im Tag" totals — 0 mismatches across 76 days). Where both sources had data, the tracker won per instruction; ZIM-only days (before the tracker was in use) got a single synthetic session starting 11:00 with the checkout time solved so the break-engine's own noon-anchored deduction produces the exact stated net hours. Sick/vacation days (30 March; 5 June; 17+20 July; two future blocks: 31 Aug–11 Sep, 26–30 Sep) recorded as `LeaveEntry` rows at that date's target hours. `dart run` (not `flutter test`, which turned out to silently truncate a 150-iteration transaction inside its test zone — a red herring chased before finding the real DST bug) required temporarily stubbing `database.dart`'s `path_provider` import, since it transitively pulls in `dart:ui`-dependent Flutter framework code the plain Dart VM can't compile; reverted immediately after. Final numbers cross-checked exactly against source totals. Deployment: `adb run-as` needs a debuggable build, but `flutter build apk --release` forces `debuggable=false` regardless of Gradle overrides — worked around by temporarily pointing the `debug` build type's `signingConfig` at the release keystore (same cert as the installed app, so it upgrades in place with no data loss), pushing the DB via `run-as`, then rebuilding and reinstalling the real release APK over it, again in place. `android/app/build.gradle.kts` reverted to its exact original state afterward (`git diff` confirmed clean). Backed up the seeded database and the release keystore/`key.properties` to `~/time-manager-backups/` (outside the git repo — the keystore is credential material, the DB is personal data, neither belongs in version control).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/bugfix]</span>
+      <p>Fixed `Problems.md`'s 7 real-usage bugs (WU1–5): `checkIn()` now calls `recalculateFrom(day)` instead of a stale no-op comment, so the progress ring/target/remaining-time populate immediately instead of only after checkout. Built out the previously-dead Public Holidays (`holiday_list_screen.dart`, new) and Vacation Quota (`vacation_quota_screen.dart`, new) settings screens, both backed by new `watchForDate`/`watchForYear` DAO+repository streams. History's `_DayRowConsumer` now watches `publicHolidayForDateProvider` and passes `holidayFraction` into `computeTargetHours`, matching `RecalculationService._recalculateDay`, so a holiday with no session/leave entry no longer renders as a missed-workday warning. Added background-tint day-category coloring to History (holiday/vacation/sick/flexDay via new `AppColors` fields + extended `ChipRole`) and a session/manual-break edit bottom sheet (`edit_session_sheet.dart`, new) wired from tap-to-edit on Home and History work chips, backed by new `editSession`/`deleteSession`/`addManualBreak`/`updateManualBreak`/`deleteManualBreak` repository methods (manual breaks are pure annotations, don't reduce `netWorkedHours`, per the existing `BreakType.manual` design). Tests grew from 7 to 12 in `repositories_test.dart`; all passing.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/feature]</span>
+      <p>Auto-seed Baden-Württemberg regional holidays instead of requiring manual entry. Added `badenWuerttembergHolidays(int year)` to `domain/holiday_calculator.dart` (Heilige Drei Könige 6 Jan, Fronleichnam = Easter+60 via the existing Gauss Easter helper, Allerheiligen 1 Nov), folded into `PublicHolidayRepository.seedYear()` alongside `germanNationalHolidays()`. New test group in `holiday_calculator_test.dart` asserts all 3, including Fronleichnam 2026-06-04. Settings' Public Holidays row now labels itself `'DE (BW) · $count'`.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/bugfix]</span>
+      <p><strong>Real bug: stale future `BalanceSnapshot` rows corrupting the displayed balance.</strong> `RecalculationService._cascadeBalanceFrom` wrote a snapshot for whatever date it recalculated, including future dates (e.g. seeding an upcoming holiday) — so `BalanceSnapshotDao.watchLatest()`'s `ORDER BY date DESC` could return a stale future row instead of today's real balance. Concretely: the original nationwide-only holiday seed on 9 August planted a snapshot at December 2027; adding Baden-Württemberg holidays and fixing Fronleichnam's own `DayEntry` didn't fix Home's displayed Balance, because that stray far-future row still outranked it. Found by adding a temporary `_DiagnosticSection` to `audit_log_screen.dart` (fully reverted after, confirmed via `git diff`) to dump raw `BalanceSnapshot`/`DayEntry` rows off the device — the only way to inspect a release build's SQLite file without root. Fixed by scoping `_cascadeBalanceFrom` to no-op for any date after today, plus a new `purgeFutureSnapshots()` one-time cleanup wired into the startup `holidaySeed` provider. New tests: "seeding a future holiday does not write a speculative BalanceSnapshot", "purgeFutureSnapshots removes stray future rows but leaves past ones alone". Verified live on-device: Balance corrected from -33:42 to -25:04.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/deploy]</span>
+      <p>Installed the above on Paul's phone in place: `apksigner verify --print-certs` confirmed both the release keystore's and the rebuilt APK's SHA-256 matched (`ef72...ffff`) before `adb install -r`; `dumpsys package | grep firstInstallTime` confirmed unchanged (2026-08-09 19:30:56) both before and after, proving an in-place update rather than a reinstall. `java` needed prepending onto `PATH` from the bundled Android Studio JBR (`~/Downloads/setup/android-studio/jbr/bin`) for `apksigner`/`keytool` to run.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/widget]</span>
+      <p>Widget: added a true 1x1 launcher size. `time_manager_widget_info.xml`'s `minWidth`/`minHeight` dropped from 90dp/2 cells to 40dp/1 cell (`targetCellWidth`/`targetCellHeight` both to `1`), `maxResizeWidth`/`maxResizeHeight` left at 250dp/140dp so it's still resizable back up. `TimeManagerWidget.kt`'s `SizeMode.Responsive` set gained a third `tinySize = DpSize(40.dp, 40.dp)` candidate alongside the existing compact (90dp) and expanded (250x140dp) ones; `WidgetContent` now branches on a 3-way `WidgetTier` (`TINY`/`COMPACT`/`EXPANDED`, by `LocalSize.current.width`) instead of a boolean, with its own ring size (34dp vs 68dp vs 84dp), padding, and label text scale per tier.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-08-10</span><span class="tag">[post-launch/widget]</span>
+      <p>Widget: fixed dark mode always rendering the light palette. Decompiled the actual `androidx.glance:glance:1.1.1` / `glance-appwidget:1.1.1` `.aar` classes (`javap` against the unzipped `classes.jar`, not assumed from memory) and confirmed: (1) the top-level `ColorProvider` function only has fixed-`Color`/resource-id overloads — no public day/night pair like `ColorProvider(day=, night=)`, that mechanism is internal (`androidx.glance.appwidget.translators.DayNightColorStateList`), used only by Glance's own checkbox/switch translators; (2) `CircularProgressIndicator` in this version is indeterminate-only (no `progress: Float` param), so the ring necessarily stays the existing hand-rendered `Bitmap`, which can't defer color resolution to the launcher process the way a resource-id-backed RemoteViews color could. Given that constraint, resolving background/text/track colors via resource ids (auto day/night, no redraw needed) while the bitmap still needed an explicit redraw would produce a visually inconsistent half-old/half-new widget during the lag window — so instead added a `WidgetPalette` data class with `Light`/`Dark` instances (dark values mirrored from `lib/core/theme/app_colors.dart`'s `AppColors.dark`) and a `paletteFor(context)` helper reading `context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK`, resolved once per `provideGlance()` call and applied uniformly to every element including the bitmap. Confirmed `ACTION_CONFIGURATION_CHANGED` is not delivered to manifest-declared `BroadcastReceiver`s (Android platform behavior, not something a widget receiver can subscribe to short of runtime registration, which a widget process can't sustain) — so a bare system theme flip with nothing else happening can lag up to the existing 30-minute periodic update; every check-in/out tap already calls `updateAll` via `ToggleTrackingAction`, which is the common-case trigger. Rebuilt, signature-verified, installed in place (`firstInstallTime` unchanged); confirmed no crash via `adb logcat` showing Glance's `SessionWorker` completing with `Worker result SUCCESS` after install. Full on-device visual confirmation (both new sizes, both themes) left for Paul — the widget wasn't on any of the first three home-screen pages checked, and placing/resizing a widget on his actual home screen isn't something to automate from here.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
