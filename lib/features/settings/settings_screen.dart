@@ -7,11 +7,13 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../domain/date_only.dart';
+import '../../providers/database_providers.dart';
 import '../../providers/holiday_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../providers/vacation_quota_providers.dart';
 import 'audit_log_screen.dart';
+import 'export_service.dart';
 import 'holiday_list_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -103,6 +105,15 @@ class SettingsScreen extends ConsumerWidget {
                   _Kicker('Notifications', colors),
                   _NavRow(label: 'Notifications', value: 'All off', colors: colors, onTap: () => _comingSoon(context), isLast: true),
 
+                  _Kicker('Data', colors),
+                  _NavRow(
+                    label: 'Export backup',
+                    value: 'Database + JSON',
+                    colors: colors,
+                    onTap: () => _exportBackup(context, ref),
+                    isLast: true,
+                  ),
+
                   Container(
                     margin: const EdgeInsets.only(top: 22),
                     padding: const EdgeInsets.only(top: 10),
@@ -131,6 +142,23 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// The release build isn't debuggable, so `adb run-as` can't read the
+  /// database — this is the only way to get a backup off a running install.
+  Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final result = await ExportService(ref.read(appDatabaseProvider)).exportAll();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Backup written to ${result.directory}'),
+          duration: const Duration(seconds: 10),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
+    }
   }
 
   String _workDaysLabel(List<int> days) {
