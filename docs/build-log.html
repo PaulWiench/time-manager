@@ -953,6 +953,49 @@
         showing continuous, correctly colored lines all the way down.
       </p>
     </div>
+    <div class="entry">
+      <div class="date">22 September 2026</div>
+      <h3>Golden Hour: the redesign starts with a backup, and hits a toolchain wall</h3>
+      <span class="pill">Redesign · Phase 0</span>
+      <p>
+        The app works, but it has always looked like stock Material 3 with
+        a lavender seed colour. Claude Design turned the Milestone 5 spec
+        into a full visual system — "Golden Hour": warm paper in light, a
+        deep dusk in dark, an apricot tracking colour, a lilac break
+        colour, and a deep-violet "Dusk Slab" on Home carrying the balance
+        as the biggest number in the app with the ring cut into it. It
+        came with a 879-line implementation handoff and 74 renders, which
+        is what the next stretch of work implements.
+      </p>
+      <p>
+        Before any of that, the first job was the thing that has been
+        missing since day one: a way to get the data off the phone. The
+        release build is not debuggable, so <code>adb run-as</code> cannot
+        read the database, and the only backup on disk was from 9 August —
+        six weeks of real check-ins behind. Settings now has an Export
+        backup action that writes a <code>VACUUM INTO</code> snapshot plus
+        a JSON dump of every table into the app's external files
+        directory, where <code>adb pull</code> and a file manager can both
+        reach it without asking for a storage permission.
+      </p>
+      <p>
+        Then the toolchain got in the way. This machine has moved from
+        Flutter 3.35.2 to 3.47.5 since the app was built, and two
+        dependencies did not survive the jump. Flutter made
+        <code>IconData</code> a <em>final</em> class, and
+        <code>phosphor_flutter</code> — the app's entire icon set —
+        extends it, so nothing compiles: no build, no emulator run, not
+        even the one widget test. Separately, <code>riverpod_generator</code>
+        pins an analyzer old enough that it crashes on the dot-shorthand
+        syntax the current Flutter SDK's own sources now use, so code
+        generation cannot run at all. The checked-in generated files still
+        work, which is why <code>flutter analyze</code> and 78 of 79 tests
+        stay green — but the first schema change will need codegen, and
+        nothing at all can be run until the icon package is dealt with.
+        Neither has a newer version to upgrade to. That decision is the
+        first thing the next session picks up.
+      </p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -1321,6 +1364,18 @@
     <div class="log-entry">
       <span class="ts">2026-08-10</span><span class="tag">[post-launch/deploy]</span>
       <p>79/79 tests passing (unchanged — this was a pure UI change with no new domain logic), `flutter analyze` clean. Installed in place twice this pass (once before finding the `IntrinsicHeight` bug, once after the fix): keystore SHA-256 matched both times (`ef72...ffff`, unchanged from the ring-redesign release), `firstInstallTime` unchanged, no crash in logcat either time. Final on-device screenshot confirms the fix: continuous solid lavender line through both work segments, continuous dashed teal line through the break segment, and the closing gray "Check out" dot correctly has no trailing line.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-22</span><span class="tag">[redesign/phase-0]</span>
+      <p>New <code>lib/features/settings/export_service.dart</code> + a Data &gt; Export backup row in Settings. Writes <code>timemanager-&lt;stamp&gt;.sqlite</code> via <code>VACUUM INTO</code> (consistent against a live WAL database in a way a file copy is not; SQLite 3.27+) and <code>timemanager-&lt;stamp&gt;.json</code> into <code>getExternalStorageDirectory()/backups</code> — the app-specific external dir is the only location reachable by both <code>adb pull</code> and a file manager with no storage permission. The JSON dump reads all nine tables generically (<code>SELECT * FROM "&lt;table&gt;"</code> + <code>QueryRow.data</code>) rather than through the typed DAOs, so it keeps working when the schema gains columns and is never filtered by application-level query logic. <code>exportAll</code> takes an optional <code>into:</code> directory purely so tests can run without a path_provider plugin. Two unit tests at <code>test/features/export_service_test.dart</code>: the exported copy is reopened as a real <code>AppDatabase</code> and the row read back out (proving it is a database, not just bytes), and the JSON dump is parsed and checked for every table. The Settings UI path is <strong>not</strong> verified — see below.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-22</span><span class="tag">[redesign/toolchain]</span>
+      <p><strong>The app no longer compiles on the installed Flutter.</strong> The machine has moved 3.35.2 → 3.47.5 since the last release. Two independent breakages, neither with an upgrade available: (1) Flutter made <code>IconData</code> a <code>final class</code>, and <code>phosphor_flutter</code> 2.1.0 does <code>class PhosphorIconData extends IconData</code> — a hard CFE error that blocks every build, every emulator run and <code>test/widget_test.dart</code> (the only test that pumps the app). 2.1.0 is the newest version on pub; <code>pub add 'phosphor_flutter:^2.2.0'</code> fails version solving. (2) <code>riverpod_generator</code> 2.6.5 pins <code>analyzer</code> 7.6.0, whose <code>ThrowingAstVisitor</code> has no <code>visitDotShorthandPropertyAccess</code> — it throws while summarising the Flutter SDK's own sources, which now use Dart 3.13 dot shorthands, so <code>build_runner</code> cannot generate anything (it also hangs for ~18 min before surfacing the error, since the failure is per-builder and the process keeps retrying). Escaping that needs <code>analyzer</code> ≥ 8, which on pub today means <code>riverpod_generator</code> 4.x, which means Riverpod 3.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-22</span><span class="tag">[redesign/toolchain]</span>
+      <p>Current state is deliberately unchanged rather than half-migrated: the checked-in <code>*.g.dart</code> files were restored (<code>build_runner</code>'s <code>--delete-conflicting-outputs</code> had removed them before failing), so <code>flutter analyze</code> is clean and 78/79 tests pass — only <code>widget_test.dart</code> fails, and only on the phosphor error. <code>pubspec.lock</code> did re-resolve cleanly on the new SDK (6 packages moved). The three options for the next session, in order of preference: (a) drop <code>phosphor_flutter</code> and self-host the Phosphor icon font — bundle the Bold and Fill TTFs as assets and declare the ~28 <code>IconData</code> constants the design actually uses — then upgrade <code>drift_dev</code> to 2.35 and replace <code>riverpod_generator</code> with hand-written providers, keeping Riverpod 2 and removing a codegen dependency entirely; (b) pin the project to Flutter 3.35.2 via fvm, which changes nothing but leaves the app on a stale SDK; (c) migrate to Riverpod 3, which is the one option that mixes a framework migration into a redesign. Option (a) also fits the redesign, which bundles Manrope as an asset anyway and specifies Phosphor Bold plus Fill-for-active-nav precisely.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
