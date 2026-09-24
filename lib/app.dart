@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/motion.dart';
+import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'features/history/history_screen.dart';
 import 'features/home/home_screen.dart';
@@ -9,7 +11,7 @@ import 'features/settings/settings_screen.dart';
 import 'features/stats/stats_screen.dart';
 import 'providers/repository_providers.dart';
 import 'providers/settings_providers.dart';
-import 'widgets/app_bottom_nav.dart';
+import 'widgets/pill_nav.dart';
 
 class TimeManagerApp extends StatelessWidget {
   const TimeManagerApp({super.key});
@@ -49,35 +51,110 @@ class _RootGate extends ConsumerWidget {
         // Fire-and-forget: idempotent, and the shell doesn't need to block
         // on it — see holidaySeedProvider.
         ref.watch(holidaySeedProvider);
-        return const _AppShell();
+        return const AppShell();
       },
     );
   }
 }
 
-class _AppShell extends StatefulWidget {
-  const _AppShell();
+/// The one Scaffold in the app.
+///
+/// The tabs are an [IndexedStack] so scroll positions survive switching, with
+/// the floating nav stacked over them rather than sitting in
+/// `bottomNavigationBar` — the nav is meant to float clear of the content, and
+/// content scrolls under it.
+///
+/// Each inactive tab is wrapped in a [TickerMode] that is off, so Home's pulsing
+/// knob and ticking timer stop costing frames the moment you look at Stats.
+class AppShell extends StatefulWidget {
+  const AppShell({super.key});
 
   @override
-  State<_AppShell> createState() => _AppShellState();
+  State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<_AppShell> {
+class _AppShellState extends State<AppShell> with SingleTickerProviderStateMixin {
   AppTab _tab = AppTab.home;
+
+  /// 1 = the current tab is fully shown. A tab switch dips this to 0 and back,
+  /// which is a fade-through: the outgoing view leaves before the incoming one
+  /// arrives. A crossfade would blend two different screens into a third thing
+  /// that is neither, and `AnimatedSwitcher` would rebuild the subtree and lose
+  /// exactly the scroll positions the IndexedStack exists to keep.
+  late final AnimationController _fade = AnimationController(
+    vsync: this,
+    value: 1,
+    duration: const Duration(milliseconds: 1),
+  );
+
+  @override
+  void dispose() {
+    _fade.dispose();
+    super.dispose();
+  }
+
+  Future<void> _select(AppTab tab) async {
+    if (tab == _tab) return;
+    final motion = AppMotion.of(context);
+
+    if (!motion.enabled) {
+      setState(() => _tab = tab);
+      return;
+    }
+
+    _fade.duration = motion.tabOut;
+    await _fade.reverse();
+    if (!mounted) return;
+    setState(() => _tab = tab);
+    _fade.duration = motion.tabIn;
+    await _fade.forward();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    final index = AppTab.values.indexOf(_tab);
+
+    final tabs = [
+      HomeScreen(onOpenSettings: () => _select(AppTab.settings)),
+      const HistoryScreen(),
+      const StatsScreen(),
+      const SettingsScreen(),
+    ];
+
     return Scaffold(
-      body: IndexedStack(
-        index: AppTab.values.indexOf(_tab),
+      backgroundColor: colors.background,
+      body: Stack(
         children: [
-          HomeScreen(onOpenSettings: () => setState(() => _tab = AppTab.settings)),
-          const HistoryScreen(),
-          const StatsScreen(),
-          const SettingsScreen(),
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _fade,
+              builder: (context, child) => Opacity(
+                opacity: _fade.value,
+                child: Transform.scale(
+                  // Incoming content settles the last 2 % into place, so the
+                  // switch reads as arriving rather than as blinking.
+                  scale: kTabInScale + (1 - kTabInScale) * _fade.value,
+                  child: child,
+                ),
+              ),
+              child: IndexedStack(
+                index: index,
+                children: [
+                  for (final (i, tab) in tabs.indexed)
+                    TickerMode(enabled: i == index, child: tab),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            left: kNavInset,
+            right: kNavInset,
+            bottom: kNavInset + MediaQuery.viewPaddingOf(context).bottom,
+            child: PillNav(active: _tab, onSelect: _select),
+          ),
         ],
       ),
-      bottomNavigationBar: AppBottomNav(active: _tab, onSelect: (t) => setState(() => _tab = t)),
     );
   }
 }

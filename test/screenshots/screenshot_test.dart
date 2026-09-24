@@ -19,53 +19,37 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:time_manager/core/icons/app_icons.dart';
 import 'package:time_manager/core/theme/app_colors.dart';
 import 'package:time_manager/core/theme/app_dimens.dart';
 import 'package:time_manager/core/theme/app_text_styles.dart';
-import 'package:time_manager/core/theme/app_theme.dart';
 import 'package:time_manager/features/onboarding/onboarding_screen.dart';
 
-/// The real device this app runs on, so renders are directly comparable to the
-/// design's (which were drawn at 393x851 dp).
-const _size = Size(1080, 2340);
-const _dpr = 2.625;
+import 'harness.dart';
 
 void main() {
-  setUpAll(_loadFonts);
+  setUpAll(loadAppFonts);
 
   for (final brightness in [Brightness.light, Brightness.dark]) {
-    final suffix = brightness == Brightness.dark ? 'dark' : 'light';
-
-    testWidgets('tokens ($suffix)', (tester) async {
-      await _pump(tester, brightness, const _TokenSpecimen());
-      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/tokens--$suffix.png'));
+    testWidgets('tokens (${brightness.name})', (tester) async {
+      await renderGolden(
+        tester,
+        name: 'tokens',
+        brightness: brightness,
+        child: const _TokenSpecimen(),
+      );
     });
 
-    testWidgets('onboarding step 1 ($suffix)', (tester) async {
-      await _pump(tester, brightness, OnboardingScreen(onDone: () {}));
-      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/onboarding-1--$suffix.png'));
+    testWidgets('onboarding step 1 (${brightness.name})', (tester) async {
+      await renderGolden(
+        tester,
+        name: 'onboarding-1',
+        brightness: brightness,
+        child: OnboardingScreen(onDone: () {}),
+      );
     });
   }
-}
-
-Future<void> _pump(WidgetTester tester, Brightness brightness, Widget screen) async {
-  tester.view.physicalSize = _size;
-  tester.view.devicePixelRatio = _dpr;
-  addTearDown(tester.view.reset);
-
-  await tester.pumpWidget(
-    MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      themeMode: brightness == Brightness.dark ? ThemeMode.dark : ThemeMode.light,
-      home: screen,
-    ),
-  );
-  await tester.pumpAndSettle();
 }
 
 /// Every colour role and every type role on one page, per theme — the sheet to
@@ -224,20 +208,5 @@ class _TokenSpecimen extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-/// Bundled fonts are not loaded into the test binding automatically; without
-/// this every render comes out in the placeholder font and tells you nothing
-/// about the type scale.
-Future<void> _loadFonts() async {
-  TestWidgetsFlutterBinding.ensureInitialized();
-  const families = {
-    'Manrope': 'assets/fonts/Manrope-Variable.ttf',
-    'PhosphorBold': 'assets/fonts/Phosphor-Bold.ttf',
-    'PhosphorFill': 'assets/fonts/Phosphor-Fill.ttf',
-  };
-  for (final entry in families.entries) {
-    await (FontLoader(entry.key)..addFont(rootBundle.load(entry.value))).load();
   }
 }
