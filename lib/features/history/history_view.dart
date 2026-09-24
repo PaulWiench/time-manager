@@ -91,6 +91,9 @@ class DayFacts {
     this.sessions = const [],
     this.breaks = const [],
     this.closingBalance,
+    this.previousClosingBalance,
+    this.runningSince,
+    this.now,
   });
 
   final DateTime date;
@@ -104,6 +107,17 @@ class DayFacts {
   /// The running balance after this day, used only to decide whether the delta
   /// wears the warning treatment.
   final double? closingBalance;
+
+  /// The day before's closing balance, which is what tells a day that *crossed*
+  /// a bound apart from the run of days that merely stayed past it.
+  final double? previousClosingBalance;
+
+  /// Set on today when a session is open. `day_entries` only ever holds
+  /// committed work, so without this History would report a smaller number for
+  /// today than Home does — the same day, two answers.
+  final DateTime? runningSince;
+
+  final DateTime? now;
 }
 
 /// A day row, with its expansion already built when [expanded].
@@ -133,14 +147,26 @@ HistoryRow historyDayRow({
   final blockTop = _weekdayAbbrev(date);
   final blockBottom = '${date.day}';
 
-  final worked = entry?.netWorkedHours ?? 0;
+  final running = facts.runningSince != null && facts.now != null
+      ? facts.now!.difference(facts.runningSince!)
+      : Duration.zero;
+  final worked = (entry?.netWorkedHours ?? 0) + running.inSeconds / 3600.0;
   final hasWork = facts.sessions.isNotEmpty || worked > 0;
-  final warning = facts.closingBalance != null &&
+
+  bool beyond(double? balance) =>
+      balance != null &&
       balanceBeyondBounds(
-        facts.closingBalance!,
+        balance,
         floorHours: settings?.balanceFloorHours,
         capHours: settings?.balanceCapHours,
       );
+
+  final warning = beyond(facts.closingBalance);
+
+  // Only the day that *crossed* the bound explains itself. Once the balance
+  // has been past a floor for three weeks, saying so on all fifteen rows
+  // replaces fifteen useful time spans with the same sentence.
+  final crossed = warning && !beyond(facts.previousClosingBalance);
 
   String? deltaText(double? value) =>
       value == null ? null : AppFormat.hm(value, signed: true);
@@ -215,9 +241,18 @@ HistoryRow historyDayRow({
   }
 
   final blocks = _blocksFor(facts);
-  final span = blocks.isEmpty
+  final firstIn = blocks.isEmpty ? facts.runningSince : blocks.first.start;
+  final span = firstIn == null
       ? null
-      : '${AppFormat.time(blocks.first.start)}–${AppFormat.time(blocks.last.end)}';
+      : running > Duration.zero
+          ? '${AppFormat.time(firstIn)}–now'
+          : '${AppFormat.time(firstIn)}–${AppFormat.time(blocks.last.end)}';
+
+  // A day still in progress has no settled delta — `balanceDelta` counts only
+  // committed work — so it is derived live, the same way Home derives it.
+  final delta = running > Duration.zero
+      ? worked - (entry?.targetHours ?? target)
+      : entry?.balanceDelta;
 
   return HistoryRow(
     date: date,
@@ -225,12 +260,10 @@ HistoryRow historyDayRow({
     blockTop: blockTop,
     blockBottom: blockBottom,
     line1: '${AppFormat.hm(worked)} worked',
-    // The warning replaces the time span rather than sitting beside it: when
-    // the balance has crossed a bound, that is the more important sentence.
-    line2: warning
+    line2: crossed
         ? 'Balance ${AppFormat.hm(facts.closingBalance!, signed: true)} after this day'
         : [if (isToday) 'Today', if (span != null) span].join(' · '),
-    delta: deltaText(entry?.balanceDelta),
+    delta: deltaText(delta),
     deltaWarning: warning,
     expandable: true,
     expansion: expanded

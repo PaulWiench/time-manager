@@ -14,6 +14,7 @@ import '../../data/database/database.dart';
 import '../../domain/date_only.dart';
 import '../../providers/day_providers.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/session_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../providers/stats_providers.dart';
 import '../../widgets/app_date_picker.dart';
@@ -133,13 +134,26 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ref.watch(balanceSnapshotsInRangeProvider(_weekStart, weekEnd)).valueOrNull ??
             const <BalanceSnapshot>[];
 
+    // The day before the week is needed too: whether Monday *crossed* a bound
+    // depends on where the balance stood on Sunday.
+    final previous = ref
+        .watch(balanceSnapshotsInRangeProvider(shiftDays(_weekStart, -1), _weekStart))
+        .valueOrNull;
+
     return [
-      for (var i = 0; i < 7; i++) _dayRow(shiftDays(_weekStart, i), today, snapshots),
+      for (var i = 0; i < 7; i++)
+        _dayRow(
+          shiftDays(_weekStart, i),
+          today,
+          [...?previous, ...snapshots],
+        ),
     ];
   }
 
   HistoryRow _dayRow(DateTime date, DateTime today, List<BalanceSnapshot> snapshots) {
     final expanded = _expandedDay == date;
+    final now = DateTime.now();
+    final active = date == today ? ref.watch(activeSessionProvider).valueOrNull : null;
 
     final facts = DayFacts(
       date: date,
@@ -150,6 +164,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       sessions: ref.watch(sessionsForDateProvider(date)).valueOrNull ?? const [],
       breaks: ref.watch(breaksForDateProvider(date)).valueOrNull ?? const [],
       closingBalance: _closingBalance(date, snapshots),
+      previousClosingBalance: _closingBalance(shiftDays(date, -1), snapshots),
+      runningSince: active?.startTime,
+      now: now,
     );
 
     return historyDayRow(

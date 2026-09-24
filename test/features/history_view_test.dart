@@ -87,6 +87,47 @@ void main() {
     expect(result.line2, 'Balance −20:41 after this day');
   });
 
+  test('only the day that crossed a bound explains itself', () {
+    DayFacts facts(double closing, double previous) => DayFacts(
+          date: DateTime(2026, 9, 18),
+          settings: settingsRow(balanceFloorHours: -20),
+          dayEntry: dayEntryRow(date: DateTime(2026, 9, 18), netWorkedHours: 7.1),
+          sessions: [
+            sessionRow(start: DateTime(2026, 9, 18, 8), end: DateTime(2026, 9, 18, 15, 37)),
+          ],
+          closingBalance: closing,
+          previousClosingBalance: previous,
+        );
+
+    // Deep past the floor for a second day: still warns, but the row goes back
+    // to saying when the day was worked.
+    final stayed = row(facts(-21.5, -20.7));
+    expect(stayed.deltaWarning, isTrue);
+    expect(stayed.line2, '08:00–15:37');
+
+    final crossed = row(facts(-20.7, -19.5));
+    expect(crossed.line2, 'Balance −20:42 after this day');
+  });
+
+  test("today's row counts the running session, as Home does", () {
+    final facts = DayFacts(
+      date: today,
+      settings: settings,
+      dayEntry: dayEntryRow(date: today, netWorkedHours: 3.9, targetHours: 7.9),
+      sessions: [
+        sessionRow(id: 'a', start: DateTime(2026, 9, 22, 9), end: DateTime(2026, 9, 22, 12, 52)),
+      ],
+      runningSince: DateTime(2026, 9, 22, 14, 51),
+      now: DateTime(2026, 9, 22, 16, 37),
+    );
+
+    final result = row(facts);
+    expect(result.line1, '5:40 worked');
+    expect(result.line2, 'Today · 09:00–now');
+    // A day in progress has no settled delta; it is derived live.
+    expect(result.delta, '−2:14');
+  });
+
   test('selecting a synthetic break says what deleting it would do', () {
     final date = DateTime(2026, 9, 21);
     final facts = DayFacts(
