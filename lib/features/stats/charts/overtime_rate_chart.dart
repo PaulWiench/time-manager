@@ -1,51 +1,69 @@
+/// How fast the balance moved each week (handoff §5.6.3).
+///
+/// Distinct from the trend line above it: that one shows where the balance is,
+/// this one shows what is pushing it there. Bars straddle a zero line so a run
+/// of small losses reads differently from one bad week.
+library;
+
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
+import '../../../domain/date_only.dart';
 import '../../../domain/stats_aggregation.dart';
-import 'chart_empty_state.dart';
+import 'chart_palette.dart';
 
-/// Overview § 3 — the *rate* the balance is growing/shrinking per week
-/// (sum of `balanceDelta`), distinct from the raw cumulative trend line.
-/// Bars straddle a zero line: accent for weeks that grew the balance,
-/// warning for weeks that shrank it.
 class OvertimeRateChart extends StatelessWidget {
-  final List<WeekStat> weeks;
+  const OvertimeRateChart({super.key, required this.weeks, required this.today});
 
-  const OvertimeRateChart({super.key, required this.weeks});
+  final List<WeekStat> weeks;
+  final DateTime today;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (weeks.isEmpty) return const ChartEmptyState();
+    final palette = ChartPalette.of(context);
+    final currentWeek = startOfWeek(today);
 
     var maxAbs = 0.5;
-    for (final w in weeks) {
-      if (w.balanceDelta.abs() > maxAbs) maxAbs = w.balanceDelta.abs();
+    for (final week in weeks) {
+      if (week.balanceDelta.abs() > maxAbs) maxAbs = week.balanceDelta.abs();
     }
-    final barWidth = (240 / weeks.length).clamp(4.0, 18.0);
+    final barWidth = (260 / weeks.length).clamp(4.0, 18.0);
 
     return SizedBox(
-      height: 110,
+      height: 140,
       child: BarChart(
         BarChartData(
-          minY: -maxAbs * 1.15,
-          maxY: maxAbs * 1.15,
+          // The zero line sits at 40 % of the height: losses are the common
+          // case here, and they need the room.
+          minY: -maxAbs * 1.5,
+          maxY: maxAbs * 1.1,
           gridData: const FlGridData(show: false),
           titlesData: const FlTitlesData(show: false),
           borderData: FlBorderData(show: false),
           barTouchData: BarTouchData(enabled: false),
-          extraLinesData: ExtraLinesData(horizontalLines: [HorizontalLine(y: 0, color: colors.divider, strokeWidth: 1)]),
+          extraLinesData: ExtraLinesData(
+            horizontalLines: [
+              HorizontalLine(
+                y: 0,
+                color: palette.baseline,
+                strokeWidth: AppStroke.chartGrid,
+              ),
+            ],
+          ),
           barGroups: [
-            for (var i = 0; i < weeks.length; i++)
-              BarChartGroupData(x: i, barRods: [
-                BarChartRodData(
-                  toY: weeks[i].balanceDelta,
-                  color: weeks[i].balanceDelta >= 0 ? colors.accentFill : colors.warningFill,
-                  width: barWidth,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ]),
+            for (final (i, week) in weeks.indexed)
+              BarChartGroupData(
+                x: i,
+                barRods: [
+                  BarChartRodData(
+                    toY: week.balanceDelta,
+                    color: week.weekStart == currentWeek ? palette.highlight : palette.mark,
+                    width: barWidth,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ],
+              ),
           ],
         ),
       ),

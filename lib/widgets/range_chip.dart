@@ -49,10 +49,7 @@ class RangeChip extends StatelessWidget {
               duration: motion.control,
               curve: AppCurves.control,
               height: AppSize.rangeChip,
-              // The padding is a minimum, not a reservation: the five chips
-              // share the row equally, and "Custom" has to fit in its fifth
-              // without wrapping to a second line.
-              padding: const EdgeInsets.symmetric(horizontal: AppSpace.s2),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.s3),
               constraints: const BoxConstraints(minWidth: AppSize.touch),
               alignment: Alignment.center,
               decoration: BoxDecoration(

@@ -50,7 +50,10 @@ class ChartCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final empty = value == null || child == null;
+    // No body means there is not enough data in this range. A body with no
+    // headline number is fine: the Leave breakdown says everything inside its
+    // own ring.
+    final empty = child == null;
 
     return Container(
       width: double.infinity,
@@ -72,7 +75,7 @@ class ChartCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(kicker, style: AppTextStyles.kicker.copyWith(color: colors.textMuted)),
-                    if (!empty) ...[
+                    if (!empty && value != null) ...[
                       const SizedBox(height: AppSpace.s1),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.baseline,

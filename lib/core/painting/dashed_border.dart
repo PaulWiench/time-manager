@@ -110,3 +110,74 @@ class DashedRoundedBorder extends ShapeBorder {
 }
 
 double _lerp(double a, double b, double t) => a + (b - a) * t;
+
+/// A single dashed rule, for a target line drawn across a chart.
+///
+/// [DashedRoundedBorder] cannot do this job: a border one and a half pixels
+/// tall draws its top and bottom edges on top of each other and reads as
+/// solid.
+class DashedLine extends StatelessWidget {
+  const DashedLine({
+    super.key,
+    required this.color,
+    this.strokeWidth = AppStroke.dash,
+    this.dashLength = AppStroke.dashOn,
+    this.gapLength = AppStroke.dashOff,
+  });
+
+  final Color color;
+  final double strokeWidth;
+  final double dashLength;
+  final double gapLength;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: strokeWidth,
+        width: double.infinity,
+        child: CustomPaint(
+          painter: _DashedLinePainter(
+            color: color,
+            strokeWidth: strokeWidth,
+            dashLength: dashLength,
+            gapLength: gapLength,
+          ),
+        ),
+      );
+}
+
+class _DashedLinePainter extends CustomPainter {
+  _DashedLinePainter({
+    required this.color,
+    required this.strokeWidth,
+    required this.dashLength,
+    required this.gapLength,
+  });
+
+  final Color color;
+  final double strokeWidth;
+  final double dashLength;
+  final double gapLength;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt;
+    final y = size.height / 2;
+    for (var x = 0.0; x < size.width; x += dashLength + gapLength) {
+      canvas.drawLine(
+        Offset(x, y),
+        Offset(math.min(x + dashLength, size.width), y),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedLinePainter old) =>
+      old.color != color ||
+      old.strokeWidth != strokeWidth ||
+      old.dashLength != dashLength ||
+      old.gapLength != gapLength;
+}

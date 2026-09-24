@@ -68,4 +68,49 @@ void main() {
       expect(histogram.reduce((a, b) => a + b), 3);
     });
   });
+
+  group('firstCheckInPerDay', () {
+    test('keeps one check-in per day, the earliest', () {
+      final firsts = firstCheckInPerDay([
+        DateTime(2026, 8, 3, 13, 0),
+        DateTime(2026, 8, 3, 8, 15),
+        DateTime(2026, 8, 3, 16, 30),
+        DateTime(2026, 8, 4, 9, 5),
+      ]);
+
+      expect(firsts, [DateTime(2026, 8, 3, 8, 15), DateTime(2026, 8, 4, 9, 5)]);
+    });
+
+    test('a day of four short sessions does not outvote four days', () {
+      // Which is the whole reason this exists: the histogram is about when
+      // days start, not how often a session starts.
+      final busy = [for (var i = 0; i < 4; i++) DateTime(2026, 8, 3, 13 + i)];
+      final normal = [for (var d = 4; d < 8; d++) DateTime(2026, 8, d, 8)];
+
+      final summary = summariseCheckins(firstCheckInPerDay([...busy, ...normal]));
+      expect(summary.modalHour, 8);
+      expect(summary.modalCount, 4);
+      expect(summary.dayCount, 5);
+    });
+  });
+
+  group('summariseCheckins', () {
+    test('earliest and latest are times of day, not ends of the range', () {
+      final summary = summariseCheckins([
+        DateTime(2026, 3, 2, 9, 30),
+        DateTime(2026, 6, 15, 7, 31),
+        DateTime(2026, 9, 21, 10, 12),
+      ]);
+
+      expect(summary.earliest, DateTime(2026, 6, 15, 7, 31));
+      expect(summary.latest, DateTime(2026, 9, 21, 10, 12));
+    });
+
+    test('an empty range has nothing to say', () {
+      final summary = summariseCheckins([]);
+      expect(summary.modalHour, -1);
+      expect(summary.dayCount, 0);
+      expect(summary.earliest, isNull);
+    });
+  });
 }

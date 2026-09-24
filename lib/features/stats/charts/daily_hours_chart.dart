@@ -1,55 +1,123 @@
-import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/material.dart';
+/// One bar per day against the target line (handoff §5.6.5).
+///
+/// Weekends get a stub rather than nothing, so the week's rhythm is visible in
+/// the gaps — a run of five bars and two stubs reads as a working week without
+/// anything having to say so.
+library;
 
+import 'package:flutter/widgets.dart';
+
+import '../../../core/format.dart';
+import '../../../core/painting/dashed_border.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../domain/date_only.dart';
 import '../../../domain/stats_aggregation.dart';
-import 'chart_empty_state.dart';
+import 'chart_palette.dart';
 
-/// Patterns § 2 — one bar per day, net worked hours. Ranges longer than a
-/// month produce more bars than fit on screen, so the chart scrolls
-/// horizontally with a fixed per-bar width rather than squashing bars
-/// illegibly thin; `reverse: true` starts scrolled to the most recent days.
+const double _plotHeight = 130;
+
 class DailyHoursChart extends StatelessWidget {
-  final List<DayStat> days;
+  const DailyHoursChart({
+    super.key,
+    required this.days,
+    required this.today,
+    required this.targetHours,
+  });
 
-  const DailyHoursChart({super.key, required this.days});
+  final List<DayStat> days;
+  final DateTime today;
+
+  /// The scheduled hours for a normal workday, drawn as the dashed line.
+  final double targetHours;
 
   @override
   Widget build(BuildContext context) {
+    final palette = ChartPalette.of(context);
     final colors = context.colors;
-    if (days.length < 2) return const ChartEmptyState();
 
-    var maxY = 0.5;
-    for (final d in days) {
-      if (d.netWorkedHours > maxY) maxY = d.netWorkedHours;
+    var maxY = targetHours;
+    for (final day in days) {
+      if (day.netWorkedHours > maxY) maxY = day.netWorkedHours;
     }
-    const barWidth = 6.0;
-    const gap = 3.0;
-    final chartWidth = days.length * (barWidth + gap);
+    maxY = maxY * 1.15;
+    final targetFraction = maxY > 0 ? targetHours / maxY : 0.0;
 
     return SizedBox(
-      height: 110,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        reverse: true,
-        child: SizedBox(
-          width: chartWidth < 280 ? 280 : chartWidth,
-          child: BarChart(
-            BarChartData(
-              maxY: maxY * 1.15,
-              alignment: BarChartAlignment.start,
-              gridData: const FlGridData(show: false),
-              titlesData: const FlTitlesData(show: false),
-              borderData: FlBorderData(show: false),
-              barTouchData: BarTouchData(enabled: false),
-              barGroups: [
-                for (var i = 0; i < days.length; i++)
-                  BarChartGroupData(x: i, barRods: [
-                    BarChartRodData(toY: days[i].netWorkedHours, color: colors.accentFill, width: barWidth, borderRadius: BorderRadius.circular(1.5)),
-                  ]),
+      height: _plotHeight + 16,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            bottom: 16,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (final (i, day) in days.indexed) ...[
+                  if (i > 0) const SizedBox(width: AppSpace.s1),
+                  Expanded(
+                    child: _Bar(
+                      day: day,
+                      maxY: maxY,
+                      isToday: dateOnly(day.date) == dateOnly(today),
+                      palette: palette,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
+          // The target is a line across the whole plot rather than a tick on
+          // an axis: every bar is being compared to it.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 16 + _plotHeight * targetFraction,
+            child: DashedLine(color: palette.baseline),
+          ),
+          Positioned(
+            left: 0,
+            bottom: 16 + _plotHeight * targetFraction + 4,
+            child: Text('${AppFormat.hm(targetHours)} target',
+                style: AppTextStyles.micro.copyWith(color: colors.textMuted)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Bar extends StatelessWidget {
+  const _Bar({
+    required this.day,
+    required this.maxY,
+    required this.isToday,
+    required this.palette,
+  });
+
+  final DayStat day;
+  final double maxY;
+  final bool isToday;
+  final ChartPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    // A day with no scheduled hours and nothing logged is a weekend: it gets a
+    // stub, not a missing column.
+    final isRestDay = day.targetHours <= 0 && day.netWorkedHours <= 0;
+    final height = isRestDay
+        ? 2.0
+        : (maxY > 0 ? (day.netWorkedHours / maxY) * _plotHeight : 0.0).clamp(2.0, _plotHeight);
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: isRestDay
+              ? palette.inactive
+              : (isToday ? palette.highlight : palette.mark),
+          borderRadius: BorderRadius.circular(3),
         ),
       ),
     );

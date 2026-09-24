@@ -1,109 +1,127 @@
-import 'package:flutter/material.dart';
+/// When the day usually starts (handoff §5.6.7).
+///
+/// One bar per hour, over the hours that actually contain check-ins — a
+/// twenty-four-hour axis for a range that never starts before seven is mostly
+/// a picture of nothing. The modal bucket is highlighted because it is what
+/// the header names.
+library;
 
+import 'package:flutter/widgets.dart';
+
+import '../../../core/format.dart';
 import '../../../core/theme/app_colors.dart';
-import 'chart_empty_state.dart';
+import '../../../core/theme/app_dimens.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../domain/stats_aggregation.dart';
+import 'chart_palette.dart';
 
-/// Patterns § 4 — earliest/latest check-in patterns as an hour-of-day
-/// histogram. No off-the-shelf `fl_chart` shape fits a bucketed
-/// distribution well, so this is hand-rolled per the design spec's call-out
-/// that this chart type needs its own `CustomPainter`.
+const double _plotHeight = 110;
+
 class CheckinDistributionChart extends StatelessWidget {
-  final List<int> histogram; // length 24, index = hour of day
+  const CheckinDistributionChart({
+    super.key,
+    required this.histogram,
+    required this.summary,
+  });
 
-  const CheckinDistributionChart({super.key, required this.histogram});
+  /// Length 24, index = hour of day.
+  final List<int> histogram;
+
+  final CheckinSummary summary;
 
   @override
   Widget build(BuildContext context) {
+    final palette = ChartPalette.of(context);
     final colors = context.colors;
-    final total = histogram.fold<int>(0, (a, b) => a + b);
-    if (total < 2) return const ChartEmptyState();
 
-    // Restrict the drawn axis to the hour range that actually has data
-    // (padded by an hour either side) rather than a mostly-empty 24h axis.
     var lo = 23, hi = 0;
-    for (var h = 0; h < 24; h++) {
-      if (histogram[h] > 0) {
-        if (h < lo) lo = h;
-        if (h > hi) hi = h;
+    for (var hour = 0; hour < 24; hour++) {
+      if (histogram[hour] > 0) {
+        if (hour < lo) lo = hour;
+        if (hour > hi) hi = hour;
       }
     }
+    // An hour of air either side, so the earliest bar is not flush against
+    // the card's edge.
     lo = (lo - 1).clamp(0, 23);
     hi = (hi + 1).clamp(0, 23);
+    final hours = [for (var hour = lo; hour <= hi; hour++) hour];
 
-    return SizedBox(
-      height: 100,
-      width: double.infinity,
-      child: CustomPaint(
-        painter: _HistogramPainter(
-          histogram: histogram,
-          startHour: lo,
-          endHourInclusive: hi,
-          barColor: colors.accentFill,
-          labelColor: colors.textMuted,
+    var maxCount = 1;
+    for (final hour in hours) {
+      if (histogram[hour] > maxCount) maxCount = histogram[hour];
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: _plotHeight + 16,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (final (i, hour) in hours.indexed) ...[
+                if (i > 0) const SizedBox(width: AppSpace.s1),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        height: histogram[hour] == 0
+                            ? 2
+                            : (histogram[hour] / maxCount * _plotHeight)
+                                .clamp(4.0, _plotHeight),
+                        decoration: BoxDecoration(
+                          color: histogram[hour] == 0
+                              ? palette.inactive
+                              : (hour == summary.modalHour
+                                  ? palette.highlight
+                                  : palette.mark),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.s1),
+                      Text(hour.toString().padLeft(2, '0'),
+                          style: AppTextStyles.micro.copyWith(color: colors.textMuted)),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
-      ),
+        if (summary.earliest != null && summary.latest != null) ...[
+          const SizedBox(height: AppSpace.s3),
+          Row(
+            children: [
+              _Extreme(label: 'Earliest', time: summary.earliest!),
+              const SizedBox(width: AppSpace.s4),
+              _Extreme(label: 'Latest', time: summary.latest!),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }
 
-class _HistogramPainter extends CustomPainter {
-  final List<int> histogram;
-  final int startHour;
-  final int endHourInclusive;
-  final Color barColor;
-  final Color labelColor;
+class _Extreme extends StatelessWidget {
+  const _Extreme({required this.label, required this.time});
 
-  _HistogramPainter({
-    required this.histogram,
-    required this.startHour,
-    required this.endHourInclusive,
-    required this.barColor,
-    required this.labelColor,
-  });
+  final String label;
+  final DateTime time;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final hours = [for (var h = startHour; h <= endHourInclusive; h++) h];
-    var maxCount = 1;
-    for (final h in hours) {
-      if (histogram[h] > maxCount) maxCount = histogram[h];
-    }
+  Widget build(BuildContext context) {
+    final colors = context.colors;
 
-    const labelSpace = 16.0;
-    final chartHeight = size.height - labelSpace;
-    final barWidth = size.width / hours.length;
-    final paint = Paint()..color = barColor;
-
-    for (var i = 0; i < hours.length; i++) {
-      final h = hours[i];
-      final count = histogram[h];
-      if (count == 0) continue;
-      final barHeight = (count / maxCount) * chartHeight;
-      final rect = Rect.fromLTWH(
-        i * barWidth + barWidth * 0.15,
-        chartHeight - barHeight,
-        barWidth * 0.7,
-        barHeight,
-      );
-      canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(1.5)), paint);
-    }
-
-    for (var i = 0; i < hours.length; i++) {
-      final h = hours[i];
-      if (h % 3 != 0) continue;
-      final tp = TextPainter(
-        text: TextSpan(text: '$h', style: TextStyle(fontSize: 9, color: labelColor)),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, Offset(i * barWidth + barWidth / 2 - tp.width / 2, chartHeight + 2));
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _HistogramPainter oldDelegate) {
-    return oldDelegate.histogram != histogram ||
-        oldDelegate.startHour != startHour ||
-        oldDelegate.endHourInclusive != endHourInclusive ||
-        oldDelegate.barColor != barColor;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('$label ', style: AppTextStyles.caption.copyWith(color: colors.textMuted)),
+        Text(AppFormat.time(time),
+            style: AppTextStyles.captionStrong.copyWith(color: colors.text)),
+      ],
+    );
   }
 }

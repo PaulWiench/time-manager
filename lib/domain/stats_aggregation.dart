@@ -103,3 +103,74 @@ List<int> checkinHourHistogram(List<DateTime> checkInTimes) {
   }
   return buckets;
 }
+
+/// The first check-in of each day, which is the one "when do you start"
+/// is actually asking about. Counting every session start would let one day
+/// with four short sessions outvote four days that each started once.
+List<DateTime> firstCheckInPerDay(List<DateTime> checkInTimes) {
+  final earliest = <DateTime, DateTime>{};
+  for (final time in checkInTimes) {
+    final day = dateOnly(time);
+    final current = earliest[day];
+    if (current == null || time.isBefore(current)) earliest[day] = time;
+  }
+  final days = earliest.keys.toList()..sort();
+  return [for (final day in days) earliest[day]!];
+}
+
+/// What the check-in histogram has to say: the busiest hour, how many days
+/// fall in it, and the two extremes.
+class CheckinSummary {
+  const CheckinSummary({
+    required this.modalHour,
+    required this.modalCount,
+    required this.dayCount,
+    required this.earliest,
+    required this.latest,
+  });
+
+  /// -1 when there is nothing to summarise.
+  final int modalHour;
+
+  final int modalCount;
+  final int dayCount;
+  final DateTime? earliest;
+  final DateTime? latest;
+}
+
+CheckinSummary summariseCheckins(List<DateTime> firstCheckIns) {
+  if (firstCheckIns.isEmpty) {
+    return const CheckinSummary(
+      modalHour: -1,
+      modalCount: 0,
+      dayCount: 0,
+      earliest: null,
+      latest: null,
+    );
+  }
+
+  final histogram = checkinHourHistogram(firstCheckIns);
+  var modalHour = 0;
+  for (var hour = 1; hour < 24; hour++) {
+    if (histogram[hour] > histogram[modalHour]) modalHour = hour;
+  }
+
+  // Earliest and latest mean time of day, not first and last in the range:
+  // the question is how early the day has ever started, not whether that
+  // happened in March.
+  var earliest = firstCheckIns.first;
+  var latest = firstCheckIns.first;
+  int minutesOfDay(DateTime t) => t.hour * 60 + t.minute;
+  for (final time in firstCheckIns) {
+    if (minutesOfDay(time) < minutesOfDay(earliest)) earliest = time;
+    if (minutesOfDay(time) > minutesOfDay(latest)) latest = time;
+  }
+
+  return CheckinSummary(
+    modalHour: modalHour,
+    modalCount: histogram[modalHour],
+    dayCount: firstCheckIns.length,
+    earliest: earliest,
+    latest: latest,
+  );
+}

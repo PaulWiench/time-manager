@@ -1,31 +1,20 @@
+/// Stats' data half: resolves the range, gathers the aggregates, hands them to
+/// [StatsBody].
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
-import '../../core/icons/app_icons.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_dimens.dart';
-import '../../core/theme/app_text_styles.dart';
 import '../../data/database/database.dart';
 import '../../data/database/enums.dart';
 import '../../domain/date_only.dart';
 import '../../domain/stats_aggregation.dart';
 import '../../providers/day_providers.dart';
 import '../../providers/stats_providers.dart';
-import '../../widgets/stat_card.dart';
-import 'charts/balance_trend_chart.dart';
-import 'charts/chart_empty_state.dart';
-import 'charts/checkin_distribution_chart.dart';
-import 'charts/daily_hours_chart.dart';
-import 'charts/leave_breakdown.dart';
-import 'charts/monthly_heatmap.dart';
-import 'charts/overtime_rate_chart.dart';
-import 'charts/weekday_hours_chart.dart';
-import 'charts/weekly_hit_rate_chart.dart';
+import 'stats_body.dart';
+import 'stats_view.dart';
 
-enum StatsTab { overview, patterns, leave }
-
-/// Header, in-screen tab bar, range selector, and the real chart bodies per
-/// the design handoff and § 5.4 of the design spec (Milestone 8).
 class StatsScreen extends ConsumerStatefulWidget {
   const StatsScreen({super.key});
 
@@ -35,280 +24,168 @@ class StatsScreen extends ConsumerStatefulWidget {
 
 class _StatsScreenState extends ConsumerState<StatsScreen> {
   StatsTab _tab = StatsTab.overview;
-  String _range = 'Month';
+  StatsRange _range = StatsRange.month;
   DateRange? _customRange;
+
+  /// The heatmap steps through months on its own; Leave steps through years.
+  /// Both deliberately ignore the range chips.
+  late DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   int _leaveYear = DateTime.now().year;
 
-  DateRange _resolveRange() {
-    final today = DateTime.now();
-    switch (_range) {
-      case '6 Months':
-        return trailingRange(182, today: today);
-      case 'Year':
-        return trailingRange(365, today: today);
-      case 'Custom':
-        return _customRange ?? trailingRange(30, today: today);
-      case 'Month':
-      default:
-        return trailingRange(30, today: today);
+  DateRange _resolveRange(DateTime today) {
+    final days = _range.trailingDays;
+    if (days != null) return trailingRange(days, today: today);
+    return _customRange ?? trailingRange(30, today: today);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final today = dateOnly(DateTime.now());
+    final range = _resolveRange(today);
+
+    return StatsBody(
+      tab: _tab,
+      range: _range,
+      customRangeLabel: _customRange == null ? null : _customLabel(_customRange!),
+      overview: _tab == StatsTab.overview ? _overview(range, today) : null,
+      patterns: _tab == StatsTab.patterns ? _patterns(range, today) : null,
+      leave: _tab == StatsTab.leave ? _leave() : null,
+      onTabChanged: (tab) => setState(() => _tab = tab),
+      onRangeChanged: (value) {
+        if (value == StatsRange.custom) {
+          _pickCustomRange();
+        } else {
+          setState(() => _range = value);
+        }
+      },
+      onStepMonth: (direction) =>
+          setState(() => _month = DateTime(_month.year, _month.month + direction)),
+      onStepYear: (direction) => setState(() => _leaveYear += direction),
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Aggregates.
+  // ---------------------------------------------------------------------
+
+  List<DayStat> _dayStats(List<DayEntry> entries) => [
+        for (final entry in entries)
+          DayStat(
+            date: entry.date,
+            netWorkedHours: entry.netWorkedHours,
+            targetHours: entry.targetHours,
+            balanceDelta: entry.balanceDelta,
+          ),
+      ];
+
+  OverviewData _overview(DateRange range, DateTime today) {
+    final snapshots =
+        ref.watch(balanceSnapshotsInRangeProvider(range.start, range.endExclusive)).valueOrNull ??
+            const <BalanceSnapshot>[];
+    final entries =
+        ref.watch(dayEntriesInRangeProvider(range.start, range.endExclusive)).valueOrNull ??
+            const <DayEntry>[];
+
+    return OverviewData(
+      balance: [
+        for (final snapshot in snapshots)
+          BalancePoint(date: snapshot.date, balance: snapshot.balance),
+      ],
+      weeks: weeklyAggregates(_dayStats(entries)),
+      today: today,
+    );
+  }
+
+  PatternsData _patterns(DateRange range, DateTime today) {
+    final entries =
+        ref.watch(dayEntriesInRangeProvider(range.start, range.endExclusive)).valueOrNull ??
+            const <DayEntry>[];
+    final sessions =
+        ref.watch(workSessionsInRangeProvider(range.start, range.endExclusive)).valueOrNull ??
+            const <WorkSession>[];
+
+    final monthEnd = DateTime(_month.year, _month.month + 1);
+    final monthEntries =
+        ref.watch(dayEntriesInRangeProvider(_month, monthEnd)).valueOrNull ?? const <DayEntry>[];
+
+    final firstCheckIns = firstCheckInPerDay([
+      for (final session in sessions)
+        if (session.status != SessionStatus.discarded) session.startTime,
+    ]);
+
+    return PatternsData(
+      month: _month,
+      monthDays: _dayStats(monthEntries),
+      // A day is "leave" for the heatmap when it logged leave hours and no
+      // work — a half day of each is still a day that was partly worked.
+      leaveDays: {
+        for (final entry in monthEntries)
+          if (entry.leaveHours > 0 && entry.netWorkedHours <= 0) entry.date,
+      },
+      days: _dayStats(entries),
+      weekdayAverages: averageHoursByWeekday(_dayStats(entries)),
+      checkinHistogram: checkinHourHistogram(firstCheckIns),
+      checkins: summariseCheckins(firstCheckIns),
+      today: today,
+    );
+  }
+
+  LeaveData _leave() {
+    final quota = ref.watch(vacationQuotaForYearProvider(_leaveYear)).valueOrNull;
+    final entries = ref.watch(leaveForYearProvider(_leaveYear)).valueOrNull ?? const [];
+
+    var vacationHours = 0.0;
+    var sickHours = 0.0;
+    for (final entry in entries) {
+      switch (entry.type) {
+        case LeaveType.vacation:
+          vacationHours += entry.hours;
+        case LeaveType.sick:
+          sickHours += entry.hours;
+        case LeaveType.flexDay:
+          break;
+      }
     }
+
+    return LeaveData(
+      year: _leaveYear,
+      totalDays: (quota?.totalDays ?? 30) + (quota?.rolloverDays ?? 0),
+      usedDays: vacationHours / kLeaveHoursPerDay,
+      sickDays: sickHours / kLeaveHoursPerDay,
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Custom range.
+  // ---------------------------------------------------------------------
+
+  static final _dayMonth = DateFormat('d MMM');
+  static final _dayMonthYear = DateFormat('d MMM yyyy');
+
+  String _customLabel(DateRange range) {
+    final last = shiftDays(range.endExclusive, -1);
+    return '${_dayMonth.format(range.start)} – ${_dayMonthYear.format(last)}';
   }
 
   Future<void> _pickCustomRange() async {
     final now = DateTime.now();
-    final initial = _customRange;
+    final current = _customRange;
     final result = await showDateRangePicker(
       context: context,
       firstDate: DateTime(now.year - 5),
       lastDate: now,
       initialDateRange: DateTimeRange(
-        start: initial?.start ?? shiftDays(now, -29),
-        end: initial != null ? shiftDays(initial.endExclusive, -1) : now,
+        start: current?.start ?? shiftDays(now, -29),
+        end: current != null ? shiftDays(current.endExclusive, -1) : now,
       ),
     );
     if (result == null || !mounted) return;
     setState(() {
-      _range = 'Custom';
+      _range = StatsRange.custom;
       _customRange = DateRange(
-        start: DateTime(result.start.year, result.start.month, result.start.day),
-        endExclusive: shiftDays(DateTime(result.end.year, result.end.month, result.end.day), 1),
+        start: dateOnly(result.start),
+        endExclusive: shiftDays(dateOnly(result.end), 1),
       );
     });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpace.screenPadding, 14, AppSpace.screenPadding, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Stats', style: AppTextStyles.screenTitle.copyWith(color: colors.text)),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      for (final t in StatsTab.values) ...[
-                        _TabLabel(tab: t, active: _tab == t, colors: colors, onTap: () => setState(() => _tab = t)),
-                        const SizedBox(width: 14),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (_tab == StatsTab.leave)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: () => setState(() => _leaveYear -= 1),
-                          child: Icon(AppIcons.caretLeft, size: 15, color: colors.textMuted),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(_leaveYear.toString(), style: AppTextStyles.heroNumber(13).copyWith(color: colors.text)),
-                        const SizedBox(width: 10),
-                        GestureDetector(
-                          onTap: () => setState(() => _leaveYear += 1),
-                          child: Icon(AppIcons.caretRight, size: 15, color: colors.textMuted),
-                        ),
-                      ],
-                    )
-                  else
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final r in const ['Month', '6 Months', 'Year', 'Custom']) ...[
-                            _RangeChip(
-                              label: r,
-                              selected: _range == r,
-                              colors: colors,
-                              onTap: r == 'Custom' ? _pickCustomRange : () => setState(() => _range = r),
-                            ),
-                            const SizedBox(width: 6),
-                          ],
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(AppSpace.screenPadding, 14, AppSpace.screenPadding, 20),
-                children: _cardsFor(_tab),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _card(String kicker, Widget child) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: ChartCard(kicker: kicker, child: child),
-      );
-
-  List<DayStat> _toDayStats(List<DayEntry> entries) => [
-        for (final e in entries)
-          DayStat(date: e.date, netWorkedHours: e.netWorkedHours, targetHours: e.targetHours, balanceDelta: e.balanceDelta),
-      ];
-
-  List<Widget> _cardsFor(StatsTab tab) {
-    switch (tab) {
-      case StatsTab.overview:
-        return _overviewCards(_resolveRange());
-      case StatsTab.patterns:
-        return _patternsCards(_resolveRange());
-      case StatsTab.leave:
-        return _leaveCards();
-    }
-  }
-
-  List<Widget> _overviewCards(DateRange range) {
-    final balanceAsync = ref.watch(balanceSnapshotsInRangeProvider(range.start, range.endExclusive));
-    final daysAsync = ref.watch(dayEntriesInRangeProvider(range.start, range.endExclusive));
-
-    return [
-      _card(
-        'Balance trend',
-        balanceAsync.when(
-          data: (snapshots) => BalanceTrendChart(snapshots: snapshots),
-          loading: () => const ChartLoading(height: 140),
-          error: (_, __) => const ChartEmptyState(height: 140),
-        ),
-      ),
-      _card(
-        'Weekly target hit rate',
-        daysAsync.when(
-          data: (entries) => WeeklyHitRateChart(weeks: weeklyAggregates(_toDayStats(entries))),
-          loading: () => const ChartLoading(),
-          error: (_, __) => const ChartEmptyState(),
-        ),
-      ),
-      _card(
-        'Overtime accumulation rate',
-        daysAsync.when(
-          data: (entries) => OvertimeRateChart(weeks: weeklyAggregates(_toDayStats(entries))),
-          loading: () => const ChartLoading(),
-          error: (_, __) => const ChartEmptyState(),
-        ),
-      ),
-    ];
-  }
-
-  List<Widget> _patternsCards(DateRange range) {
-    final daysAsync = ref.watch(dayEntriesInRangeProvider(range.start, range.endExclusive));
-    final sessionsAsync = ref.watch(workSessionsInRangeProvider(range.start, range.endExclusive));
-
-    return [
-      _card('Monthly overview', const MonthlyHeatmap()),
-      _card(
-        'Daily hours',
-        daysAsync.when(
-          data: (entries) => DailyHoursChart(days: _toDayStats(entries)),
-          loading: () => const ChartLoading(),
-          error: (_, __) => const ChartEmptyState(),
-        ),
-      ),
-      _card(
-        'By day of week',
-        daysAsync.when(
-          data: (entries) => WeekdayHoursChart(averages: averageHoursByWeekday(_toDayStats(entries))),
-          loading: () => const ChartLoading(),
-          error: (_, __) => const ChartEmptyState(),
-        ),
-      ),
-      _card(
-        'Check-in times',
-        sessionsAsync.when(
-          data: (sessions) => CheckinDistributionChart(
-            histogram: checkinHourHistogram([
-              for (final s in sessions)
-                if (s.status != SessionStatus.discarded) s.startTime,
-            ]),
-          ),
-          loading: () => const ChartLoading(),
-          error: (_, __) => const ChartEmptyState(),
-        ),
-      ),
-    ];
-  }
-
-  List<Widget> _leaveCards() {
-    final quotaAsync = ref.watch(vacationQuotaForYearProvider(_leaveYear));
-    final entriesAsync = ref.watch(leaveForYearProvider(_leaveYear));
-
-    return [
-      _card(
-        'Leave breakdown',
-        quotaAsync.when(
-          data: (quota) => entriesAsync.when(
-            data: (entries) => LeaveBreakdown(quota: quota, entries: entries),
-            loading: () => const ChartLoading(height: 90),
-            error: (_, __) => const ChartEmptyState(height: 90),
-          ),
-          loading: () => const ChartLoading(height: 90),
-          error: (_, __) => const ChartEmptyState(height: 90),
-        ),
-      ),
-    ];
-  }
-}
-
-class _TabLabel extends StatelessWidget {
-  final StatsTab tab;
-  final bool active;
-  final AppColors colors;
-  final VoidCallback onTap;
-
-  const _TabLabel({required this.tab, required this.active, required this.colors, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final label = switch (tab) {
-      StatsTab.overview => 'Overview',
-      StatsTab.patterns => 'Patterns',
-      StatsTab.leave => 'Leave',
-    };
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.only(bottom: 6),
-        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: active ? colors.accentFill : Colors.transparent, width: 2))),
-        child: Text(
-          label,
-          style: AppTextStyles.body.copyWith(color: active ? colors.accentText : colors.textMuted, fontWeight: FontWeight.w500),
-        ),
-      ),
-    );
-  }
-}
-
-class _RangeChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final AppColors colors;
-  final VoidCallback onTap;
-
-  const _RangeChip({required this.label, required this.selected, required this.colors, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        decoration: BoxDecoration(color: selected ? colors.accentTint : null, borderRadius: BorderRadius.circular(100)),
-        child: Text(
-          label,
-          style: AppTextStyles.metaMedium.copyWith(color: selected ? colors.accentText : colors.textMuted, fontWeight: selected ? FontWeight.w600 : FontWeight.w500),
-        ),
-      ),
-    );
   }
 }

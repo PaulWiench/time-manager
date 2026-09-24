@@ -1,149 +1,202 @@
-import 'dart:ui' as ui;
+/// A calendar month, shaded by how much was worked (handoff §5.6.4).
+///
+/// Deliberately scoped to one calendar month with its own stepper, independent
+/// of the range chips: a flattened six-month window does not lay out as a
+/// legible calendar, and the point of this chart is the shape of a month.
+///
+/// Leave cells are punched rather than shaded — a day off is not a light day.
+library;
 
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter/widgets.dart';
 
-import '../../../core/icons/app_icons.dart';
+import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../data/database/database.dart';
-import '../../../providers/day_providers.dart';
-import 'chart_empty_state.dart';
+import '../../../domain/stats_aggregation.dart';
+import 'chart_palette.dart';
 
-/// Patterns § 1 — GitHub-style heatmap, calendar-month grid (Mon..Sun
-/// columns, one row per week) rather than a continuous rolling window.
-/// Deliberately scoped to a single calendar month with its own prev/next
-/// selector — independent of Stats' global range chip — since a flattened
-/// 6-month/year window doesn't lay out as a legible calendar grid. Matches
-/// the precedent set by Leave's own year selector, which also ignores the
-/// global range.
-class MonthlyHeatmap extends ConsumerStatefulWidget {
-  const MonthlyHeatmap({super.key});
+class MonthlyHeatmap extends StatelessWidget {
+  const MonthlyHeatmap({
+    super.key,
+    required this.month,
+    required this.days,
+    required this.leaveDays,
+    required this.today,
+  });
 
-  @override
-  ConsumerState<MonthlyHeatmap> createState() => _MonthlyHeatmapState();
-}
+  final DateTime month;
+  final List<DayStat> days;
+  final Set<DateTime> leaveDays;
+  final DateTime today;
 
-class _MonthlyHeatmapState extends ConsumerState<MonthlyHeatmap> {
-  late DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
-
-  static final _monthFmt = DateFormat('MMMM yyyy');
+  static const _weekdayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
   @override
   Widget build(BuildContext context) {
+    final palette = ChartPalette.of(context);
     final colors = context.colors;
-    final monthEndExclusive = DateTime(_month.year, _month.month + 1);
-    final entriesAsync = ref.watch(dayEntriesInRangeProvider(_month, monthEndExclusive));
+
+    final byDate = {for (final day in days) day.date: day};
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    final lead = DateTime(month.year, month.month).weekday - 1;
+
+    final cells = <Widget?>[
+      for (var i = 0; i < lead; i++) null,
+      for (var day = 1; day <= daysInMonth; day++)
+        _Cell(
+          date: DateTime(month.year, month.month, day),
+          stat: byDate[DateTime(month.year, month.month, day)],
+          isLeave: leaveDays.contains(DateTime(month.year, month.month, day)),
+          isToday: DateTime(month.year, month.month, day) == today,
+          isFuture: DateTime(month.year, month.month, day).isAfter(today),
+          palette: palette,
+        ),
+    ];
+    while (cells.length % 7 != 0) {
+      cells.add(null);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            GestureDetector(
-              onTap: () => setState(() => _month = DateTime(_month.year, _month.month - 1)),
-              child: Icon(AppIcons.caretLeft, size: 14, color: colors.textMuted),
-            ),
-            const SizedBox(width: 8),
-            Text(_monthFmt.format(_month), style: AppTextStyles.body.copyWith(color: colors.text)),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () => setState(() => _month = DateTime(_month.year, _month.month + 1)),
-              child: Icon(AppIcons.caretRight, size: 14, color: colors.textMuted),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        entriesAsync.when(
-          data: (entries) {
-            if (entries.every((e) => e.netWorkedHours <= 0)) return const ChartEmptyState(height: 130);
-            final byDate = {for (final e in entries) e.date: e};
-            return SizedBox(
-              height: 130,
-              width: double.infinity,
-              child: CustomPaint(
-                painter: _HeatmapPainter(
-                  month: _month,
-                  byDate: byDate,
-                  fillColor: colors.accentFill,
-                  idleColor: colors.idle.withValues(alpha: 0.25),
-                  labelColor: colors.textMuted,
+            for (final letter in _weekdayLetters)
+              Expanded(
+                child: Center(
+                  child: Text(letter,
+                      style: AppTextStyles.micro.copyWith(color: colors.textMuted)),
                 ),
               ),
-            );
-          },
-          loading: () => const ChartLoading(height: 130),
-          error: (_, __) => const ChartEmptyState(height: 130),
+          ],
         ),
+        const SizedBox(height: AppSpace.s2),
+        for (var row = 0; row * 7 < cells.length; row++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpace.s2),
+            child: Row(
+              children: [
+                for (var col = 0; col < 7; col++) ...[
+                  if (col > 0) const SizedBox(width: AppSpace.s2),
+                  Expanded(
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: cells[row * 7 + col] ?? const SizedBox.shrink(),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        const SizedBox(height: AppSpace.s1),
+        _Legend(palette: palette),
       ],
     );
   }
 }
 
-class _HeatmapPainter extends CustomPainter {
-  final DateTime month;
-  final Map<DateTime, DayEntry> byDate;
-  final Color fillColor;
-  final Color idleColor;
-  final Color labelColor;
-
-  _HeatmapPainter({
-    required this.month,
-    required this.byDate,
-    required this.fillColor,
-    required this.idleColor,
-    required this.labelColor,
+class _Cell extends StatelessWidget {
+  const _Cell({
+    required this.date,
+    required this.stat,
+    required this.isLeave,
+    required this.isToday,
+    required this.isFuture,
+    required this.palette,
   });
 
-  static const _weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  final DateTime date;
+  final DayStat? stat;
+  final bool isLeave;
+  final bool isToday;
+  final bool isFuture;
+  final ChartPalette palette;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    const cols = 7;
-    const labelSpace = 14.0;
-    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
-    final firstWeekday = DateTime(month.year, month.month, 1).weekday; // 1=Mon
-    final rows = ((firstWeekday - 1 + daysInMonth) / cols).ceil();
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final radius = BorderRadius.circular(AppRadius.cellLg);
 
-    final cellW = size.width / cols;
-    final cellH = (size.height - labelSpace) / rows;
-    const gap = 2.0;
-    final now = DateTime.now();
-
-    for (var day = 1; day <= daysInMonth; day++) {
-      final date = DateTime(month.year, month.month, day);
-      final index = firstWeekday - 1 + day - 1;
-      final row = index ~/ cols;
-      final col = index % cols;
-      final rect = Rect.fromLTWH(col * cellW + gap / 2, row * cellH + gap / 2, cellW - gap, cellH - gap);
-
-      final entry = byDate[date];
-      final isFuture = date.isAfter(DateTime(now.year, now.month, now.day));
-      Color color;
-      if (isFuture) {
-        color = Colors.transparent;
-      } else if (entry == null || entry.netWorkedHours <= 0) {
-        color = idleColor;
-      } else {
-        final ratio = entry.targetHours > 0 ? (entry.netWorkedHours / entry.targetHours).clamp(0.0, 1.0) : 1.0;
-        color = fillColor.withValues(alpha: 0.2 + ratio * 0.8);
-      }
-
-      canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(3)), Paint()..color = color);
+    // A day that has not happened is outlined, not shaded: nothing is known
+    // about it yet, and shading it grey would claim it was a nil day.
+    if (isFuture) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          border: Border.all(color: colors.divider, width: AppStroke.hair),
+        ),
+      );
     }
 
-    for (var c = 0; c < cols; c++) {
-      final tp = TextPainter(
-        text: TextSpan(text: _weekdayLabels[c], style: TextStyle(fontSize: 9, color: labelColor)),
-        textDirection: ui.TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, Offset(c * cellW + cellW / 2 - tp.width / 2, size.height - labelSpace + 2));
+    if (isLeave) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: palette.ground,
+          borderRadius: radius,
+          border: Border.all(color: palette.leave, width: AppStroke.focus),
+        ),
+        child: Center(
+          child: Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: palette.leave, shape: BoxShape.circle),
+          ),
+        ),
+      );
     }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.heatFor(stat?.netWorkedHours ?? 0, stat?.targetHours ?? 0),
+        borderRadius: radius,
+        border: isToday
+            ? Border.all(color: palette.highlight, width: AppStroke.focus)
+            : null,
+      ),
+    );
   }
+}
+
+class _Legend extends StatelessWidget {
+  const _Legend({required this.palette});
+
+  final ChartPalette palette;
 
   @override
-  bool shouldRepaint(covariant _HeatmapPainter oldDelegate) {
-    return oldDelegate.month != month || oldDelegate.byDate != byDate;
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Row(
+      children: [
+        Text('Less', style: AppTextStyles.micro.copyWith(color: colors.textMuted)),
+        const SizedBox(width: AppSpace.s2),
+        for (final step in palette.heat)
+          Padding(
+            padding: const EdgeInsets.only(right: 3),
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: step,
+                borderRadius: BorderRadius.circular(AppRadius.cell),
+              ),
+            ),
+          ),
+        const SizedBox(width: AppSpace.s1),
+        Text('More', style: AppTextStyles.micro.copyWith(color: colors.textMuted)),
+        const Spacer(),
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: palette.ground,
+            borderRadius: BorderRadius.circular(AppRadius.cell),
+            border: Border.all(color: palette.leave, width: AppStroke.focus),
+          ),
+        ),
+        const SizedBox(width: AppSpace.s1),
+        Text('Leave', style: AppTextStyles.micro.copyWith(color: colors.textMuted)),
+      ],
+    );
   }
 }
