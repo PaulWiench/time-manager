@@ -32,17 +32,25 @@ const kBreakWindow = Duration(hours: 2);
 /// [lastCheckOut] is the end of the most recent completed session today, and
 /// [completedSessionsToday] counts only sessions that actually closed — a
 /// discarded one must not make the day look started.
+///
+/// [targetMet] short-circuits the break window: once the day's hours are in,
+/// walking away is going home, not taking a break. Without it the app would
+/// claim you were "on break" for two hours every evening, and the designed
+/// checked-out state would be nearly unreachable — a day that ends at 18:51
+/// would not read as finished until 20:51.
 TrackingState trackingStateFor({
   required DateTime now,
   required bool hasActiveSession,
   required DateTime? lastCheckOut,
   required int completedSessionsToday,
+  bool targetMet = false,
   Duration breakWindow = kBreakWindow,
 }) {
   if (hasActiveSession) return TrackingState.tracking;
   if (completedSessionsToday == 0 || lastCheckOut == null) {
     return TrackingState.notStarted;
   }
+  if (targetMet) return TrackingState.checkedOut;
   // A check-out timestamp in the future would mean a clock change mid-day;
   // treat it as "just now" rather than letting a negative gap read as a break
   // that never ends.

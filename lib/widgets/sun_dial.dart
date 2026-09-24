@@ -148,9 +148,11 @@ class SunDialPainter extends CustomPainter {
       ..strokeWidth = stroke
       ..strokeCap = round ? StrokeCap.round : StrokeCap.butt;
 
-    // 1. Glow, dark theme only: a blurred copy of the arc under everything.
+    // 1. Glow, dark theme only, and only while tracking: it is the accent
+    // arc's glow, not a general halo, so a lilac break ring does not wear an
+    // apricot one.
     final glow = colors.glowAccent;
-    if (glow != null && sweep > 0 && state != TrackingState.checkedOut) {
+    if (glow != null && sweep > 0 && state == TrackingState.tracking) {
       canvas.drawArc(
         box,
         _start,

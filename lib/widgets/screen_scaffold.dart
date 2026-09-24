@@ -22,12 +22,17 @@ class TabScreen extends StatelessWidget {
     super.key,
     required this.title,
     required this.children,
+    this.subtitle,
     this.action,
     this.gutter = AppSpace.gutterSparse,
     this.controller,
   });
 
   final String title;
+
+  /// Home's date line. The other tabs have nothing to say under their title.
+  final String? subtitle;
+
   final List<Widget> children;
 
   /// A single control on the title row, e.g. Home's gear.
@@ -59,7 +64,17 @@ class TabScreen extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(title, style: AppTextStyles.title.copyWith(color: colors.text)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppTextStyles.title.copyWith(color: colors.text)),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(subtitle!,
+                          style: AppTextStyles.body.copyWith(color: colors.textMuted)),
+                    ],
+                  ],
+                ),
               ),
               if (action != null) action!,
             ],

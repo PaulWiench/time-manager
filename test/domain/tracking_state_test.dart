@@ -8,12 +8,14 @@ void main() {
     bool active = false,
     DateTime? lastOut,
     int completed = 0,
+    bool targetMet = false,
   }) =>
       trackingStateFor(
         now: now,
         hasActiveSession: active,
         lastCheckOut: lastOut,
         completedSessionsToday: completed,
+        targetMet: targetMet,
       );
 
   test('an open session is tracking, whatever else happened today', () {
@@ -50,6 +52,19 @@ void main() {
     expect(
       state(lastOut: now.subtract(kBreakWindow + const Duration(minutes: 1)), completed: 1),
       TrackingState.checkedOut,
+    );
+  });
+
+  test('once the day is done, walking away is going home, not a break', () {
+    // Without this the evening reads as a two-hour break: check out at 18:51
+    // and the app would still claim you were on one at 20:00.
+    expect(
+      state(lastOut: now.subtract(const Duration(minutes: 20)), completed: 1, targetMet: true),
+      TrackingState.checkedOut,
+    );
+    expect(
+      state(lastOut: now.subtract(const Duration(minutes: 20)), completed: 1),
+      TrackingState.onBreak,
     );
   });
 
