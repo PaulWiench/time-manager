@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/format.dart';
+import '../../core/icons/app_icons.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../domain/date_only.dart';
@@ -104,7 +104,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 children: [
                   GestureDetector(
                     onTap: _submitting ? null : () => _finish(cancelled: true),
-                    child: PhosphorIcon(PhosphorIconsRegular.x, size: 18, color: colors.textMuted),
+                    child: Icon(AppIcons.x, size: 18, color: colors.textMuted),
                   ),
                   Row(
                     children: [
@@ -161,7 +161,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case 0:
         return _StepShell(
           step: 1,
-          icon: PhosphorIconsRegular.clock,
+          icon: AppIcons.clock,
           title: 'How many hours a week do you work?',
           helper: 'You can change this anytime in Settings.',
           defaultCaption: 'Default: 40h',
@@ -176,7 +176,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case 1:
         return _StepShell(
           step: 2,
-          icon: PhosphorIconsRegular.calendarCheck,
+          icon: AppIcons.calendarCheck,
           title: 'Which days do you work?',
           helper: 'You can change this anytime in Settings.',
           defaultCaption: 'Default: Mon – Fri',
@@ -206,7 +206,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case 2:
         return _StepShell(
           step: 3,
-          icon: PhosphorIconsRegular.scales,
+          icon: AppIcons.scales,
           title: 'Any existing hour balance to carry over?',
           helper: 'Positive if you\'re owed hours, negative if you owe them.',
           defaultCaption: 'Default: 0:00',
@@ -221,7 +221,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case 3:
         return _StepShell(
           step: 4,
-          icon: PhosphorIconsRegular.coffee,
+          icon: AppIcons.coffee,
           title: 'Automatically deduct legal breaks?',
           helper: 'German labor law requires a break after 6h and 9h of work — TimeManager can apply it for you.',
           defaultCaption: 'Default: On',
@@ -279,7 +279,7 @@ class _StepShell extends StatelessWidget {
           style: AppTextStyles.metaMedium.copyWith(color: colors.textMuted, letterSpacing: 1.2),
         ),
         const SizedBox(height: 16),
-        PhosphorIcon(icon, size: 40, color: colors.accentFill),
+        Icon(icon, size: 40, color: colors.accentFill),
         const SizedBox(height: 18),
         Text(title, textAlign: TextAlign.center, style: AppTextStyles.onboardingTitle.copyWith(color: colors.text)),
         const SizedBox(height: 8),
@@ -336,16 +336,16 @@ class _Stepper extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: colors.divider)),
-            child: PhosphorIcon(icon, size: 16, color: colors.text),
+            child: Icon(icon, size: 16, color: colors.text),
           ),
         );
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        button(PhosphorIconsRegular.minus, onDecrement),
+        button(AppIcons.minus, onDecrement),
         SizedBox(width: 90, child: Text(label, textAlign: TextAlign.center, style: AppTextStyles.heroNumber(22).copyWith(color: colors.text))),
-        button(PhosphorIconsRegular.plus, onIncrement),
+        button(AppIcons.plus, onIncrement),
       ],
     );
   }

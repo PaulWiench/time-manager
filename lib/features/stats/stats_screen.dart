@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../core/icons/app_icons.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -13,8 +13,8 @@ import '../../providers/day_providers.dart';
 import '../../providers/stats_providers.dart';
 import '../../widgets/stat_card.dart';
 import 'charts/balance_trend_chart.dart';
-import 'charts/checkin_distribution_chart.dart';
 import 'charts/chart_empty_state.dart';
+import 'charts/checkin_distribution_chart.dart';
 import 'charts/daily_hours_chart.dart';
 import 'charts/leave_breakdown.dart';
 import 'charts/monthly_heatmap.dart';
@@ -105,14 +105,14 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                       children: [
                         GestureDetector(
                           onTap: () => setState(() => _leaveYear -= 1),
-                          child: PhosphorIcon(PhosphorIconsRegular.caretLeft, size: 15, color: colors.textMuted),
+                          child: Icon(AppIcons.caretLeft, size: 15, color: colors.textMuted),
                         ),
                         const SizedBox(width: 10),
                         Text(_leaveYear.toString(), style: AppTextStyles.heroNumber(13).copyWith(color: colors.text)),
                         const SizedBox(width: 10),
                         GestureDetector(
                           onTap: () => setState(() => _leaveYear += 1),
-                          child: PhosphorIcon(PhosphorIconsRegular.caretRight, size: 15, color: colors.textMuted),
+                          child: Icon(AppIcons.caretRight, size: 15, color: colors.textMuted),
                         ),
                       ],
                     )

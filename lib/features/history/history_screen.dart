@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/format.dart';
+import '../../core/icons/app_icons.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -64,18 +64,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     children: [
                       GestureDetector(
                         onTap: () => _step(-1),
-                        child: PhosphorIcon(PhosphorIconsRegular.caretLeft, size: 16, color: colors.textMuted),
+                        child: Icon(AppIcons.caretLeft, size: 16, color: colors.textMuted),
                       ),
                       Row(
                         children: [
                           Text(_headerLabel(), style: AppTextStyles.body.copyWith(color: colors.text, fontWeight: FontWeight.w500)),
                           const SizedBox(width: 6),
-                          PhosphorIcon(PhosphorIconsRegular.calendarBlank, size: 15, color: colors.accentText),
+                          Icon(AppIcons.calendarBlank, size: 15, color: colors.accentText),
                         ],
                       ),
                       GestureDetector(
                         onTap: () => _step(1),
-                        child: PhosphorIcon(PhosphorIconsRegular.caretRight, size: 16, color: colors.textMuted),
+                        child: Icon(AppIcons.caretRight, size: 16, color: colors.textMuted),
                       ),
                     ],
                   ),
@@ -286,7 +286,7 @@ class _RangeRow extends StatelessWidget {
               children: [
                 Text(AppFormat.hm(delta, signed: true), style: AppTextStyles.heroNumber(13).copyWith(color: colors.accentText)),
                 const SizedBox(width: 10),
-                PhosphorIcon(PhosphorIconsRegular.caretRight, size: 14, color: colors.textMuted),
+                Icon(AppIcons.caretRight, size: 14, color: colors.textMuted),
               ],
             ),
           ],
@@ -579,7 +579,7 @@ class _ExpandableDayRow extends ConsumerWidget {
                   children: [
                     Text(AppFormat.hm(dayEntry.balanceDelta, signed: true), style: AppTextStyles.heroNumber(13).copyWith(color: colors.accentText)),
                     const SizedBox(width: 8),
-                    PhosphorIcon(PhosphorIconsRegular.caretUp, size: 14, color: colors.textMuted),
+                    Icon(AppIcons.caretUp, size: 14, color: colors.textMuted),
                   ],
                 ),
               ],
@@ -650,6 +650,6 @@ class _RetroactiveEditBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PhosphorIcon(PhosphorIconsRegular.pencilSimpleLine, size: 12, color: colors.textMuted);
+    return Icon(AppIcons.pencilSimpleLine, size: 12, color: colors.textMuted);
   }
 }

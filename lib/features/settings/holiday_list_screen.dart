@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/format.dart';
+import '../../core/icons/app_icons.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -31,7 +31,7 @@ class HolidayListScreen extends ConsumerWidget {
         title: Text('Public holidays', style: AppTextStyles.screenTitle.copyWith(color: colors.text)),
         actions: [
           IconButton(
-            icon: const PhosphorIcon(PhosphorIconsRegular.plus),
+            icon: const Icon(AppIcons.plus),
             onPressed: () => _editHoliday(context, ref, year: year),
           ),
         ],
@@ -53,7 +53,7 @@ class HolidayListScreen extends ConsumerWidget {
                   ),
                   onTap: () => _editHoliday(context, ref, year: year, existing: h),
                   trailing: IconButton(
-                    icon: PhosphorIcon(PhosphorIconsRegular.trash, color: colors.textMuted, size: 18),
+                    icon: Icon(AppIcons.trash, color: colors.textMuted, size: 18),
                     onPressed: () => ref.read(publicHolidayRepositoryProvider).removeHoliday(h.date),
                   ),
                 );

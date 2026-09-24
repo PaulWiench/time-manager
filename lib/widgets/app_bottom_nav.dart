@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../core/icons/app_icons.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 
@@ -15,10 +15,10 @@ class _TabDef {
 }
 
 const _tabs = [
-  _TabDef(AppTab.home, PhosphorIconsRegular.houseSimple, PhosphorIconsFill.houseSimple, 'Home'),
-  _TabDef(AppTab.history, PhosphorIconsRegular.clockCounterClockwise, PhosphorIconsFill.clockCounterClockwise, 'History'),
-  _TabDef(AppTab.stats, PhosphorIconsRegular.chartLineUp, PhosphorIconsFill.chartLineUp, 'Stats'),
-  _TabDef(AppTab.settings, PhosphorIconsRegular.gearSix, PhosphorIconsFill.gearSix, 'Settings'),
+  _TabDef(AppTab.home, AppIcons.houseSimple, AppIconsFill.houseSimple, 'Home'),
+  _TabDef(AppTab.history, AppIcons.clockCounterClockwise, AppIconsFill.clockCounterClockwise, 'History'),
+  _TabDef(AppTab.stats, AppIcons.chartLineUp, AppIconsFill.chartLineUp, 'Stats'),
+  _TabDef(AppTab.settings, AppIcons.gearSix, AppIconsFill.gearSix, 'Settings'),
 ];
 
 /// Bottom navigation shell, matching the handoff's `BottomNav.dc.html`
@@ -74,7 +74,7 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            PhosphorIcon(on ? def.filled : def.regular, size: 22, color: color),
+            Icon(on ? def.filled : def.regular, size: 22, color: color),
             const SizedBox(height: 2),
             Text(
               def.label,

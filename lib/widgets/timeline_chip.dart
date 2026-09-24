@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../core/icons/app_icons.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 
@@ -46,7 +46,7 @@ class TimelineChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              PhosphorIcon(PhosphorIconsRegular.calendarCheck, size: 12, color: colors.text),
+              Icon(AppIcons.calendarCheck, size: 12, color: colors.text),
               const SizedBox(width: 6),
               Text(label, style: AppTextStyles.metaMedium.copyWith(color: colors.text, fontWeight: FontWeight.w500, fontSize: 12)),
             ],
@@ -65,7 +65,7 @@ class TimelineChip extends StatelessWidget {
                   const SizedBox(width: 8),
                   GestureDetector(
                     onTap: onDelete,
-                    child: PhosphorIcon(PhosphorIconsRegular.x, size: 12, color: colors.textMuted),
+                    child: Icon(AppIcons.x, size: 12, color: colors.textMuted),
                   ),
                 ],
               ],

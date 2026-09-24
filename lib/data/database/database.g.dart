@@ -4028,7 +4028,7 @@ final class $$DayEntriesTableReferences
   static MultiTypedResultKey<$WorkSessionsTable, List<WorkSession>>
   _workSessionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.workSessions,
-    aliasName: $_aliasNameGenerator(db.dayEntries.date, db.workSessions.date),
+    aliasName: 'day_entries__date__work_sessions__date',
   );
 
   $$WorkSessionsTableProcessedTableManager get workSessionsRefs {
@@ -4046,7 +4046,7 @@ final class $$DayEntriesTableReferences
   static MultiTypedResultKey<$BreakEntriesTable, List<BreakEntry>>
   _breakEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.breakEntries,
-    aliasName: $_aliasNameGenerator(db.dayEntries.date, db.breakEntries.date),
+    aliasName: 'day_entries__date__break_entries__date',
   );
 
   $$BreakEntriesTableProcessedTableManager get breakEntriesRefs {
@@ -4064,7 +4064,7 @@ final class $$DayEntriesTableReferences
   static MultiTypedResultKey<$LeaveEntriesTable, List<LeaveEntry>>
   _leaveEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.leaveEntries,
-    aliasName: $_aliasNameGenerator(db.dayEntries.date, db.leaveEntries.date),
+    aliasName: 'day_entries__date__leave_entries__date',
   );
 
   $$LeaveEntriesTableProcessedTableManager get leaveEntriesRefs {
@@ -4451,7 +4451,7 @@ class $$DayEntriesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$DayEntriesTable, DayEntry>(table),
                   $$DayEntriesTableReferences(db, table, e),
                 ),
               )
@@ -4591,9 +4591,7 @@ final class $$WorkSessionsTableReferences
   $$WorkSessionsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $DayEntriesTable _dateTable(_$AppDatabase db) =>
-      db.dayEntries.createAlias(
-        $_aliasNameGenerator(db.workSessions.date, db.dayEntries.date),
-      );
+      db.dayEntries.createAlias('work_sessions__date__day_entries__date');
 
   $$DayEntriesTableProcessedTableManager get date {
     final $_column = $_itemColumn<DateTime>('date')!;
@@ -4874,7 +4872,7 @@ class $$WorkSessionsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$WorkSessionsTable, WorkSession>(table),
                   $$WorkSessionsTableReferences(db, table, e),
                 ),
               )
@@ -4966,9 +4964,7 @@ final class $$BreakEntriesTableReferences
   $$BreakEntriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $DayEntriesTable _dateTable(_$AppDatabase db) =>
-      db.dayEntries.createAlias(
-        $_aliasNameGenerator(db.breakEntries.date, db.dayEntries.date),
-      );
+      db.dayEntries.createAlias('break_entries__date__day_entries__date');
 
   $$DayEntriesTableProcessedTableManager get date {
     final $_column = $_itemColumn<DateTime>('date')!;
@@ -5232,7 +5228,7 @@ class $$BreakEntriesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$BreakEntriesTable, BreakEntry>(table),
                   $$BreakEntriesTableReferences(db, table, e),
                 ),
               )
@@ -5324,9 +5320,7 @@ final class $$LeaveEntriesTableReferences
   $$LeaveEntriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $DayEntriesTable _dateTable(_$AppDatabase db) =>
-      db.dayEntries.createAlias(
-        $_aliasNameGenerator(db.leaveEntries.date, db.dayEntries.date),
-      );
+      db.dayEntries.createAlias('leave_entries__date__day_entries__date');
 
   $$DayEntriesTableProcessedTableManager get date {
     final $_column = $_itemColumn<DateTime>('date')!;
@@ -5590,7 +5584,7 @@ class $$LeaveEntriesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$LeaveEntriesTable, LeaveEntry>(table),
                   $$LeaveEntriesTableReferences(db, table, e),
                 ),
               )
@@ -5833,7 +5827,16 @@ class $$PublicHolidaysTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$PublicHolidaysTable, PublicHoliday>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $PublicHolidaysTable,
+                    PublicHoliday
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -6001,7 +6004,16 @@ class $$BalanceSnapshotsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$BalanceSnapshotsTable, BalanceSnapshot>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $BalanceSnapshotsTable,
+                    BalanceSnapshot
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -6201,7 +6213,16 @@ class $$VacationQuotasTableTableManager
                 updatedAt: updatedAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$VacationQuotasTable, VacationQuota>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $VacationQuotasTable,
+                    VacationQuota
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -6469,7 +6490,16 @@ class $$AppSettingsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$AppSettingsTable, AppSetting>(table),
+                  BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -6711,7 +6741,16 @@ class $$AuditLogEntriesTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$AuditLogEntriesTable, AuditLogEntry>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AuditLogEntriesTable,
+                    AuditLogEntry
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),

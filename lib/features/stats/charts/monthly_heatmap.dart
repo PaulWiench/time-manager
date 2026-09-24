@@ -3,8 +3,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../core/icons/app_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../data/database/database.dart';
@@ -43,14 +43,14 @@ class _MonthlyHeatmapState extends ConsumerState<MonthlyHeatmap> {
           children: [
             GestureDetector(
               onTap: () => setState(() => _month = DateTime(_month.year, _month.month - 1)),
-              child: PhosphorIcon(PhosphorIconsRegular.caretLeft, size: 14, color: colors.textMuted),
+              child: Icon(AppIcons.caretLeft, size: 14, color: colors.textMuted),
             ),
             const SizedBox(width: 8),
             Text(_monthFmt.format(_month), style: AppTextStyles.body.copyWith(color: colors.text)),
             const SizedBox(width: 8),
             GestureDetector(
               onTap: () => setState(() => _month = DateTime(_month.year, _month.month + 1)),
-              child: PhosphorIcon(PhosphorIconsRegular.caretRight, size: 14, color: colors.textMuted),
+              child: Icon(AppIcons.caretRight, size: 14, color: colors.textMuted),
             ),
           ],
         ),

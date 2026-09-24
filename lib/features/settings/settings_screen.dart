@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/format.dart';
+import '../../core/icons/app_icons.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -128,7 +128,7 @@ class SettingsScreen extends ConsumerWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text('Audit log', style: AppTextStyles.meta.copyWith(color: colors.text)),
-                              PhosphorIcon(PhosphorIconsRegular.caretRight, size: 12, color: colors.textMuted),
+                              Icon(AppIcons.caretRight, size: 12, color: colors.textMuted),
                             ],
                           ),
                         ),
@@ -293,7 +293,7 @@ class _NavRow extends StatelessWidget {
                 Text(value, style: AppTextStyles.body.copyWith(color: colors.textMuted, fontWeight: FontWeight.w400)),
                 if (onTap != null) ...[
                   const SizedBox(width: 6),
-                  PhosphorIcon(PhosphorIconsRegular.caretRight, size: 13, color: colors.textMuted),
+                  Icon(AppIcons.caretRight, size: 13, color: colors.textMuted),
                 ],
               ],
             ),

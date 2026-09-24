@@ -2,9 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/format.dart';
+import '../../core/icons/app_icons.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -171,8 +171,8 @@ class _HomeBody extends ConsumerWidget {
                   ),
                   GestureDetector(
                     onTap: onOpenSettings,
-                    child: PhosphorIcon(
-                      PhosphorIconsRegular.gearSix,
+                    child: Icon(
+                      AppIcons.gearSix,
                       size: 20,
                       color: colors.textMuted,
                     ),
@@ -363,8 +363,8 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            PhosphorIcon(
-              PhosphorIconsRegular.playCircle,
+            Icon(
+              AppIcons.playCircle,
               size: 34,
               color: colors.textMuted,
             ),

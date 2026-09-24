@@ -1,7 +1,7 @@
 name: time_manager
 description: "A personal time-tracking app: worked hours, legal break deduction, running balance, and leave management."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ^3.9.0
@@ -12,14 +12,13 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # Persistence
-  drift: ^2.20.3
+  drift: ^2.35.0
   sqlite3_flutter_libs: ^0.5.27
   path_provider: ^2.1.5
   path: ^1.9.0
 
-  # State management
+  # State management (providers are hand-written: see providers/database_providers.dart)
   flutter_riverpod: ^2.6.1
-  riverpod_annotation: ^2.6.1
 
   # UI
   fl_chart: ^0.69.2
@@ -27,7 +26,6 @@ dependencies:
 
   # Utility
   uuid: ^4.5.1
-  phosphor_flutter: ^2.1.0
   google_fonts: ^8.1.0
 
 dev_dependencies:
@@ -35,10 +33,21 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
 
-  # Codegen
-  build_runner: ^2.4.13
-  drift_dev: ^2.20.3
-  riverpod_generator: ^2.6.3
+  # Codegen (drift only — see lib/providers/database_providers.dart)
+  build_runner: ^2.16.0
+  drift_dev: ^2.35.0
 
 flutter:
   uses-material-design: true
+
+  # Bundled rather than fetched at runtime: a sideloaded personal app must
+  # render its own numbers and icons with no network. Phosphor ships as two
+  # weights because that is all the design uses — Bold everywhere, Fill for
+  # the active nav item (see lib/core/icons/app_icons.dart).
+  fonts:
+    - family: PhosphorBold
+      fonts:
+        - asset: assets/fonts/Phosphor-Bold.ttf
+    - family: PhosphorFill
+      fonts:
+        - asset: assets/fonts/Phosphor-Fill.ttf
