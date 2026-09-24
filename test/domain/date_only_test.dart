@@ -34,4 +34,34 @@ void main() {
       expect(dateOnly(DateTime(2026, 6, 15, 13, 45, 30)), DateTime(2026, 6, 15));
     });
   });
+
+  group('startOfWeek', () {
+    test('is the Monday of that week, and a no-op on a Monday', () {
+      expect(startOfWeek(DateTime(2026, 9, 24)), DateTime(2026, 9, 21));
+      expect(startOfWeek(DateTime(2026, 9, 21)), DateTime(2026, 9, 21));
+      expect(startOfWeek(DateTime(2026, 9, 27)), DateTime(2026, 9, 21));
+    });
+  });
+
+  group('isoWeekNumber', () {
+    test('numbers ordinary weeks from the first Thursday', () {
+      expect(isoWeekNumber(DateTime(2026, 9, 21)), 39);
+      expect(isoWeekNumber(DateTime(2026, 9, 27)), 39);
+      expect(isoWeekNumber(DateTime(2026, 9, 28)), 40);
+    });
+
+    test('a week belongs to the year that owns its Thursday', () {
+      // 1 Jan 2027 is a Friday, so its week's Thursday is 31 Dec 2026 —
+      // week 53 of 2026, not week 1 of 2027.
+      expect(isoWeekNumber(DateTime(2027, 1, 1)), 53);
+      // 1 Jan 2026 is a Thursday, so that week is week 1 of 2026.
+      expect(isoWeekNumber(DateTime(2025, 12, 29)), 1);
+    });
+
+    test('stays exact across a DST boundary', () {
+      // A Duration-based ordinal count would lose an hour here and could
+      // drop a day, which is a whole week number at the wrong end of March.
+      expect(isoWeekNumber(DateTime(2026, 3, 30)), 14);
+    });
+  });
 }

@@ -201,7 +201,11 @@ class _TimelineRow extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.only(left: _railWidth + _railGap),
+          // A selected synthetic break grows a Delete pill beside it, and the
+          // pair does not fit inside the rail's indent at phone width. It
+          // bleeds over the rail instead of truncating the times the hint
+          // underneath refers to.
+          padding: EdgeInsets.only(left: _bleedsOverRail ? 0 : _railWidth + _railGap),
           child: SizedBox(
             width: double.infinity,
             child: Align(alignment: Alignment.centerLeft, child: content),
@@ -214,6 +218,11 @@ class _TimelineRow extends StatelessWidget {
         ? ConstrainedBox(constraints: const BoxConstraints(minHeight: _chipRowHeight), child: row)
         : SizedBox(height: height, child: row);
   }
+
+  bool get _bleedsOverRail =>
+      item is TimelineChipItem &&
+      (item as TimelineChipItem).selected &&
+      (item as TimelineChipItem).onDelete != null;
 
   /// Where the marker's centre sits from the top of the row, so the line meets
   /// it instead of running under it.
@@ -403,11 +412,16 @@ class EventChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (style.icon != null)
-            Icon(style.icon, size: AppIconSize.sm, color: style.ink)
-          else
+          // A selected synthetic break has neither a swatch nor an icon — the
+          // focus ring is doing that job — so it gets no leading gap either.
+          if (style.icon != null) ...[
+            Icon(style.icon, size: AppIconSize.sm, color: style.ink),
+            const SizedBox(width: AppSpace.s2),
+          ] else if (style.dashed || style.swatch.a > 0) ...[
             _Swatch(color: style.swatch, dashed: style.dashed, outline: style.outline),
-          const SizedBox(width: AppSpace.s2),
+            const SizedBox(width: AppSpace.s2),
+          ] else
+            const SizedBox(width: AppSpace.s1),
           Text(item.label, style: AppTextStyles.bodyStrong.copyWith(color: style.ink)),
         ],
       ),

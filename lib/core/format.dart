@@ -36,11 +36,22 @@ class AppFormat {
   static final _dayRow = DateFormat('EEE d MMM');
   static final _time = DateFormat('HH:mm');
   static final _monthYear = DateFormat('MMMM yyyy');
+  static final _monthName = DateFormat('MMMM');
+  static final _monthAbbrev = DateFormat('MMM');
 
   static String headerDate(DateTime d) => _headerDate.format(d);
   static String dayRow(DateTime d) => _dayRow.format(d);
   static String time(DateTime d) => _time.format(d);
   static String monthYear(DateTime d) => _monthYear.format(d);
+  static String monthName(DateTime d) => _monthName.format(d);
+
+  /// `Sep`, for a date block that already sits under its year.
+  static String monthAbbrev(DateTime d) => _monthAbbrev.format(d);
+
+  /// `14 Sep`, for a button that says where you are about to land.
+  static String dayAndMonth(DateTime d) => _dayAndMonth.format(d);
+
+  static final _dayAndMonth = DateFormat('d MMM');
 
   /// `21–27 Sep 2026`, or `28 Sep – 4 Oct 2026` when the week straddles two
   /// months. En dash, no spaces around it unless both sides carry a month.
@@ -50,5 +61,12 @@ class AppFormat {
       return '${start.day}–${endFmt.format(end)}';
     }
     return '${DateFormat('d MMM').format(start)} – ${endFmt.format(end)}';
+  }
+
+  /// `21–27 Sep`, for a row that sits under a header already naming the year.
+  static String weekRangeShort(DateTime start, DateTime end) {
+    final endFmt = DateFormat('d MMM');
+    if (start.month == end.month) return '${start.day}–${endFmt.format(end)}';
+    return '${endFmt.format(start)} – ${endFmt.format(end)}';
   }
 }

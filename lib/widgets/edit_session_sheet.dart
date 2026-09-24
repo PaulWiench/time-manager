@@ -1,7 +1,18 @@
+/// Retroactive edit UI for a completed [WorkSession] — the UI for the
+/// already-implemented `WorkSessionRepository.editSession`/`deleteSession`.
+///
+/// It also records manual breaks within the session's span. A manual break is
+/// a pure annotation: per `domain/recalculation_engine.dart` it does not reduce
+/// net worked hours the way the auto-break deduction does. The design's §4.3.6
+/// shows only start, end and a note, but the sheet already did more than that
+/// before the redesign, so this restyles rather than removes.
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/format.dart';
+import '../core/icons/app_icons.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_dimens.dart';
 import '../core/theme/app_text_styles.dart';
@@ -9,22 +20,17 @@ import '../data/database/database.dart';
 import '../data/database/enums.dart';
 import '../providers/day_providers.dart';
 import '../providers/repository_providers.dart';
+import 'app_bottom_sheet.dart';
+import 'buttons.dart';
 
-/// Retroactive edit UI for a completed [WorkSession] — the UI that was
-/// missing for the already-implemented `WorkSessionRepository.editSession`/
-/// `deleteSession` (Requirements § 6). Also lets the user record a manual
-/// break within the session's span; per the domain doc
-/// (`domain/recalculation_engine.dart`), a manual break is a pure
-/// annotation and doesn't reduce net worked hours the way the auto-break
-/// deduction does.
 class EditSessionSheet extends ConsumerStatefulWidget {
-  final WorkSession session;
   const EditSessionSheet({super.key, required this.session});
 
+  final WorkSession session;
+
   static Future<void> show(BuildContext context, WorkSession session) {
-    return showModalBottomSheet(
+    return showAppSheet(
       context: context,
-      isScrollControlled: true,
       builder: (_) => EditSessionSheet(session: session),
     );
   }
@@ -36,31 +42,40 @@ class EditSessionSheet extends ConsumerStatefulWidget {
 class _EditSessionSheetState extends ConsumerState<EditSessionSheet> {
   late DateTime _start;
   late DateTime _end;
-  late final TextEditingController _notesController;
+  late final TextEditingController _notes;
 
   @override
   void initState() {
     super.initState();
     _start = widget.session.startTime;
     _end = widget.session.endTime ?? widget.session.startTime;
-    _notesController = TextEditingController(text: widget.session.notes ?? '');
+    _notes = TextEditingController(text: widget.session.notes ?? '');
   }
 
   @override
   void dispose() {
-    _notesController.dispose();
+    _notes.dispose();
     super.dispose();
   }
 
-  // Time pickers only edit the time-of-day, keeping the session's original
-  // calendar date — moving a session across midnight isn't exposed here,
-  // even though editSession() itself supports it.
+  /// Time pickers only edit the time of day, keeping the session's original
+  /// calendar date — moving a session across midnight is not exposed here,
+  /// even though `editSession` supports it.
   Future<void> _pickTime({required bool isStart}) async {
     final current = isStart ? _start : _end;
-    final picked = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(current));
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(current),
+    );
     if (picked == null) return;
     setState(() {
-      final updated = DateTime(current.year, current.month, current.day, picked.hour, picked.minute);
+      final updated = DateTime(
+        current.year,
+        current.month,
+        current.day,
+        picked.hour,
+        picked.minute,
+      );
       if (isStart) {
         _start = updated;
       } else {
@@ -70,7 +85,7 @@ class _EditSessionSheetState extends ConsumerState<EditSessionSheet> {
   }
 
   Future<void> _save() async {
-    final notes = _notesController.text.trim();
+    final notes = _notes.text.trim();
     await ref.read(workSessionRepositoryProvider).editSession(
           sessionId: widget.session.id,
           start: _start,
@@ -85,125 +100,127 @@ class _EditSessionSheetState extends ConsumerState<EditSessionSheet> {
     if (mounted) Navigator.pop(context);
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final dayEntry = ref.watch(dayEntryForDateProvider(widget.session.date)).valueOrNull;
+    final allBreaks =
+        ref.watch(breaksForDateProvider(widget.session.date)).valueOrNull ?? const [];
+    final manualBreaks = allBreaks
+        .where((b) =>
+            b.type == BreakType.manual &&
+            !b.startTime.isBefore(_start) &&
+            !b.endTime.isAfter(_end))
+        .toList();
+
+    return AppSheet(
+      title: 'Edit session',
+      subtitle: [
+        AppFormat.dayRow(widget.session.date),
+        if (dayEntry != null) '${AppFormat.hm(dayEntry.netWorkedHours)} net after breaks',
+      ].join(' · '),
+      actions: [
+        SecondaryPill(label: 'Delete', onPressed: _delete),
+        PrimaryPill(label: 'Save', onPressed: _save),
+      ],
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: SheetField(
+                label: 'START',
+                value: AppFormat.time(_start),
+                onTap: () => _pickTime(isStart: true),
+              ),
+            ),
+            const SizedBox(width: AppSpace.s3),
+            Expanded(
+              child: SheetField(
+                label: 'END',
+                value: AppFormat.time(_end),
+                onTap: () => _pickTime(isStart: false),
+              ),
+            ),
+          ],
+        ),
+        _NoteField(controller: _notes),
+        _ManualBreaks(
+          breaks: manualBreaks,
+          onAdd: _addBreak,
+          onRemove: (id) => ref.read(workSessionRepositoryProvider).deleteManualBreak(id),
+        ),
+      ],
+    );
+  }
+
   Future<void> _addBreak() async {
     var breakStart = _start;
-    var breakEnd = _end.difference(_start) > const Duration(minutes: 30) ? _start.add(const Duration(minutes: 30)) : _end;
+    var breakEnd = _end.difference(_start) > const Duration(minutes: 30)
+        ? _start.add(const Duration(minutes: 30))
+        : _end;
 
-    await showDialog(
+    DateTime withTime(TimeOfDay time) =>
+        DateTime(_start.year, _start.month, _start.day, time.hour, time.minute);
+
+    await showDialog<void>(
       context: context,
+      barrierColor: context.colors.scrim,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('Add break'),
+          title: Text('Add break',
+              style: AppTextStyles.headline.copyWith(color: dialogContext.colors.text)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _TimeField(
-                label: 'Start',
-                time: breakStart,
+              SheetField(
+                label: 'START',
+                value: AppFormat.time(breakStart),
                 onTap: () async {
-                  final picked = await showTimePicker(context: dialogContext, initialTime: TimeOfDay.fromDateTime(breakStart));
+                  final picked = await showTimePicker(
+                    context: dialogContext,
+                    initialTime: TimeOfDay.fromDateTime(breakStart),
+                  );
                   if (picked != null) {
-                    setDialogState(() => breakStart = DateTime(_start.year, _start.month, _start.day, picked.hour, picked.minute));
+                    setDialogState(() => breakStart = withTime(picked));
                   }
                 },
               ),
-              _TimeField(
-                label: 'End',
-                time: breakEnd,
+              const SizedBox(height: AppSpace.s3),
+              SheetField(
+                label: 'END',
+                value: AppFormat.time(breakEnd),
                 onTap: () async {
-                  final picked = await showTimePicker(context: dialogContext, initialTime: TimeOfDay.fromDateTime(breakEnd));
+                  final picked = await showTimePicker(
+                    context: dialogContext,
+                    initialTime: TimeOfDay.fromDateTime(breakEnd),
+                  );
                   if (picked != null) {
-                    setDialogState(() => breakEnd = DateTime(_start.year, _start.month, _start.day, picked.hour, picked.minute));
+                    setDialogState(() => breakEnd = withTime(picked));
                   }
                 },
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-            TextButton(
-              onPressed: breakEnd.isAfter(breakStart) && !breakStart.isBefore(_start) && !breakEnd.isAfter(_end)
+            AppTextButton(
+              label: 'Cancel',
+              onPressed: () => Navigator.pop(dialogContext),
+            ),
+            PrimaryPill(
+              label: 'Add',
+              expand: false,
+              height: AppSize.touch,
+              onPressed: breakEnd.isAfter(breakStart) &&
+                      !breakStart.isBefore(_start) &&
+                      !breakEnd.isAfter(_end)
                   ? () {
-                      ref.read(workSessionRepositoryProvider).addManualBreak(date: widget.session.date, start: breakStart, end: breakEnd);
+                      ref.read(workSessionRepositoryProvider).addManualBreak(
+                            date: widget.session.date,
+                            start: breakStart,
+                            end: breakEnd,
+                          );
                       Navigator.pop(dialogContext);
                     }
                   : null,
-              child: const Text('Add'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final allBreaks = ref.watch(breaksForDateProvider(widget.session.date)).valueOrNull ?? const [];
-    final manualBreaks = allBreaks
-        .where((b) => b.type == BreakType.manual && !b.startTime.isBefore(_start) && !b.endTime.isAfter(_end))
-        .toList();
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(AppSpace.screenPadding, AppSpace.screenPadding, AppSpace.screenPadding, 28),
-        decoration: BoxDecoration(color: colors.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg))),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Edit session', style: AppTextStyles.screenTitle.copyWith(color: colors.text)),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: _TimeField(label: 'Start', time: _start, onTap: () => _pickTime(isStart: true))),
-                const SizedBox(width: 12),
-                Expanded(child: _TimeField(label: 'End', time: _end, onTap: () => _pickTime(isStart: false))),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(controller: _notesController, decoration: const InputDecoration(labelText: 'Notes')),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('BREAKS', style: AppTextStyles.kickerSm.copyWith(color: colors.textMuted)),
-                TextButton(onPressed: _addBreak, child: const Text('Add break')),
-              ],
-            ),
-            if (manualBreaks.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text('No manual breaks', style: AppTextStyles.meta.copyWith(color: colors.textMuted)),
-              ),
-            for (final b in manualBreaks)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('${AppFormat.time(b.startTime)} – ${AppFormat.time(b.endTime)}', style: AppTextStyles.body.copyWith(color: colors.text)),
-                    IconButton(
-                      icon: Icon(Icons.close, size: 18, color: colors.textMuted),
-                      onPressed: () => ref.read(workSessionRepositoryProvider).deleteManualBreak(b.id),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _delete,
-                    style: OutlinedButton.styleFrom(foregroundColor: colors.warningText, side: BorderSide(color: colors.warningText)),
-                    child: const Text('Delete session'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: FilledButton(onPressed: _save, child: const Text('Save'))),
-              ],
             ),
           ],
         ),
@@ -212,31 +229,100 @@ class _EditSessionSheetState extends ConsumerState<EditSessionSheet> {
   }
 }
 
-class _TimeField extends StatelessWidget {
-  final String label;
-  final DateTime time;
-  final VoidCallback onTap;
+/// The note, editable in place. A [SheetField] that opens yet another dialog
+/// to type one line would be a dialog too many.
+class _NoteField extends StatelessWidget {
+  const _NoteField({required this.controller});
 
-  const _TimeField({required this.label, required this.time, required this.onTap});
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-        decoration: BoxDecoration(border: Border.all(color: colors.divider), borderRadius: BorderRadius.circular(AppRadius.sm)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 64),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.s4,
+        vertical: AppSpace.s3,
+      ),
+      decoration: BoxDecoration(
+        color: colors.surface2,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('NOTE', style: AppTextStyles.kicker.copyWith(color: colors.textMuted)),
+          TextField(
+            controller: controller,
+            style: AppTextStyles.body.copyWith(color: colors.text),
+            cursorColor: colors.accentStrong,
+            decoration: InputDecoration(
+              isDense: true,
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+              hintText: 'What was this session?',
+              hintStyle: AppTextStyles.body.copyWith(color: colors.textMuted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ManualBreaks extends StatelessWidget {
+  const _ManualBreaks({
+    required this.breaks,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  final List<BreakEntry> breaks;
+  final VoidCallback onAdd;
+  final ValueChanged<String> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Text(label, style: AppTextStyles.meta.copyWith(color: colors.textMuted, fontSize: 11)),
-            const SizedBox(height: 2),
-            Text(AppFormat.time(time), style: AppTextStyles.body.copyWith(color: colors.text)),
+            Expanded(
+              child: Text('BREAKS',
+                  style: AppTextStyles.kicker.copyWith(color: colors.textMuted)),
+            ),
+            AppTextButton(label: 'Add break', onPressed: onAdd),
           ],
         ),
-      ),
+        if (breaks.isEmpty)
+          Text('None recorded',
+              style: AppTextStyles.caption.copyWith(color: colors.textMuted))
+        else
+          for (final entry in breaks)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${AppFormat.time(entry.startTime)}–${AppFormat.time(entry.endTime)}',
+                    style: AppTextStyles.body.copyWith(color: colors.text),
+                  ),
+                ),
+                AppIconButton(
+                  icon: AppIcons.x,
+                  semanticLabel: 'Remove break',
+                  size: AppIconSize.md,
+                  color: colors.textMuted,
+                  onPressed: () => onRemove(entry.id),
+                ),
+              ],
+            ),
+      ],
     );
   }
 }
