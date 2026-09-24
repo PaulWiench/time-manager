@@ -1,11 +1,15 @@
+/// Settings' data half.
+///
+/// Every write goes through [_patch], because `app_settings` rows are
+/// versioned: a save writes a whole new row, so any field not carried forward
+/// silently resets. That trap is the reason this file has one write path and
+/// not eight.
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format.dart';
-import '../../core/icons/app_icons.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_dimens.dart';
-import '../../core/theme/app_text_styles.dart';
 import '../../domain/date_only.dart';
 import '../../providers/database_providers.dart';
 import '../../providers/holiday_providers.dart';
@@ -15,32 +19,46 @@ import '../../providers/vacation_quota_providers.dart';
 import 'audit_log_screen.dart';
 import 'export_service.dart';
 import 'holiday_list_screen.dart';
+import 'settings_body.dart';
+import 'settings_editors.dart';
+import 'settings_view.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
     final settings = ref.watch(latestSettingsProvider).valueOrNull;
+    if (settings == null) return const Center(child: CircularProgressIndicator());
 
-    if (settings == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    final year = DateTime.now().year;
+    final quota = ref.watch(vacationQuotaForYearProvider(year)).valueOrNull;
+    final holidays = ref.watch(publicHolidaysForYearProvider(year)).valueOrNull;
 
-    // Settings rows are versioned, so a save writes a whole new row: every
-    // field not being edited has to be carried forward explicitly or it
-    // silently resets.
+    final view = SettingsView(
+      weeklyHours: AppFormat.hoursLabel(settings.weeklyHours),
+      workDays: workDaysLabel(settings.workDays),
+      startingBalance: '0:00',
+      autoBreakEnabled: settings.autoBreakEnabled,
+      minSessionLength: '${settings.minSessionMinutes} min',
+      restrictCheckin: settings.restrictCheckin,
+      balanceBounds:
+          balanceBoundsLabel(settings.balanceFloorHours, settings.balanceCapHours),
+      annualResetLabel: 'Annual reset ${settings.balanceAnnualReset ? 'on' : 'off'}',
+      vacationQuota: '${(quota?.totalDays ?? 30).round()} days/yr',
+      rolloverPolicy: 'Indefinite',
+      holidayRegion: 'Baden-Württemberg',
+      holidayCount: 'DE · ${holidays?.length ?? 0}',
+      notifications: 'All off',
+    );
+
     Future<void> patch({
       double? weeklyHours,
       List<int>? workDays,
       int? minSessionMinutes,
       bool? autoBreakEnabled,
       bool? restrictCheckin,
-      double? balanceFloorHours,
-      double? balanceCapHours,
-      bool? balanceAnnualReset,
-      bool clearBalanceBounds = false,
+      BalanceBounds? bounds,
     }) {
       return ref.read(settingsRepositoryProvider).save(
             effectiveFrom: dateOnly(DateTime.now()),
@@ -49,119 +67,94 @@ class SettingsScreen extends ConsumerWidget {
             minSessionMinutes: minSessionMinutes ?? settings.minSessionMinutes,
             autoBreakEnabled: autoBreakEnabled ?? settings.autoBreakEnabled,
             restrictCheckin: restrictCheckin ?? settings.restrictCheckin,
+            // The bounds are nullable on purpose, so "clear the floor" has to
+            // travel as a whole BalanceBounds rather than as a null argument
+            // that would be indistinguishable from "leave it alone".
             balanceFloorHours:
-                clearBalanceBounds ? null : balanceFloorHours ?? settings.balanceFloorHours,
-            balanceCapHours:
-                clearBalanceBounds ? null : balanceCapHours ?? settings.balanceCapHours,
-            balanceAnnualReset: balanceAnnualReset ?? settings.balanceAnnualReset,
+                bounds != null ? bounds.floorHours : settings.balanceFloorHours,
+            balanceCapHours: bounds != null ? bounds.capHours : settings.balanceCapHours,
+            balanceAnnualReset:
+                bounds != null ? bounds.annualReset : settings.balanceAnnualReset,
           );
     }
 
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpace.screenPadding, 14, AppSpace.screenPadding, 6),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Settings', style: AppTextStyles.screenTitle.copyWith(color: colors.text)),
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(AppSpace.screenPadding, 4, AppSpace.screenPadding, 20),
-                children: [
-                  _Kicker('Schedule', colors),
-                  _NavRow(
-                    label: 'Weekly hours',
-                    value: AppFormat.hoursLabel(settings.weeklyHours),
-                    colors: colors,
-                    onTap: () => _editWeeklyHours(context, settings.weeklyHours, (v) => patch(weeklyHours: v)),
-                  ),
-                  _NavRow(
-                    label: 'Work days',
-                    value: _workDaysLabel(settings.workDays),
-                    colors: colors,
-                    onTap: () => _editWorkDays(context, settings.workDays, (v) => patch(workDays: v)),
-                  ),
-                  _NavRow(label: 'Starting balance', value: 'Set during onboarding', colors: colors, onTap: null),
-
-                  _Kicker('Breaks', colors),
-                  _ToggleRow(
-                    label: 'Auto-break enabled',
-                    value: settings.autoBreakEnabled,
-                    colors: colors,
-                    onChanged: (v) => patch(autoBreakEnabled: v),
-                  ),
-                  _NavRow(
-                    label: 'Minimum session length',
-                    value: '${settings.minSessionMinutes} min',
-                    colors: colors,
-                    onTap: () => _editMinSession(context, settings.minSessionMinutes, (v) => patch(minSessionMinutes: v)),
-                  ),
-                  _ToggleRow(
-                    label: 'Restrict check-in',
-                    value: settings.restrictCheckin,
-                    colors: colors,
-                    onChanged: (v) => patch(restrictCheckin: v),
-                    isLast: true,
-                  ),
-
-                  _Kicker('Balance & leave', colors),
-                  _NavRow(
-                    label: 'Floor / cap',
-                    value: _boundsLabel(settings.balanceFloorHours, settings.balanceCapHours),
-                    colors: colors,
-                    onTap: () => _comingSoon(context),
-                  ),
-                  _VacationQuotaRow(colors: colors),
-                  _NavRow(label: 'Rollover policy', value: 'Indefinite', colors: colors, onTap: () => _comingSoon(context)),
-                  _PublicHolidaysRow(colors: colors),
-
-                  _Kicker('Notifications', colors),
-                  _NavRow(label: 'Notifications', value: 'All off', colors: colors, onTap: () => _comingSoon(context), isLast: true),
-
-                  _Kicker('Data', colors),
-                  _NavRow(
-                    label: 'Export backup',
-                    value: 'Database + JSON',
-                    colors: colors,
-                    onTap: () => _exportBackup(context, ref),
-                    isLast: true,
-                  ),
-
-                  Container(
-                    margin: const EdgeInsets.only(top: 22),
-                    padding: const EdgeInsets.only(top: 10),
-                    decoration: BoxDecoration(border: Border(top: BorderSide(color: colors.divider))),
-                    child: Opacity(
-                      opacity: 0.6,
-                      child: InkWell(
-                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AuditLogScreen())),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 9),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Audit log', style: AppTextStyles.meta.copyWith(color: colors.text)),
-                              Icon(AppIcons.caretRight, size: 12, color: colors.textMuted),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return SettingsBody(
+      view: view,
+      onEditWeeklyHours: () async {
+        final value = await editNumber(
+          context,
+          title: 'Weekly hours',
+          initial: settings.weeklyHours,
+          min: 0,
+          max: 80,
+          step: 0.5,
+          format: (v) => v == v.roundToDouble() ? '${v.round()}' : v.toStringAsFixed(1),
+          unit: 'h',
+        );
+        if (value != null) await patch(weeklyHours: value);
+      },
+      onEditWorkDays: () async {
+        final value = await editWorkDays(context, settings.workDays);
+        if (value != null) await patch(workDays: value);
+      },
+      onToggleAutoBreak: (on) => patch(autoBreakEnabled: on),
+      onEditMinSession: () async {
+        final value = await editNumber(
+          context,
+          title: 'Minimum session length',
+          initial: settings.minSessionMinutes.toDouble(),
+          min: 0,
+          max: 60,
+          step: 1,
+          format: (v) => '${v.round()}',
+          unit: 'min',
+        );
+        if (value != null) await patch(minSessionMinutes: value.round());
+      },
+      onToggleRestrictCheckin: (on) => patch(restrictCheckin: on),
+      onEditBalanceBounds: () async {
+        final bounds = await editBalanceBounds(
+          context,
+          floorHours: settings.balanceFloorHours,
+          capHours: settings.balanceCapHours,
+          annualReset: settings.balanceAnnualReset,
+        );
+        if (bounds != null) await patch(bounds: bounds);
+      },
+      onEditVacationQuota: () async {
+        final value = await editNumber(
+          context,
+          title: 'Vacation quota',
+          initial: quota?.totalDays ?? 30,
+          min: 0,
+          max: 60,
+          step: 1,
+          format: (v) => '${v.round()}',
+          unit: 'days',
+        );
+        if (value != null) {
+          await ref
+              .read(vacationQuotaRepositoryProvider)
+              .setQuota(year: year, totalDays: value);
+        }
+      },
+      onEditRollover: () => _notYet(context),
+      onOpenHolidays: () => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const HolidayListScreen())),
+      onEditNotifications: () => _notYet(context),
+      onExportBackup: () => _exportBackup(context, ref),
+      onOpenAuditLog: () => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const AuditLogScreen())),
     );
   }
 
-  /// The release build isn't debuggable, so `adb run-as` can't read the
+  void _notYet(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Editable in a later milestone.')),
+    );
+  }
+
+  /// The release build is not debuggable, so `adb run-as` cannot read the
   /// database — this is the only way to get a backup off a running install.
   Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -176,262 +169,5 @@ class SettingsScreen extends ConsumerWidget {
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
     }
-  }
-
-  /// Either bound can stand alone — a floor without a cap is a perfectly
-  /// normal configuration, and neither set is the default.
-  String _boundsLabel(double? floor, double? cap) {
-    if (floor == null && cap == null) return 'Not set';
-    final parts = [
-      if (floor != null) AppFormat.hm(floor),
-      if (cap != null) AppFormat.hm(cap, signed: true),
-    ];
-    return parts.join(' / ');
-  }
-
-  String _workDaysLabel(List<int> days) {
-    const names = {1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun'};
-    final sorted = [...days]..sort();
-    if (sorted.isEmpty) return 'None';
-    // Common contiguous case (e.g. Mon-Fri) renders as a range.
-    final isContiguous = sorted.length > 1 && sorted.last - sorted.first == sorted.length - 1;
-    if (isContiguous) return '${names[sorted.first]}–${names[sorted.last]}';
-    return sorted.map((d) => names[d]).join(', ');
-  }
-
-  void _comingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Editable in a later milestone.')),
-    );
-  }
-
-  Future<void> _editWeeklyHours(BuildContext context, double current, ValueChanged<double> onSave) async {
-    var value = current;
-    await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Weekly hours'),
-          content: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(onPressed: () => setState(() => value = (value - 0.5).clamp(0, 80)), icon: const Icon(Icons.remove)),
-              SizedBox(width: 60, child: Text(AppFormat.hoursLabel(value), textAlign: TextAlign.center)),
-              IconButton(onPressed: () => setState(() => value = (value + 0.5).clamp(0, 80)), icon: const Icon(Icons.add)),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            TextButton(onPressed: () { onSave(value); Navigator.pop(context); }, child: const Text('Save')),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _editMinSession(BuildContext context, int current, ValueChanged<int> onSave) async {
-    var value = current;
-    await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Minimum session length'),
-          content: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(onPressed: () => setState(() => value = (value - 1).clamp(0, 60)), icon: const Icon(Icons.remove)),
-              SizedBox(width: 70, child: Text('$value min', textAlign: TextAlign.center)),
-              IconButton(onPressed: () => setState(() => value = (value + 1).clamp(0, 60)), icon: const Icon(Icons.add)),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            TextButton(onPressed: () { onSave(value); Navigator.pop(context); }, child: const Text('Save')),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _editWorkDays(BuildContext context, List<int> current, ValueChanged<List<int>> onSave) async {
-    final selected = current.toSet();
-    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Work days'),
-          content: Wrap(
-            spacing: 4,
-            children: [
-              for (var i = 0; i < 7; i++)
-                FilterChip(
-                  label: Text(names[i]),
-                  selected: selected.contains(i + 1),
-                  onSelected: (on) => setState(() => on ? selected.add(i + 1) : selected.remove(i + 1)),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            TextButton(onPressed: () { onSave(selected.toList()..sort()); Navigator.pop(context); }, child: const Text('Save')),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Kicker extends StatelessWidget {
-  final String label;
-  final AppColors colors;
-  const _Kicker(this.label, this.colors);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16, bottom: 4),
-      child: Text(label.toUpperCase(), style: AppTextStyles.kickerSm.copyWith(color: colors.textMuted)),
-    );
-  }
-}
-
-class _NavRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final AppColors colors;
-  final VoidCallback? onTap;
-  final bool isLast;
-
-  const _NavRow({required this.label, required this.value, required this.colors, required this.onTap, this.isLast = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        decoration: BoxDecoration(border: isLast ? null : Border(bottom: BorderSide(color: colors.divider))),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: AppTextStyles.body.copyWith(color: colors.text, fontWeight: FontWeight.w500)),
-            Row(
-              children: [
-                Text(value, style: AppTextStyles.body.copyWith(color: colors.textMuted, fontWeight: FontWeight.w400)),
-                if (onTap != null) ...[
-                  const SizedBox(width: 6),
-                  Icon(AppIcons.caretRight, size: 13, color: colors.textMuted),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ToggleRow extends StatelessWidget {
-  final String label;
-  final bool value;
-  final AppColors colors;
-  final ValueChanged<bool> onChanged;
-  final bool isLast;
-
-  const _ToggleRow({required this.label, required this.value, required this.colors, required this.onChanged, this.isLast = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 11),
-      decoration: BoxDecoration(border: isLast ? null : Border(bottom: BorderSide(color: colors.divider))),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: AppTextStyles.body.copyWith(color: colors.text, fontWeight: FontWeight.w500)),
-          GestureDetector(
-            onTap: () => onChanged(!value),
-            child: Container(
-              width: 34,
-              height: 20,
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(color: value ? colors.accentFill : colors.divider, borderRadius: BorderRadius.circular(10)),
-              child: AnimatedAlign(
-                duration: const Duration(milliseconds: 150),
-                alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(width: 16, height: 16, decoration: BoxDecoration(color: value ? Colors.white : colors.surface2, shape: BoxShape.circle)),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _VacationQuotaRow extends ConsumerWidget {
-  final AppColors colors;
-  const _VacationQuotaRow({required this.colors});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final year = DateTime.now().year;
-    final quota = ref.watch(vacationQuotaForYearProvider(year)).valueOrNull;
-    final totalDays = quota?.totalDays ?? 30;
-    return _NavRow(
-      label: 'Vacation quota',
-      value: '${totalDays.round()} days/yr',
-      colors: colors,
-      onTap: () => _editVacationQuota(context, ref, year: year, current: totalDays),
-    );
-  }
-
-  Future<void> _editVacationQuota(BuildContext context, WidgetRef ref, {required int year, required double current}) async {
-    var value = current;
-    await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Vacation quota'),
-          content: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(onPressed: () => setState(() => value = (value - 1).clamp(0, 60)), icon: const Icon(Icons.remove)),
-              SizedBox(width: 70, child: Text('${value.round()} days', textAlign: TextAlign.center)),
-              IconButton(onPressed: () => setState(() => value = (value + 1).clamp(0, 60)), icon: const Icon(Icons.add)),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            TextButton(
-              onPressed: () {
-                ref.read(vacationQuotaRepositoryProvider).setQuota(year: year, totalDays: value);
-                Navigator.pop(context);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PublicHolidaysRow extends ConsumerWidget {
-  final AppColors colors;
-  const _PublicHolidaysRow({required this.colors});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final year = DateTime.now().year;
-    final count = ref.watch(publicHolidaysForYearProvider(year)).valueOrNull?.length ?? 0;
-    return _NavRow(
-      label: 'Public holidays',
-      value: 'DE (BW) · $count',
-      colors: colors,
-      isLast: true,
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HolidayListScreen())),
-    );
   }
 }
