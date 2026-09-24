@@ -24,7 +24,7 @@ import 'package:time_manager/core/icons/app_icons.dart';
 import 'package:time_manager/core/theme/app_colors.dart';
 import 'package:time_manager/core/theme/app_dimens.dart';
 import 'package:time_manager/core/theme/app_text_styles.dart';
-import 'package:time_manager/features/onboarding/onboarding_screen.dart';
+import 'package:time_manager/features/onboarding/onboarding_body.dart';
 
 import 'harness.dart';
 
@@ -41,14 +41,29 @@ void main() {
       );
     });
 
-    testWidgets('onboarding step 1 (${brightness.name})', (tester) async {
-      await renderGolden(
-        tester,
-        name: 'onboarding-1',
-        brightness: brightness,
-        child: OnboardingScreen(onDone: () {}),
-      );
-    });
+    for (var step = 0; step < kOnboardingSteps; step++) {
+      testWidgets('onboarding-${step + 1} (${brightness.name})', (tester) async {
+        await renderGolden(
+          tester,
+          name: 'onboarding-${step + 1}',
+          brightness: brightness,
+          child: OnboardingBody(
+            step: step,
+            weeklyHours: 40,
+            workDays: const {1, 2, 3, 4, 5},
+            startingBalance: 0,
+            autoBreak: true,
+            onCancel: () {},
+            onContinue: () {},
+            onBack: () {},
+            onWeeklyHours: (_) {},
+            onToggleWorkDay: (_) {},
+            onStartingBalance: (_) {},
+            onAutoBreak: (_) {},
+          ),
+        );
+      });
+    }
   }
 }
 
