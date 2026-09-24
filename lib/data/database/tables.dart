@@ -131,6 +131,14 @@ class AppSettings extends Table {
       boolean().withDefault(const Constant(true))();
   BoolColumn get restrictCheckin =>
       boolean().withDefault(const Constant(false))();
+
+  /// Null means "not configured" — which has to stay representable, because
+  /// the warning treatment must not fire for a bound the user never set.
+  RealColumn get balanceFloorHours => real().nullable()();
+  RealColumn get balanceCapHours => real().nullable()();
+  BoolColumn get balanceAnnualReset =>
+      boolean().withDefault(const Constant(false))();
+
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override

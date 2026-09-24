@@ -29,11 +29,11 @@ class PublicHolidayRepository {
       db.publicHolidayDao.watchForYear(year);
 
   /// Seeds [year]'s national + Baden-Württemberg holidays if they aren't
-  /// already present — won't overwrite a holiday the user has already
-  /// edited/removed, since it only inserts rows that don't yet exist for
-  /// those dates.
+  /// already present. It checks against every row *including tombstones* —
+  /// otherwise a holiday the user deleted would be silently re-added on the
+  /// next launch, since a deletion leaves no row to skip.
   Future<void> seedYear(int year) async {
-    final existing = await db.publicHolidayDao.forYear(year);
+    final existing = await db.publicHolidayDao.allForYearIncludingRemoved(year);
     final existingDates = existing.map((h) => h.date).toSet();
 
     final seeds = [...germanNationalHolidays(year), ...badenWuerttembergHolidays(year)];
@@ -63,9 +63,17 @@ class PublicHolidayRepository {
     await recalc.recalculateFrom(day);
   }
 
+  /// Auto-seeded holidays are tombstoned rather than deleted, so seeding
+  /// cannot bring them back; a manual one is the user's own row and simply
+  /// goes away.
   Future<void> removeHoliday(DateTime date) async {
     final day = dateOnly(date);
-    await db.publicHolidayDao.deleteHoliday(day);
+    final existing = await db.publicHolidayDao.forDate(day);
+    if (existing?.source == HolidaySource.manual) {
+      await db.publicHolidayDao.deleteHoliday(day);
+    } else {
+      await db.publicHolidayDao.tombstone(day);
+    }
     await recalc.recalculateFrom(day);
   }
 }

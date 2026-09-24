@@ -23,6 +23,9 @@ class SettingsRepository {
   Future<bool> hasCompletedOnboarding() async =>
       (await db.settingsDao.effectiveFor(DateTime.now())) != null;
 
+  /// Settings are versioned — every change writes a new row — so every field
+  /// has to be passed on every save. A field left out here would silently
+  /// reset itself the next time any unrelated setting changed.
   Future<void> save({
     required DateTime effectiveFrom,
     required double weeklyHours,
@@ -30,6 +33,9 @@ class SettingsRepository {
     required int minSessionMinutes,
     required bool autoBreakEnabled,
     required bool restrictCheckin,
+    double? balanceFloorHours,
+    double? balanceCapHours,
+    bool balanceAnnualReset = false,
   }) async {
     final day = dateOnly(effectiveFrom);
 
@@ -41,6 +47,9 @@ class SettingsRepository {
         minSessionMinutes: Value(minSessionMinutes),
         autoBreakEnabled: Value(autoBreakEnabled),
         restrictCheckin: Value(restrictCheckin),
+        balanceFloorHours: Value(balanceFloorHours),
+        balanceCapHours: Value(balanceCapHours),
+        balanceAnnualReset: Value(balanceAnnualReset),
       ));
       await db.auditLogDao.record(AuditLogEntriesCompanion.insert(
         action: 'update',
@@ -52,6 +61,9 @@ class SettingsRepository {
           'minSessionMinutes': minSessionMinutes,
           'autoBreakEnabled': autoBreakEnabled,
           'restrictCheckin': restrictCheckin,
+          'balanceFloorHours': balanceFloorHours,
+          'balanceCapHours': balanceCapHours,
+          'balanceAnnualReset': balanceAnnualReset,
         })),
       ));
     });

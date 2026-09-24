@@ -311,4 +311,33 @@ void main() {
     expect(tuesdaySnapshot?.balance, mondaySnapshot!.balance - 8.0); // missed workday
     expect(wednesdaySnapshot?.balance, tuesdaySnapshot!.balance); // vacation exactly covers target
   });
+
+  test('a removed auto holiday stays removed across re-seeding', () async {
+    // seedYear runs on every launch and skips dates that already have a row.
+    // A plain delete leaves no row, so the holiday used to come straight back.
+    await holidays.seedYear(2026);
+    final seeded = await holidays.forYear(2026);
+    final fronleichnam = seeded.firstWhere((h) => h.name == 'Fronleichnam');
+
+    await holidays.removeHoliday(fronleichnam.date);
+    expect(await holidays.forDate(fronleichnam.date), isNull);
+
+    await holidays.seedYear(2026);
+
+    expect(await holidays.forDate(fronleichnam.date), isNull);
+    expect(
+      (await holidays.forYear(2026)).where((h) => h.name == 'Fronleichnam'),
+      isEmpty,
+    );
+  });
+
+  test('a removed manual holiday is deleted outright, and can be re-added', () async {
+    final day = DateTime(2026, 8, 11);
+    await holidays.setHoliday(date: day, name: 'Company day');
+    await holidays.removeHoliday(day);
+    expect(await holidays.forDate(day), isNull);
+
+    await holidays.setHoliday(date: day, name: 'Company day');
+    expect((await holidays.forDate(day))?.name, 'Company day');
+  });
 }

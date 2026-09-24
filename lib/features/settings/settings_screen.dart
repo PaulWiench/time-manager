@@ -28,12 +28,19 @@ class SettingsScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    // Settings rows are versioned, so a save writes a whole new row: every
+    // field not being edited has to be carried forward explicitly or it
+    // silently resets.
     Future<void> patch({
       double? weeklyHours,
       List<int>? workDays,
       int? minSessionMinutes,
       bool? autoBreakEnabled,
       bool? restrictCheckin,
+      double? balanceFloorHours,
+      double? balanceCapHours,
+      bool? balanceAnnualReset,
+      bool clearBalanceBounds = false,
     }) {
       return ref.read(settingsRepositoryProvider).save(
             effectiveFrom: dateOnly(DateTime.now()),
@@ -42,6 +49,11 @@ class SettingsScreen extends ConsumerWidget {
             minSessionMinutes: minSessionMinutes ?? settings.minSessionMinutes,
             autoBreakEnabled: autoBreakEnabled ?? settings.autoBreakEnabled,
             restrictCheckin: restrictCheckin ?? settings.restrictCheckin,
+            balanceFloorHours:
+                clearBalanceBounds ? null : balanceFloorHours ?? settings.balanceFloorHours,
+            balanceCapHours:
+                clearBalanceBounds ? null : balanceCapHours ?? settings.balanceCapHours,
+            balanceAnnualReset: balanceAnnualReset ?? settings.balanceAnnualReset,
           );
     }
 
@@ -97,7 +109,12 @@ class SettingsScreen extends ConsumerWidget {
                   ),
 
                   _Kicker('Balance & leave', colors),
-                  _NavRow(label: 'Floor / cap', value: 'Not set', colors: colors, onTap: () => _comingSoon(context)),
+                  _NavRow(
+                    label: 'Floor / cap',
+                    value: _boundsLabel(settings.balanceFloorHours, settings.balanceCapHours),
+                    colors: colors,
+                    onTap: () => _comingSoon(context),
+                  ),
                   _VacationQuotaRow(colors: colors),
                   _NavRow(label: 'Rollover policy', value: 'Indefinite', colors: colors, onTap: () => _comingSoon(context)),
                   _PublicHolidaysRow(colors: colors),
@@ -159,6 +176,17 @@ class SettingsScreen extends ConsumerWidget {
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
     }
+  }
+
+  /// Either bound can stand alone — a floor without a cap is a perfectly
+  /// normal configuration, and neither set is the default.
+  String _boundsLabel(double? floor, double? cap) {
+    if (floor == null && cap == null) return 'Not set';
+    final parts = [
+      if (floor != null) AppFormat.hm(floor),
+      if (cap != null) AppFormat.hm(cap, signed: true),
+    ];
+    return parts.join(' / ');
   }
 
   String _workDaysLabel(List<int> days) {

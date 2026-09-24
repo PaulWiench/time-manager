@@ -3040,6 +3040,43 @@ class $AppSettingsTable extends AppSettings
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _balanceFloorHoursMeta = const VerificationMeta(
+    'balanceFloorHours',
+  );
+  @override
+  late final GeneratedColumn<double> balanceFloorHours =
+      GeneratedColumn<double>(
+        'balance_floor_hours',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _balanceCapHoursMeta = const VerificationMeta(
+    'balanceCapHours',
+  );
+  @override
+  late final GeneratedColumn<double> balanceCapHours = GeneratedColumn<double>(
+    'balance_cap_hours',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _balanceAnnualResetMeta =
+      const VerificationMeta('balanceAnnualReset');
+  @override
+  late final GeneratedColumn<bool> balanceAnnualReset = GeneratedColumn<bool>(
+    'balance_annual_reset',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("balance_annual_reset" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -3061,6 +3098,9 @@ class $AppSettingsTable extends AppSettings
     minSessionMinutes,
     autoBreakEnabled,
     restrictCheckin,
+    balanceFloorHours,
+    balanceCapHours,
+    balanceAnnualReset,
     createdAt,
   ];
   @override
@@ -3123,6 +3163,33 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('balance_floor_hours')) {
+      context.handle(
+        _balanceFloorHoursMeta,
+        balanceFloorHours.isAcceptableOrUnknown(
+          data['balance_floor_hours']!,
+          _balanceFloorHoursMeta,
+        ),
+      );
+    }
+    if (data.containsKey('balance_cap_hours')) {
+      context.handle(
+        _balanceCapHoursMeta,
+        balanceCapHours.isAcceptableOrUnknown(
+          data['balance_cap_hours']!,
+          _balanceCapHoursMeta,
+        ),
+      );
+    }
+    if (data.containsKey('balance_annual_reset')) {
+      context.handle(
+        _balanceAnnualResetMeta,
+        balanceAnnualReset.isAcceptableOrUnknown(
+          data['balance_annual_reset']!,
+          _balanceAnnualResetMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -3168,6 +3235,18 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.bool,
         data['${effectivePrefix}restrict_checkin'],
       )!,
+      balanceFloorHours: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}balance_floor_hours'],
+      ),
+      balanceCapHours: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}balance_cap_hours'],
+      ),
+      balanceAnnualReset: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}balance_annual_reset'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -3194,6 +3273,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final int minSessionMinutes;
   final bool autoBreakEnabled;
   final bool restrictCheckin;
+
+  /// Null means "not configured" — which has to stay representable, because
+  /// the warning treatment must not fire for a bound the user never set.
+  final double? balanceFloorHours;
+  final double? balanceCapHours;
+  final bool balanceAnnualReset;
   final DateTime createdAt;
   const AppSetting({
     required this.id,
@@ -3203,6 +3288,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     required this.minSessionMinutes,
     required this.autoBreakEnabled,
     required this.restrictCheckin,
+    this.balanceFloorHours,
+    this.balanceCapHours,
+    required this.balanceAnnualReset,
     required this.createdAt,
   });
   @override
@@ -3219,6 +3307,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     map['min_session_minutes'] = Variable<int>(minSessionMinutes);
     map['auto_break_enabled'] = Variable<bool>(autoBreakEnabled);
     map['restrict_checkin'] = Variable<bool>(restrictCheckin);
+    if (!nullToAbsent || balanceFloorHours != null) {
+      map['balance_floor_hours'] = Variable<double>(balanceFloorHours);
+    }
+    if (!nullToAbsent || balanceCapHours != null) {
+      map['balance_cap_hours'] = Variable<double>(balanceCapHours);
+    }
+    map['balance_annual_reset'] = Variable<bool>(balanceAnnualReset);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -3232,6 +3327,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       minSessionMinutes: Value(minSessionMinutes),
       autoBreakEnabled: Value(autoBreakEnabled),
       restrictCheckin: Value(restrictCheckin),
+      balanceFloorHours: balanceFloorHours == null && nullToAbsent
+          ? const Value.absent()
+          : Value(balanceFloorHours),
+      balanceCapHours: balanceCapHours == null && nullToAbsent
+          ? const Value.absent()
+          : Value(balanceCapHours),
+      balanceAnnualReset: Value(balanceAnnualReset),
       createdAt: Value(createdAt),
     );
   }
@@ -3249,6 +3351,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       minSessionMinutes: serializer.fromJson<int>(json['minSessionMinutes']),
       autoBreakEnabled: serializer.fromJson<bool>(json['autoBreakEnabled']),
       restrictCheckin: serializer.fromJson<bool>(json['restrictCheckin']),
+      balanceFloorHours: serializer.fromJson<double?>(
+        json['balanceFloorHours'],
+      ),
+      balanceCapHours: serializer.fromJson<double?>(json['balanceCapHours']),
+      balanceAnnualReset: serializer.fromJson<bool>(json['balanceAnnualReset']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -3263,6 +3370,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'minSessionMinutes': serializer.toJson<int>(minSessionMinutes),
       'autoBreakEnabled': serializer.toJson<bool>(autoBreakEnabled),
       'restrictCheckin': serializer.toJson<bool>(restrictCheckin),
+      'balanceFloorHours': serializer.toJson<double?>(balanceFloorHours),
+      'balanceCapHours': serializer.toJson<double?>(balanceCapHours),
+      'balanceAnnualReset': serializer.toJson<bool>(balanceAnnualReset),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -3275,6 +3385,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     int? minSessionMinutes,
     bool? autoBreakEnabled,
     bool? restrictCheckin,
+    Value<double?> balanceFloorHours = const Value.absent(),
+    Value<double?> balanceCapHours = const Value.absent(),
+    bool? balanceAnnualReset,
     DateTime? createdAt,
   }) => AppSetting(
     id: id ?? this.id,
@@ -3284,6 +3397,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     minSessionMinutes: minSessionMinutes ?? this.minSessionMinutes,
     autoBreakEnabled: autoBreakEnabled ?? this.autoBreakEnabled,
     restrictCheckin: restrictCheckin ?? this.restrictCheckin,
+    balanceFloorHours: balanceFloorHours.present
+        ? balanceFloorHours.value
+        : this.balanceFloorHours,
+    balanceCapHours: balanceCapHours.present
+        ? balanceCapHours.value
+        : this.balanceCapHours,
+    balanceAnnualReset: balanceAnnualReset ?? this.balanceAnnualReset,
     createdAt: createdAt ?? this.createdAt,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
@@ -3305,6 +3425,15 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       restrictCheckin: data.restrictCheckin.present
           ? data.restrictCheckin.value
           : this.restrictCheckin,
+      balanceFloorHours: data.balanceFloorHours.present
+          ? data.balanceFloorHours.value
+          : this.balanceFloorHours,
+      balanceCapHours: data.balanceCapHours.present
+          ? data.balanceCapHours.value
+          : this.balanceCapHours,
+      balanceAnnualReset: data.balanceAnnualReset.present
+          ? data.balanceAnnualReset.value
+          : this.balanceAnnualReset,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -3319,6 +3448,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('minSessionMinutes: $minSessionMinutes, ')
           ..write('autoBreakEnabled: $autoBreakEnabled, ')
           ..write('restrictCheckin: $restrictCheckin, ')
+          ..write('balanceFloorHours: $balanceFloorHours, ')
+          ..write('balanceCapHours: $balanceCapHours, ')
+          ..write('balanceAnnualReset: $balanceAnnualReset, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -3333,6 +3465,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     minSessionMinutes,
     autoBreakEnabled,
     restrictCheckin,
+    balanceFloorHours,
+    balanceCapHours,
+    balanceAnnualReset,
     createdAt,
   );
   @override
@@ -3346,6 +3481,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.minSessionMinutes == this.minSessionMinutes &&
           other.autoBreakEnabled == this.autoBreakEnabled &&
           other.restrictCheckin == this.restrictCheckin &&
+          other.balanceFloorHours == this.balanceFloorHours &&
+          other.balanceCapHours == this.balanceCapHours &&
+          other.balanceAnnualReset == this.balanceAnnualReset &&
           other.createdAt == this.createdAt);
 }
 
@@ -3357,6 +3495,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<int> minSessionMinutes;
   final Value<bool> autoBreakEnabled;
   final Value<bool> restrictCheckin;
+  final Value<double?> balanceFloorHours;
+  final Value<double?> balanceCapHours;
+  final Value<bool> balanceAnnualReset;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const AppSettingsCompanion({
@@ -3367,6 +3508,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.minSessionMinutes = const Value.absent(),
     this.autoBreakEnabled = const Value.absent(),
     this.restrictCheckin = const Value.absent(),
+    this.balanceFloorHours = const Value.absent(),
+    this.balanceCapHours = const Value.absent(),
+    this.balanceAnnualReset = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -3378,6 +3522,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.minSessionMinutes = const Value.absent(),
     this.autoBreakEnabled = const Value.absent(),
     this.restrictCheckin = const Value.absent(),
+    this.balanceFloorHours = const Value.absent(),
+    this.balanceCapHours = const Value.absent(),
+    this.balanceAnnualReset = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -3389,6 +3536,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<int>? minSessionMinutes,
     Expression<bool>? autoBreakEnabled,
     Expression<bool>? restrictCheckin,
+    Expression<double>? balanceFloorHours,
+    Expression<double>? balanceCapHours,
+    Expression<bool>? balanceAnnualReset,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -3400,6 +3550,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (minSessionMinutes != null) 'min_session_minutes': minSessionMinutes,
       if (autoBreakEnabled != null) 'auto_break_enabled': autoBreakEnabled,
       if (restrictCheckin != null) 'restrict_checkin': restrictCheckin,
+      if (balanceFloorHours != null) 'balance_floor_hours': balanceFloorHours,
+      if (balanceCapHours != null) 'balance_cap_hours': balanceCapHours,
+      if (balanceAnnualReset != null)
+        'balance_annual_reset': balanceAnnualReset,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -3413,6 +3567,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<int>? minSessionMinutes,
     Value<bool>? autoBreakEnabled,
     Value<bool>? restrictCheckin,
+    Value<double?>? balanceFloorHours,
+    Value<double?>? balanceCapHours,
+    Value<bool>? balanceAnnualReset,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -3424,6 +3581,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       minSessionMinutes: minSessionMinutes ?? this.minSessionMinutes,
       autoBreakEnabled: autoBreakEnabled ?? this.autoBreakEnabled,
       restrictCheckin: restrictCheckin ?? this.restrictCheckin,
+      balanceFloorHours: balanceFloorHours ?? this.balanceFloorHours,
+      balanceCapHours: balanceCapHours ?? this.balanceCapHours,
+      balanceAnnualReset: balanceAnnualReset ?? this.balanceAnnualReset,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -3455,6 +3615,15 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (restrictCheckin.present) {
       map['restrict_checkin'] = Variable<bool>(restrictCheckin.value);
     }
+    if (balanceFloorHours.present) {
+      map['balance_floor_hours'] = Variable<double>(balanceFloorHours.value);
+    }
+    if (balanceCapHours.present) {
+      map['balance_cap_hours'] = Variable<double>(balanceCapHours.value);
+    }
+    if (balanceAnnualReset.present) {
+      map['balance_annual_reset'] = Variable<bool>(balanceAnnualReset.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3474,6 +3643,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('minSessionMinutes: $minSessionMinutes, ')
           ..write('autoBreakEnabled: $autoBreakEnabled, ')
           ..write('restrictCheckin: $restrictCheckin, ')
+          ..write('balanceFloorHours: $balanceFloorHours, ')
+          ..write('balanceCapHours: $balanceCapHours, ')
+          ..write('balanceAnnualReset: $balanceAnnualReset, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -6255,6 +6427,9 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<int> minSessionMinutes,
       Value<bool> autoBreakEnabled,
       Value<bool> restrictCheckin,
+      Value<double?> balanceFloorHours,
+      Value<double?> balanceCapHours,
+      Value<bool> balanceAnnualReset,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -6267,6 +6442,9 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<int> minSessionMinutes,
       Value<bool> autoBreakEnabled,
       Value<bool> restrictCheckin,
+      Value<double?> balanceFloorHours,
+      Value<double?> balanceCapHours,
+      Value<bool> balanceAnnualReset,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -6313,6 +6491,21 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<bool> get restrictCheckin => $composableBuilder(
     column: $table.restrictCheckin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get balanceFloorHours => $composableBuilder(
+    column: $table.balanceFloorHours,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get balanceCapHours => $composableBuilder(
+    column: $table.balanceCapHours,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get balanceAnnualReset => $composableBuilder(
+    column: $table.balanceAnnualReset,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6366,6 +6559,21 @@ class $$AppSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get balanceFloorHours => $composableBuilder(
+    column: $table.balanceFloorHours,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get balanceCapHours => $composableBuilder(
+    column: $table.balanceCapHours,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get balanceAnnualReset => $composableBuilder(
+    column: $table.balanceAnnualReset,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -6412,6 +6620,21 @@ class $$AppSettingsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<double> get balanceFloorHours => $composableBuilder(
+    column: $table.balanceFloorHours,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get balanceCapHours => $composableBuilder(
+    column: $table.balanceCapHours,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get balanceAnnualReset => $composableBuilder(
+    column: $table.balanceAnnualReset,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
@@ -6454,6 +6677,9 @@ class $$AppSettingsTableTableManager
                 Value<int> minSessionMinutes = const Value.absent(),
                 Value<bool> autoBreakEnabled = const Value.absent(),
                 Value<bool> restrictCheckin = const Value.absent(),
+                Value<double?> balanceFloorHours = const Value.absent(),
+                Value<double?> balanceCapHours = const Value.absent(),
+                Value<bool> balanceAnnualReset = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AppSettingsCompanion(
@@ -6464,6 +6690,9 @@ class $$AppSettingsTableTableManager
                 minSessionMinutes: minSessionMinutes,
                 autoBreakEnabled: autoBreakEnabled,
                 restrictCheckin: restrictCheckin,
+                balanceFloorHours: balanceFloorHours,
+                balanceCapHours: balanceCapHours,
+                balanceAnnualReset: balanceAnnualReset,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -6476,6 +6705,9 @@ class $$AppSettingsTableTableManager
                 Value<int> minSessionMinutes = const Value.absent(),
                 Value<bool> autoBreakEnabled = const Value.absent(),
                 Value<bool> restrictCheckin = const Value.absent(),
+                Value<double?> balanceFloorHours = const Value.absent(),
+                Value<double?> balanceCapHours = const Value.absent(),
+                Value<bool> balanceAnnualReset = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AppSettingsCompanion.insert(
@@ -6486,6 +6718,9 @@ class $$AppSettingsTableTableManager
                 minSessionMinutes: minSessionMinutes,
                 autoBreakEnabled: autoBreakEnabled,
                 restrictCheckin: restrictCheckin,
+                balanceFloorHours: balanceFloorHours,
+                balanceCapHours: balanceCapHours,
+                balanceAnnualReset: balanceAnnualReset,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
