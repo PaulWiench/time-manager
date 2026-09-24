@@ -1,0 +1,72 @@
+{
+  "_comment": [
+    "Cases for the German statutory break deduction (ArbZG): over 6 h of gross",
+    "work owes 30 minutes, over 9 h owes 45, and whatever was already spent",
+    "between sessions counts towards it.",
+    "",
+    "The rule exists twice — in lib/domain/break_engine.dart and, for the",
+    "running session only, in the widget's Kotlin. Both are tested against this",
+    "file, so the two cannot drift apart quietly:",
+    "",
+    "  flutter test test/domain/break_law_fixture_test.dart",
+    "  cd android && ./gradlew :app:testDebugUnitTest"
+  ],
+  "cases": [
+    {
+      "name": "under six hours owes nothing",
+      "grossMinutes": 359,
+      "realBreakMinutes": 0,
+      "expectedRequiredMinutes": 0,
+      "expectedNetMinutes": 359
+    },
+    {
+      "name": "exactly six hours is still under the threshold",
+      "grossMinutes": 360,
+      "realBreakMinutes": 0,
+      "expectedRequiredMinutes": 0,
+      "expectedNetMinutes": 360
+    },
+    {
+      "name": "a minute past six owes the full thirty",
+      "grossMinutes": 361,
+      "realBreakMinutes": 0,
+      "expectedRequiredMinutes": 30,
+      "expectedNetMinutes": 331
+    },
+    {
+      "name": "a real break covers part of what is owed",
+      "grossMinutes": 480,
+      "realBreakMinutes": 20,
+      "expectedRequiredMinutes": 30,
+      "expectedNetMinutes": 470
+    },
+    {
+      "name": "a long enough real break owes nothing more",
+      "grossMinutes": 480,
+      "realBreakMinutes": 45,
+      "expectedRequiredMinutes": 30,
+      "expectedNetMinutes": 480
+    },
+    {
+      "name": "exactly nine hours still owes only thirty",
+      "grossMinutes": 540,
+      "realBreakMinutes": 0,
+      "expectedRequiredMinutes": 30,
+      "expectedNetMinutes": 510
+    },
+    {
+      "name": "past nine hours owes forty-five",
+      "grossMinutes": 541,
+      "realBreakMinutes": 0,
+      "expectedRequiredMinutes": 45,
+      "expectedNetMinutes": 496
+    },
+    {
+      "name": "a long day with a long lunch owes nothing more",
+      "grossMinutes": 600,
+      "realBreakMinutes": 60,
+      "expectedRequiredMinutes": 45,
+      "expectedNetMinutes": 600
+    }
+  ]
+}

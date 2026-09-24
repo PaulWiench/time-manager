@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from lib/core/theme/app_colors.dart. Do not edit by hand:
+     run UPDATE_WIDGET_TOKENS=1 flutter test test/core/theme/widget_tokens_test.dart -->
+<resources>
+    <color name="tm_slab">#FF2E2447</color>
+    <color name="tm_on_slab">#FFFFF4E6</color>
+    <color name="tm_on_slab_muted">#FFBDB2D1</color>
+    <color name="tm_slab_track">#FF4B4068</color>
+    <color name="tm_accent_fill">#FFF7B27A</color>
+    <color name="tm_break_fill">#FFB3A1F5</color>
+    <color name="tm_idle">#FF948AA3</color>
+    <color name="tm_ring_lap">#FFC4561A</color>
+</resources>

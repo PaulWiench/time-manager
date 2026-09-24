@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- maxResizeWidth used to be 250dp, which is narrower than the 4x2 layout
+     needs — the launcher would not let the widget grow into it at all. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="40dp"
     android:minHeight="40dp"
     android:targetCellWidth="1"
     android:targetCellHeight="1"
-    android:maxResizeWidth="250dp"
-    android:maxResizeHeight="140dp"
+    android:maxResizeWidth="360dp"
+    android:maxResizeHeight="180dp"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:description="@string/widget_description"

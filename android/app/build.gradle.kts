@@ -75,8 +75,19 @@ flutter {
     source = "../.."
 }
 
+android.sourceSets.getByName("test") {
+    // The Kotlin half of the shared break-law fixture lives beside the main
+    // sources rather than in a java/ directory it has no business being in.
+    kotlin.srcDir("src/test/kotlin")
+}
+
 dependencies {
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("androidx.glance:glance-material3:1.1.1")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
+
+    // The widget duplicates one rule from the Dart domain layer; these are
+    // what check the copy against the original. See BreakLawTest.
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }

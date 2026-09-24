@@ -6,40 +6,43 @@ import java.io.File
 import java.util.Calendar
 import java.util.UUID
 
-enum class TrackingState { TRACKING, BREAK, CHECKED_OUT }
+enum class TrackingState { TRACKING, BREAK, CHECKED_OUT, NOT_STARTED }
 
 /** Everything the widget needs to render, computed fresh on every update. */
 data class WidgetState(
     val trackingState: TrackingState,
-    val workedHours: Double,
+    val netHours: Double,
     val targetHours: Double,
+    val balanceHours: Double,
 )
 
 /**
- * Reads/writes the same SQLite file the Flutter app's Drift database uses
- * (`<dataDir>/app_flutter/time_manager.sqlite`, confirmed by inspecting the
- * on-device file — `path_provider`'s `getApplicationDocumentsDirectory()` on
- * Android resolves to `context.dataDir/app_flutter`, one level up from
- * `context.filesDir`). Drift's `DateTime` columns are unix epoch *seconds*,
- * and date-only columns (`date` on WorkSessions/DayEntries) store local
- * midnight — verified against a live onboarding run rather than assumed.
+ * Reads and writes the same SQLite file the app's Drift database uses
+ * (`<dataDir>/app_flutter/time_manager.sqlite` — `path_provider`'s
+ * `getApplicationDocumentsDirectory()` resolves to `context.dataDir/app_flutter`,
+ * one level up from `context.filesDir`, confirmed on device rather than
+ * assumed). Drift stores `DateTime` columns as unix epoch *seconds*, and
+ * date-only columns as local midnight.
  *
- * The widget deliberately never calls into the app's recalculation engine
- * (break-law deduction, balance cascade) — that's Dart-only domain logic
- * (`recalculation_engine.dart`, `break_engine.dart`) not worth porting for
- * a glance-only surface. So it shows *gross* tracked time toward today's
- * target (raw session time, no legal-break deduction) rather than the
- * break-deducted net figure the full app shows. This is a documented scope
- * simplification, matching the precedent set by other Milestone 6/7
- * interpretation calls: opening the app always reconciles to the
- * authoritative net number; the widget is for a glance, not the ledger.
+ * The widget used to show gross tracked time, because the break deduction and
+ * the balance cascade are Dart-only. It now shows the same net figure and the
+ * same balance the app does, without porting either:
+ *
+ *   - The **balance** is read straight from `balance_snapshots`, which Dart
+ *     has already cascaded. Nothing is recomputed.
+ *   - **Today's net** is derived from today's sessions with the one rule that
+ *     cannot be read from a row — the statutory break deduction — because the
+ *     session running right now is not in any committed row yet. That rule is
+ *     [BreakLaw], ten lines, checked against the same fixture as the Dart
+ *     original.
+ *
+ * A cached table written by Flutter was the obvious alternative and the wrong
+ * one: [toggleTracking] writes to SQLite while the app is not running, so the
+ * cache would be stale exactly when the widget was being used.
  */
 object WidgetRepository {
-    // path_provider's getApplicationDocumentsDirectory() on Android resolves to
-    // context.dataDir/app_flutter, NOT context.filesDir/app_flutter (filesDir
-    // is a level too deep, at .../files) — confirmed by inspecting the actual
-    // on-device path rather than assumed; verify again if this ever moves.
-    private fun dbFile(context: Context): File = File(context.dataDir, "app_flutter/time_manager.sqlite")
+    private fun dbFile(context: Context): File =
+        File(context.dataDir, "app_flutter/time_manager.sqlite")
 
     private fun todayMidnightSeconds(): Long {
         val cal = Calendar.getInstance()
@@ -52,70 +55,120 @@ object WidgetRepository {
 
     private fun nowSeconds(): Long = System.currentTimeMillis() / 1000
 
+    /** Mirrors `kBreakWindow` in lib/domain/tracking_state.dart. */
+    private const val BREAK_WINDOW_SECONDS = 2 * 60 * 60
+
     fun loadState(context: Context): WidgetState {
         val file = dbFile(context)
-        if (!file.exists()) return WidgetState(TrackingState.CHECKED_OUT, 0.0, 0.0)
+        if (!file.exists()) return WidgetState(TrackingState.NOT_STARTED, 0.0, 0.0, 0.0)
 
         val db = SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)
         try {
             val today = todayMidnightSeconds()
+            val now = nowSeconds()
 
             var activeStart: Long? = null
             db.rawQuery(
-                "SELECT start_time FROM work_sessions WHERE status = 'active' ORDER BY start_time DESC LIMIT 1",
+                "SELECT start_time FROM work_sessions WHERE status = 'active' " +
+                    "ORDER BY start_time DESC LIMIT 1",
                 null,
             ).use { c -> if (c.moveToFirst()) activeStart = c.getLong(0) }
 
-            var grossSeconds = 0L
-            var hasCompletedToday = false
+            // Completed sessions in order, so the gaps between them can be
+            // counted as breaks already taken.
+            val completed = mutableListOf<Pair<Long, Long>>()
             db.rawQuery(
-                "SELECT start_time, end_time FROM work_sessions WHERE date = ? AND status = 'completed'",
+                "SELECT start_time, end_time FROM work_sessions " +
+                    "WHERE date = ? AND status = 'completed' ORDER BY start_time",
                 arrayOf(today.toString()),
             ).use { c ->
-                while (c.moveToNext()) {
-                    grossSeconds += c.getLong(1) - c.getLong(0)
-                    hasCompletedToday = true
-                }
+                while (c.moveToNext()) completed.add(c.getLong(0) to c.getLong(1))
             }
-            val start = activeStart
-            if (start != null) grossSeconds += nowSeconds() - start
-            val workedHours = grossSeconds / 3600.0
+
+            val periods = completed.toMutableList()
+            activeStart?.let { periods.add(it to now) }
+
+            var grossSeconds = 0L
+            var realBreakSeconds = 0L
+            for ((i, period) in periods.withIndex()) {
+                grossSeconds += period.second - period.first
+                if (i > 0) realBreakSeconds += period.first - periods[i - 1].second
+            }
+
+            val netHours = if (periods.isEmpty()) {
+                0.0
+            } else {
+                BreakLaw.netMinutes(grossSeconds / 60, realBreakSeconds / 60) / 60.0
+            }
 
             var targetHours = 0.0
             var hasTargetRow = false
-            db.rawQuery("SELECT target_hours FROM day_entries WHERE date = ?", arrayOf(today.toString())).use { c ->
+            db.rawQuery(
+                "SELECT target_hours FROM day_entries WHERE date = ?",
+                arrayOf(today.toString()),
+            ).use { c ->
                 if (c.moveToFirst()) {
                     targetHours = c.getDouble(0)
                     hasTargetRow = true
                 }
             }
-            if (!hasTargetRow || targetHours <= 0.0) {
-                targetHours = fallbackTargetHours(db, today)
-            }
+            if (!hasTargetRow || targetHours <= 0.0) targetHours = fallbackTargetHours(db, today)
 
-            val state = when {
-                start != null -> TrackingState.TRACKING
-                hasCompletedToday && workedHours < targetHours -> TrackingState.BREAK
-                else -> TrackingState.CHECKED_OUT
-            }
-            return WidgetState(state, workedHours, targetHours)
+            var balanceHours = 0.0
+            db.rawQuery(
+                "SELECT balance FROM balance_snapshots ORDER BY date DESC LIMIT 1",
+                null,
+            ).use { c -> if (c.moveToFirst()) balanceHours = c.getDouble(0) }
+
+            val lastCheckOut = completed.maxOfOrNull { it.second }
+            return WidgetState(
+                trackingState = trackingStateFor(
+                    now = now,
+                    activeStart = activeStart,
+                    lastCheckOut = lastCheckOut,
+                    targetMet = targetHours > 0 && netHours >= targetHours,
+                ),
+                netHours = netHours,
+                targetHours = targetHours,
+                balanceHours = balanceHours,
+            )
         } finally {
             db.close()
         }
+    }
+
+    /**
+     * Mirrors `trackingStateFor` in lib/domain/tracking_state.dart, including
+     * the rule that once the day's hours are in, walking away is going home
+     * rather than taking a break.
+     */
+    internal fun trackingStateFor(
+        now: Long,
+        activeStart: Long?,
+        lastCheckOut: Long?,
+        targetMet: Boolean,
+    ): TrackingState {
+        if (activeStart != null) return TrackingState.TRACKING
+        if (lastCheckOut == null) return TrackingState.NOT_STARTED
+        if (targetMet) return TrackingState.CHECKED_OUT
+        val since = now - lastCheckOut
+        return if (since <= BREAK_WINDOW_SECONDS) TrackingState.BREAK else TrackingState.CHECKED_OUT
     }
 
     private fun fallbackTargetHours(db: SQLiteDatabase, today: Long): Double {
         var weeklyHours = 40.0
         var workDays = "1,2,3,4,5"
         db.rawQuery(
-            "SELECT weekly_hours, work_days FROM app_settings WHERE effective_from <= ? ORDER BY effective_from DESC, created_at DESC LIMIT 1",
+            "SELECT weekly_hours, work_days FROM app_settings WHERE effective_from <= ? " +
+                "ORDER BY effective_from DESC, created_at DESC LIMIT 1",
             arrayOf(today.toString()),
         ).use { c ->
             if (c.moveToFirst()) {
                 weeklyHours = c.getDouble(0)
-                workDays = c.getString(1) ?: workDays
+                workDays = c.getString(1)
             }
         }
+
         val days = workDays.split(",").mapNotNull { it.trim().toIntOrNull() }
         if (days.isEmpty()) return 0.0
 
@@ -129,11 +182,10 @@ object WidgetRepository {
 
     /**
      * Toggles check-in/out with a direct, schema-consistent write — mirrors
-     * `WorkSessionRepository.checkIn`/`checkOut` (Dart) minus the
-     * recalculation step, which only Dart can perform (see class doc).
-     * Still enforces the single-active-session invariant and the
-     * too-short-session discard rule, so the DB stays internally
-     * consistent for the next time the app itself opens and recalculates.
+     * `WorkSessionRepository.checkIn`/`checkOut` minus the recalculation step,
+     * which only Dart can perform. It still enforces the single-active-session
+     * invariant and the too-short-session discard rule, so the database stays
+     * consistent for the next time the app opens and recalculates.
      */
     fun toggleTracking(context: Context) {
         val file = dbFile(context)
@@ -145,7 +197,8 @@ object WidgetRepository {
             var activeId: String? = null
             var activeStart: Long? = null
             db.rawQuery(
-                "SELECT id, start_time FROM work_sessions WHERE status = 'active' ORDER BY start_time DESC LIMIT 1",
+                "SELECT id, start_time FROM work_sessions WHERE status = 'active' " +
+                    "ORDER BY start_time DESC LIMIT 1",
                 null,
             ).use { c ->
                 if (c.moveToFirst()) {
@@ -166,11 +219,15 @@ object WidgetRepository {
                 )
             } else {
                 val today = todayMidnightSeconds()
-                // DayEntry rows are created lazily and WorkSessions.date FKs
-                // to them (FK enforcement is on) — must exist first.
-                db.execSQL("INSERT OR IGNORE INTO day_entries (date, updated_at) VALUES (?, ?)", arrayOf<Any>(today, now))
+                // DayEntry rows are created lazily and WorkSessions.date FKs to
+                // them (FK enforcement is on) — it must exist first.
                 db.execSQL(
-                    "INSERT INTO work_sessions (id, date, start_time, end_time, status, created_at, updated_at) " +
+                    "INSERT OR IGNORE INTO day_entries (date, updated_at) VALUES (?, ?)",
+                    arrayOf<Any>(today, now),
+                )
+                db.execSQL(
+                    "INSERT INTO work_sessions " +
+                        "(id, date, start_time, end_time, status, created_at, updated_at) " +
                         "VALUES (?, ?, ?, NULL, 'active', ?, ?)",
                     arrayOf<Any>(UUID.randomUUID().toString(), today, now, now, now),
                 )
@@ -183,7 +240,8 @@ object WidgetRepository {
     private fun minSessionMinutes(db: SQLiteDatabase, today: Long): Int {
         var minutes = 5
         db.rawQuery(
-            "SELECT min_session_minutes FROM app_settings WHERE effective_from <= ? ORDER BY effective_from DESC, created_at DESC LIMIT 1",
+            "SELECT min_session_minutes FROM app_settings WHERE effective_from <= ? " +
+                "ORDER BY effective_from DESC, created_at DESC LIMIT 1",
             arrayOf(today.toString()),
         ).use { c -> if (c.moveToFirst()) minutes = c.getInt(0) }
         return minutes
