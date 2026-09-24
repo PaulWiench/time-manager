@@ -2,17 +2,12 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:time_manager/app.dart';
 import 'package:time_manager/data/database/database.dart';
 import 'package:time_manager/providers/database_providers.dart';
 
 void main() {
-  // No network access under `flutter test` -- fall back to the bundled
-  // system font instead of google_fonts' runtime fetch-and-cache.
-  GoogleFonts.config.allowRuntimeFetching = false;
-
   testWidgets('a fresh install boots straight into onboarding', (tester) async {
     await tester.pumpWidget(
       ProviderScope(

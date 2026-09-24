@@ -26,7 +26,6 @@ dependencies:
 
   # Utility
   uuid: ^4.5.1
-  google_fonts: ^8.1.0
 
 dev_dependencies:
   flutter_test:
@@ -41,10 +40,15 @@ flutter:
   uses-material-design: true
 
   # Bundled rather than fetched at runtime: a sideloaded personal app must
-  # render its own numbers and icons with no network. Phosphor ships as two
-  # weights because that is all the design uses — Bold everywhere, Fill for
-  # the active nav item (see lib/core/icons/app_icons.dart).
+  # render its own numbers and icons with no network. Manrope is the variable
+  # font (one file, every weight — see app_text_styles.dart for why each style
+  # sets a wght axis as well as a FontWeight). Phosphor ships as two weights
+  # because that is all the design uses — Bold everywhere, Fill for the active
+  # nav item (see lib/core/icons/app_icons.dart).
   fonts:
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-Variable.ttf
     - family: PhosphorBold
       fonts:
         - asset: assets/fonts/Phosphor-Bold.ttf
