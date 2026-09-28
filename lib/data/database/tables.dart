@@ -132,6 +132,21 @@ class AppSettings extends Table {
   BoolColumn get restrictCheckin =>
       boolean().withDefault(const Constant(false))();
 
+  /// Normal working hours, as minutes since midnight, so they compare directly
+  /// against `TimeOfDayWindow` (lib/domain/midnight_cutoff.dart) without a
+  /// Flutter `TimeOfDay` reaching the data layer.
+  ///
+  /// This is not the same question as [restrictCheckin], which is about
+  /// refusing a check-in and is still deliberately unarmed. This window answers
+  /// "is it still the working day?", and the balance uses it to tell an idle
+  /// gap that means *finished for the day* from one that means *stepped out*.
+  /// 08:00–18:00 by default — wide enough that an ordinary long lunch is never
+  /// mistaken for the end of the day.
+  IntColumn get workWindowStartMinutes =>
+      integer().withDefault(const Constant(8 * 60))();
+  IntColumn get workWindowEndMinutes =>
+      integer().withDefault(const Constant(18 * 60))();
+
   /// Null means "not configured" — which has to stay representable, because
   /// the warning treatment must not fire for a bound the user never set.
   RealColumn get balanceFloorHours => real().nullable()();

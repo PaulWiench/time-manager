@@ -42,6 +42,15 @@ class AppFormat {
   static String headerDate(DateTime d) => _headerDate.format(d);
   static String dayRow(DateTime d) => _dayRow.format(d);
   static String time(DateTime d) => _time.format(d);
+
+  /// `08:00`, from minutes since midnight — the shape the work window is
+  /// stored in, so it never has to be turned into a DateTime just to be read.
+  static String minutesOfDay(int minutes) {
+    final h = (minutes ~/ 60) % 24;
+    final m = minutes % 60;
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+  }
+
   static String monthYear(DateTime d) => _monthYear.format(d);
   static String monthName(DateTime d) => _monthName.format(d);
 

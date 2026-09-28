@@ -3040,6 +3040,28 @@ class $AppSettingsTable extends AppSettings
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _workWindowStartMinutesMeta =
+      const VerificationMeta('workWindowStartMinutes');
+  @override
+  late final GeneratedColumn<int> workWindowStartMinutes = GeneratedColumn<int>(
+    'work_window_start_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(8 * 60),
+  );
+  static const VerificationMeta _workWindowEndMinutesMeta =
+      const VerificationMeta('workWindowEndMinutes');
+  @override
+  late final GeneratedColumn<int> workWindowEndMinutes = GeneratedColumn<int>(
+    'work_window_end_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(18 * 60),
+  );
   static const VerificationMeta _balanceFloorHoursMeta = const VerificationMeta(
     'balanceFloorHours',
   );
@@ -3098,6 +3120,8 @@ class $AppSettingsTable extends AppSettings
     minSessionMinutes,
     autoBreakEnabled,
     restrictCheckin,
+    workWindowStartMinutes,
+    workWindowEndMinutes,
     balanceFloorHours,
     balanceCapHours,
     balanceAnnualReset,
@@ -3160,6 +3184,24 @@ class $AppSettingsTable extends AppSettings
         restrictCheckin.isAcceptableOrUnknown(
           data['restrict_checkin']!,
           _restrictCheckinMeta,
+        ),
+      );
+    }
+    if (data.containsKey('work_window_start_minutes')) {
+      context.handle(
+        _workWindowStartMinutesMeta,
+        workWindowStartMinutes.isAcceptableOrUnknown(
+          data['work_window_start_minutes']!,
+          _workWindowStartMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('work_window_end_minutes')) {
+      context.handle(
+        _workWindowEndMinutesMeta,
+        workWindowEndMinutes.isAcceptableOrUnknown(
+          data['work_window_end_minutes']!,
+          _workWindowEndMinutesMeta,
         ),
       );
     }
@@ -3235,6 +3277,14 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.bool,
         data['${effectivePrefix}restrict_checkin'],
       )!,
+      workWindowStartMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}work_window_start_minutes'],
+      )!,
+      workWindowEndMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}work_window_end_minutes'],
+      )!,
       balanceFloorHours: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}balance_floor_hours'],
@@ -3274,6 +3324,19 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final bool autoBreakEnabled;
   final bool restrictCheckin;
 
+  /// Normal working hours, as minutes since midnight, so they compare directly
+  /// against `TimeOfDayWindow` (lib/domain/midnight_cutoff.dart) without a
+  /// Flutter `TimeOfDay` reaching the data layer.
+  ///
+  /// This is not the same question as [restrictCheckin], which is about
+  /// refusing a check-in and is still deliberately unarmed. This window answers
+  /// "is it still the working day?", and the balance uses it to tell an idle
+  /// gap that means *finished for the day* from one that means *stepped out*.
+  /// 08:00–18:00 by default — wide enough that an ordinary long lunch is never
+  /// mistaken for the end of the day.
+  final int workWindowStartMinutes;
+  final int workWindowEndMinutes;
+
   /// Null means "not configured" — which has to stay representable, because
   /// the warning treatment must not fire for a bound the user never set.
   final double? balanceFloorHours;
@@ -3288,6 +3351,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     required this.minSessionMinutes,
     required this.autoBreakEnabled,
     required this.restrictCheckin,
+    required this.workWindowStartMinutes,
+    required this.workWindowEndMinutes,
     this.balanceFloorHours,
     this.balanceCapHours,
     required this.balanceAnnualReset,
@@ -3307,6 +3372,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     map['min_session_minutes'] = Variable<int>(minSessionMinutes);
     map['auto_break_enabled'] = Variable<bool>(autoBreakEnabled);
     map['restrict_checkin'] = Variable<bool>(restrictCheckin);
+    map['work_window_start_minutes'] = Variable<int>(workWindowStartMinutes);
+    map['work_window_end_minutes'] = Variable<int>(workWindowEndMinutes);
     if (!nullToAbsent || balanceFloorHours != null) {
       map['balance_floor_hours'] = Variable<double>(balanceFloorHours);
     }
@@ -3327,6 +3394,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       minSessionMinutes: Value(minSessionMinutes),
       autoBreakEnabled: Value(autoBreakEnabled),
       restrictCheckin: Value(restrictCheckin),
+      workWindowStartMinutes: Value(workWindowStartMinutes),
+      workWindowEndMinutes: Value(workWindowEndMinutes),
       balanceFloorHours: balanceFloorHours == null && nullToAbsent
           ? const Value.absent()
           : Value(balanceFloorHours),
@@ -3351,6 +3420,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       minSessionMinutes: serializer.fromJson<int>(json['minSessionMinutes']),
       autoBreakEnabled: serializer.fromJson<bool>(json['autoBreakEnabled']),
       restrictCheckin: serializer.fromJson<bool>(json['restrictCheckin']),
+      workWindowStartMinutes: serializer.fromJson<int>(
+        json['workWindowStartMinutes'],
+      ),
+      workWindowEndMinutes: serializer.fromJson<int>(
+        json['workWindowEndMinutes'],
+      ),
       balanceFloorHours: serializer.fromJson<double?>(
         json['balanceFloorHours'],
       ),
@@ -3370,6 +3445,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'minSessionMinutes': serializer.toJson<int>(minSessionMinutes),
       'autoBreakEnabled': serializer.toJson<bool>(autoBreakEnabled),
       'restrictCheckin': serializer.toJson<bool>(restrictCheckin),
+      'workWindowStartMinutes': serializer.toJson<int>(workWindowStartMinutes),
+      'workWindowEndMinutes': serializer.toJson<int>(workWindowEndMinutes),
       'balanceFloorHours': serializer.toJson<double?>(balanceFloorHours),
       'balanceCapHours': serializer.toJson<double?>(balanceCapHours),
       'balanceAnnualReset': serializer.toJson<bool>(balanceAnnualReset),
@@ -3385,6 +3462,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     int? minSessionMinutes,
     bool? autoBreakEnabled,
     bool? restrictCheckin,
+    int? workWindowStartMinutes,
+    int? workWindowEndMinutes,
     Value<double?> balanceFloorHours = const Value.absent(),
     Value<double?> balanceCapHours = const Value.absent(),
     bool? balanceAnnualReset,
@@ -3397,6 +3476,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     minSessionMinutes: minSessionMinutes ?? this.minSessionMinutes,
     autoBreakEnabled: autoBreakEnabled ?? this.autoBreakEnabled,
     restrictCheckin: restrictCheckin ?? this.restrictCheckin,
+    workWindowStartMinutes:
+        workWindowStartMinutes ?? this.workWindowStartMinutes,
+    workWindowEndMinutes: workWindowEndMinutes ?? this.workWindowEndMinutes,
     balanceFloorHours: balanceFloorHours.present
         ? balanceFloorHours.value
         : this.balanceFloorHours,
@@ -3425,6 +3507,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       restrictCheckin: data.restrictCheckin.present
           ? data.restrictCheckin.value
           : this.restrictCheckin,
+      workWindowStartMinutes: data.workWindowStartMinutes.present
+          ? data.workWindowStartMinutes.value
+          : this.workWindowStartMinutes,
+      workWindowEndMinutes: data.workWindowEndMinutes.present
+          ? data.workWindowEndMinutes.value
+          : this.workWindowEndMinutes,
       balanceFloorHours: data.balanceFloorHours.present
           ? data.balanceFloorHours.value
           : this.balanceFloorHours,
@@ -3448,6 +3536,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('minSessionMinutes: $minSessionMinutes, ')
           ..write('autoBreakEnabled: $autoBreakEnabled, ')
           ..write('restrictCheckin: $restrictCheckin, ')
+          ..write('workWindowStartMinutes: $workWindowStartMinutes, ')
+          ..write('workWindowEndMinutes: $workWindowEndMinutes, ')
           ..write('balanceFloorHours: $balanceFloorHours, ')
           ..write('balanceCapHours: $balanceCapHours, ')
           ..write('balanceAnnualReset: $balanceAnnualReset, ')
@@ -3465,6 +3555,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     minSessionMinutes,
     autoBreakEnabled,
     restrictCheckin,
+    workWindowStartMinutes,
+    workWindowEndMinutes,
     balanceFloorHours,
     balanceCapHours,
     balanceAnnualReset,
@@ -3481,6 +3573,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.minSessionMinutes == this.minSessionMinutes &&
           other.autoBreakEnabled == this.autoBreakEnabled &&
           other.restrictCheckin == this.restrictCheckin &&
+          other.workWindowStartMinutes == this.workWindowStartMinutes &&
+          other.workWindowEndMinutes == this.workWindowEndMinutes &&
           other.balanceFloorHours == this.balanceFloorHours &&
           other.balanceCapHours == this.balanceCapHours &&
           other.balanceAnnualReset == this.balanceAnnualReset &&
@@ -3495,6 +3589,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<int> minSessionMinutes;
   final Value<bool> autoBreakEnabled;
   final Value<bool> restrictCheckin;
+  final Value<int> workWindowStartMinutes;
+  final Value<int> workWindowEndMinutes;
   final Value<double?> balanceFloorHours;
   final Value<double?> balanceCapHours;
   final Value<bool> balanceAnnualReset;
@@ -3508,6 +3604,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.minSessionMinutes = const Value.absent(),
     this.autoBreakEnabled = const Value.absent(),
     this.restrictCheckin = const Value.absent(),
+    this.workWindowStartMinutes = const Value.absent(),
+    this.workWindowEndMinutes = const Value.absent(),
     this.balanceFloorHours = const Value.absent(),
     this.balanceCapHours = const Value.absent(),
     this.balanceAnnualReset = const Value.absent(),
@@ -3522,6 +3620,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.minSessionMinutes = const Value.absent(),
     this.autoBreakEnabled = const Value.absent(),
     this.restrictCheckin = const Value.absent(),
+    this.workWindowStartMinutes = const Value.absent(),
+    this.workWindowEndMinutes = const Value.absent(),
     this.balanceFloorHours = const Value.absent(),
     this.balanceCapHours = const Value.absent(),
     this.balanceAnnualReset = const Value.absent(),
@@ -3536,6 +3636,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<int>? minSessionMinutes,
     Expression<bool>? autoBreakEnabled,
     Expression<bool>? restrictCheckin,
+    Expression<int>? workWindowStartMinutes,
+    Expression<int>? workWindowEndMinutes,
     Expression<double>? balanceFloorHours,
     Expression<double>? balanceCapHours,
     Expression<bool>? balanceAnnualReset,
@@ -3550,6 +3652,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (minSessionMinutes != null) 'min_session_minutes': minSessionMinutes,
       if (autoBreakEnabled != null) 'auto_break_enabled': autoBreakEnabled,
       if (restrictCheckin != null) 'restrict_checkin': restrictCheckin,
+      if (workWindowStartMinutes != null)
+        'work_window_start_minutes': workWindowStartMinutes,
+      if (workWindowEndMinutes != null)
+        'work_window_end_minutes': workWindowEndMinutes,
       if (balanceFloorHours != null) 'balance_floor_hours': balanceFloorHours,
       if (balanceCapHours != null) 'balance_cap_hours': balanceCapHours,
       if (balanceAnnualReset != null)
@@ -3567,6 +3673,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<int>? minSessionMinutes,
     Value<bool>? autoBreakEnabled,
     Value<bool>? restrictCheckin,
+    Value<int>? workWindowStartMinutes,
+    Value<int>? workWindowEndMinutes,
     Value<double?>? balanceFloorHours,
     Value<double?>? balanceCapHours,
     Value<bool>? balanceAnnualReset,
@@ -3581,6 +3689,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       minSessionMinutes: minSessionMinutes ?? this.minSessionMinutes,
       autoBreakEnabled: autoBreakEnabled ?? this.autoBreakEnabled,
       restrictCheckin: restrictCheckin ?? this.restrictCheckin,
+      workWindowStartMinutes:
+          workWindowStartMinutes ?? this.workWindowStartMinutes,
+      workWindowEndMinutes: workWindowEndMinutes ?? this.workWindowEndMinutes,
       balanceFloorHours: balanceFloorHours ?? this.balanceFloorHours,
       balanceCapHours: balanceCapHours ?? this.balanceCapHours,
       balanceAnnualReset: balanceAnnualReset ?? this.balanceAnnualReset,
@@ -3615,6 +3726,16 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (restrictCheckin.present) {
       map['restrict_checkin'] = Variable<bool>(restrictCheckin.value);
     }
+    if (workWindowStartMinutes.present) {
+      map['work_window_start_minutes'] = Variable<int>(
+        workWindowStartMinutes.value,
+      );
+    }
+    if (workWindowEndMinutes.present) {
+      map['work_window_end_minutes'] = Variable<int>(
+        workWindowEndMinutes.value,
+      );
+    }
     if (balanceFloorHours.present) {
       map['balance_floor_hours'] = Variable<double>(balanceFloorHours.value);
     }
@@ -3643,6 +3764,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('minSessionMinutes: $minSessionMinutes, ')
           ..write('autoBreakEnabled: $autoBreakEnabled, ')
           ..write('restrictCheckin: $restrictCheckin, ')
+          ..write('workWindowStartMinutes: $workWindowStartMinutes, ')
+          ..write('workWindowEndMinutes: $workWindowEndMinutes, ')
           ..write('balanceFloorHours: $balanceFloorHours, ')
           ..write('balanceCapHours: $balanceCapHours, ')
           ..write('balanceAnnualReset: $balanceAnnualReset, ')
@@ -6427,6 +6550,8 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<int> minSessionMinutes,
       Value<bool> autoBreakEnabled,
       Value<bool> restrictCheckin,
+      Value<int> workWindowStartMinutes,
+      Value<int> workWindowEndMinutes,
       Value<double?> balanceFloorHours,
       Value<double?> balanceCapHours,
       Value<bool> balanceAnnualReset,
@@ -6442,6 +6567,8 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<int> minSessionMinutes,
       Value<bool> autoBreakEnabled,
       Value<bool> restrictCheckin,
+      Value<int> workWindowStartMinutes,
+      Value<int> workWindowEndMinutes,
       Value<double?> balanceFloorHours,
       Value<double?> balanceCapHours,
       Value<bool> balanceAnnualReset,
@@ -6491,6 +6618,16 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<bool> get restrictCheckin => $composableBuilder(
     column: $table.restrictCheckin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get workWindowStartMinutes => $composableBuilder(
+    column: $table.workWindowStartMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get workWindowEndMinutes => $composableBuilder(
+    column: $table.workWindowEndMinutes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6559,6 +6696,16 @@ class $$AppSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get workWindowStartMinutes => $composableBuilder(
+    column: $table.workWindowStartMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get workWindowEndMinutes => $composableBuilder(
+    column: $table.workWindowEndMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get balanceFloorHours => $composableBuilder(
     column: $table.balanceFloorHours,
     builder: (column) => ColumnOrderings(column),
@@ -6620,6 +6767,16 @@ class $$AppSettingsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get workWindowStartMinutes => $composableBuilder(
+    column: $table.workWindowStartMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get workWindowEndMinutes => $composableBuilder(
+    column: $table.workWindowEndMinutes,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<double> get balanceFloorHours => $composableBuilder(
     column: $table.balanceFloorHours,
     builder: (column) => column,
@@ -6677,6 +6834,8 @@ class $$AppSettingsTableTableManager
                 Value<int> minSessionMinutes = const Value.absent(),
                 Value<bool> autoBreakEnabled = const Value.absent(),
                 Value<bool> restrictCheckin = const Value.absent(),
+                Value<int> workWindowStartMinutes = const Value.absent(),
+                Value<int> workWindowEndMinutes = const Value.absent(),
                 Value<double?> balanceFloorHours = const Value.absent(),
                 Value<double?> balanceCapHours = const Value.absent(),
                 Value<bool> balanceAnnualReset = const Value.absent(),
@@ -6690,6 +6849,8 @@ class $$AppSettingsTableTableManager
                 minSessionMinutes: minSessionMinutes,
                 autoBreakEnabled: autoBreakEnabled,
                 restrictCheckin: restrictCheckin,
+                workWindowStartMinutes: workWindowStartMinutes,
+                workWindowEndMinutes: workWindowEndMinutes,
                 balanceFloorHours: balanceFloorHours,
                 balanceCapHours: balanceCapHours,
                 balanceAnnualReset: balanceAnnualReset,
@@ -6705,6 +6866,8 @@ class $$AppSettingsTableTableManager
                 Value<int> minSessionMinutes = const Value.absent(),
                 Value<bool> autoBreakEnabled = const Value.absent(),
                 Value<bool> restrictCheckin = const Value.absent(),
+                Value<int> workWindowStartMinutes = const Value.absent(),
+                Value<int> workWindowEndMinutes = const Value.absent(),
                 Value<double?> balanceFloorHours = const Value.absent(),
                 Value<double?> balanceCapHours = const Value.absent(),
                 Value<bool> balanceAnnualReset = const Value.absent(),
@@ -6718,6 +6881,8 @@ class $$AppSettingsTableTableManager
                 minSessionMinutes: minSessionMinutes,
                 autoBreakEnabled: autoBreakEnabled,
                 restrictCheckin: restrictCheckin,
+                workWindowStartMinutes: workWindowStartMinutes,
+                workWindowEndMinutes: workWindowEndMinutes,
                 balanceFloorHours: balanceFloorHours,
                 balanceCapHours: balanceCapHours,
                 balanceAnnualReset: balanceAnnualReset,

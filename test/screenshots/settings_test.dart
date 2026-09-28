@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:time_manager/features/settings/settings_body.dart';
 import 'package:time_manager/features/settings/settings_view.dart';
+import 'package:time_manager/core/theme/app_dimens.dart';
+import 'package:time_manager/core/theme/app_text_styles.dart';
 import 'package:time_manager/widgets/app_dialog.dart';
 import 'package:time_manager/widgets/buttons.dart';
 import 'package:time_manager/widgets/stepper_field.dart';
@@ -20,6 +22,7 @@ const _configured = SettingsView(
   startingBalance: '0:00',
   autoBreakEnabled: true,
   minSessionLength: '5 min',
+  workHours: '08:00 – 18:00',
   restrictCheckin: false,
   balanceBounds: '−20:00 / +40:00',
   annualResetLabel: 'Annual reset off',
@@ -37,6 +40,7 @@ const _unset = SettingsView(
   startingBalance: '0:00',
   autoBreakEnabled: true,
   minSessionLength: '5 min',
+  workHours: '07:30 – 17:00',
   restrictCheckin: true,
   balanceBounds: 'Not set',
   annualResetLabel: 'Annual reset off',
@@ -88,6 +92,29 @@ void main() {
         const PrimaryPill(label: 'Save', expand: false, height: 44),
       ],
       child: WeekdayToggles(selected: const {1, 2, 3, 4, 5}, onToggle: (_) {}),
+    ),
+    // Two steppers stacked under their own kickers — the layout most likely to
+    // overflow the dialog, so it is worth a reference image of its own.
+    'settings-work-hours-dialog': AppDialog(
+      title: 'Work hours',
+      subtitle: 'Outside these, an idle hour means the day is done.',
+      actions: [
+        AppTextButton(label: 'Cancel', onPressed: () {}),
+        const PrimaryPill(label: 'Save', expand: false, height: 44),
+      ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('FROM', style: AppTextStyles.kicker),
+          const SizedBox(height: AppSpace.s2),
+          StepperField(label: '08:00', onDecrease: () {}, onIncrease: () {}),
+          const SizedBox(height: AppSpace.s5),
+          Text('UNTIL', style: AppTextStyles.kicker),
+          const SizedBox(height: AppSpace.s2),
+          StepperField(label: '18:00', onDecrease: () {}, onIncrease: () {}),
+        ],
+      ),
     ),
   };
 

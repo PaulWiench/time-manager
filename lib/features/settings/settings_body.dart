@@ -15,6 +15,7 @@ class SettingsBody extends StatelessWidget {
     required this.view,
     this.onEditWeeklyHours,
     this.onEditWorkDays,
+    this.onEditWorkHours,
     this.onToggleAutoBreak,
     this.onEditMinSession,
     this.onToggleRestrictCheckin,
@@ -32,6 +33,7 @@ class SettingsBody extends StatelessWidget {
 
   final VoidCallback? onEditWeeklyHours;
   final VoidCallback? onEditWorkDays;
+  final VoidCallback? onEditWorkHours;
   final ValueChanged<bool>? onToggleAutoBreak;
   final VoidCallback? onEditMinSession;
   final ValueChanged<bool>? onToggleRestrictCheckin;
@@ -66,6 +68,13 @@ class SettingsBody extends StatelessWidget {
               value: view.workDays,
               onTap: onEditWorkDays,
             ),
+            SettingsRow.navigate(
+              icon: AppIcons.clock,
+              label: 'Work hours',
+              sub: 'When the day is over',
+              value: view.workHours,
+              onTap: onEditWorkHours,
+            ),
             SettingsRow.static(
               icon: AppIcons.plusMinus,
               label: 'Starting balance',
@@ -94,7 +103,11 @@ class SettingsBody extends StatelessWidget {
             SettingsRow.toggle(
               icon: AppIcons.clockUser,
               label: 'Restrict check-in',
-              sub: 'Only inside a work window',
+              // Honest rather than aspirational: the switch stores a value and
+              // nothing reads it. A setting that can refuse a check-in can
+              // cost a day's tracking, so it stays unarmed until it is asked
+              // for deliberately.
+              sub: 'Not enforced yet',
               value: view.restrictCheckin,
               onChanged: onToggleRestrictCheckin ?? (_) {},
             ),

@@ -44,6 +44,10 @@ class SettingsScreen extends ConsumerWidget {
       startingBalance: '0:00',
       autoBreakEnabled: settings.autoBreakEnabled,
       minSessionLength: '${settings.minSessionMinutes} min',
+      workHours: workHoursLabel(
+        settings.workWindowStartMinutes,
+        settings.workWindowEndMinutes,
+      ),
       restrictCheckin: settings.restrictCheckin,
       balanceBounds:
           balanceBoundsLabel(settings.balanceFloorHours, settings.balanceCapHours),
@@ -68,6 +72,7 @@ class SettingsScreen extends ConsumerWidget {
       int? minSessionMinutes,
       bool? autoBreakEnabled,
       bool? restrictCheckin,
+      WorkWindow? workWindow,
       BalanceBounds? bounds,
     }) {
       return ref.read(settingsRepositoryProvider).save(
@@ -77,6 +82,10 @@ class SettingsScreen extends ConsumerWidget {
             minSessionMinutes: minSessionMinutes ?? settings.minSessionMinutes,
             autoBreakEnabled: autoBreakEnabled ?? settings.autoBreakEnabled,
             restrictCheckin: restrictCheckin ?? settings.restrictCheckin,
+            workWindowStartMinutes:
+                workWindow?.startMinutes ?? settings.workWindowStartMinutes,
+            workWindowEndMinutes:
+                workWindow?.endMinutes ?? settings.workWindowEndMinutes,
             // The bounds are nullable on purpose, so "clear the floor" has to
             // travel as a whole BalanceBounds rather than as a null argument
             // that would be indistinguishable from "leave it alone".
@@ -106,6 +115,14 @@ class SettingsScreen extends ConsumerWidget {
       onEditWorkDays: () async {
         final value = await editWorkDays(context, settings.workDays);
         if (value != null) await patch(workDays: value);
+      },
+      onEditWorkHours: () async {
+        final window = await editWorkWindow(
+          context,
+          startMinutes: settings.workWindowStartMinutes,
+          endMinutes: settings.workWindowEndMinutes,
+        );
+        if (window != null) await patch(workWindow: window);
       },
       onToggleAutoBreak: (on) => patch(autoBreakEnabled: on),
       onEditMinSession: () async {

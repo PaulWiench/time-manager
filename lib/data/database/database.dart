@@ -49,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   /// SQLite doesn't enforce FK constraints unless told to per-connection —
   /// without this, the WorkSession/BreakEntry/LeaveEntry -> DayEntry FKs in
@@ -57,17 +57,25 @@ class AppDatabase extends _$AppDatabase {
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) => m.createAll(),
-        // v2 adds the balance floor/cap. ADD COLUMN is metadata-only in
-        // SQLite and cannot touch existing rows — which matters here, since
-        // the only database that will ever run this migration is the one on
-        // the phone holding every day since March. Anything that needs a
-        // table rebuild instead must also handle the foreign_keys pragma
-        // below; this does not.
+        // v2 adds the balance floor/cap; v3 adds the normal-work-hours window.
+        // Both are ADD COLUMN, which is metadata-only in SQLite and cannot
+        // touch existing rows — which matters here, since the only database
+        // that will ever run these migrations is the one on the phone holding
+        // every day since March. Anything that needs a table rebuild instead
+        // must also handle the foreign_keys pragma below; these do not.
+        //
+        // Note the `if`s are separate and non-exclusive on purpose: a phone
+        // that skipped a release upgrades straight from 1 to 3 and must run
+        // both bodies.
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(appSettings, appSettings.balanceFloorHours);
             await m.addColumn(appSettings, appSettings.balanceCapHours);
             await m.addColumn(appSettings, appSettings.balanceAnnualReset);
+          }
+          if (from < 3) {
+            await m.addColumn(appSettings, appSettings.workWindowStartMinutes);
+            await m.addColumn(appSettings, appSettings.workWindowEndMinutes);
           }
         },
         beforeOpen: (details) async {

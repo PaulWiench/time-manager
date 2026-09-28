@@ -10,6 +10,7 @@ class SettingsView {
     required this.startingBalance,
     required this.autoBreakEnabled,
     required this.minSessionLength,
+    required this.workHours,
     required this.restrictCheckin,
     required this.balanceBounds,
     required this.annualResetLabel,
@@ -26,6 +27,10 @@ class SettingsView {
   final String startingBalance;
   final bool autoBreakEnabled;
   final String minSessionLength;
+
+  /// `08:00 – 18:00`.
+  final String workHours;
+
   final bool restrictCheckin;
   final String balanceBounds;
   final String annualResetLabel;
@@ -38,6 +43,11 @@ class SettingsView {
   final String holidayCount;
   final String notifications;
 }
+
+/// `08:00 – 18:00`. En dash with spaces, since both sides are numeric and
+/// would otherwise run together.
+String workHoursLabel(int startMinutes, int endMinutes) =>
+    '${AppFormat.minutesOfDay(startMinutes)} – ${AppFormat.minutesOfDay(endMinutes)}';
 
 /// `Mon–Fri` when the days run together, `Mon, Wed, Fri` when they do not.
 String workDaysLabel(List<int> days) {

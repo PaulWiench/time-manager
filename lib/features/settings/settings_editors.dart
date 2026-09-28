@@ -100,6 +100,82 @@ Future<List<int>?> editWorkDays(BuildContext context, List<int> initial) {
   );
 }
 
+/// Normal working hours, as minutes since midnight.
+///
+/// Not a constraint on anything — nothing is refused for falling outside it.
+/// It is how the balance tells "gone home" from "stepped out": an idle hour at
+/// 14:00 is a long lunch, the same hour at 19:00 means the day is over.
+class WorkWindow {
+  const WorkWindow({required this.startMinutes, required this.endMinutes});
+
+  final int startMinutes;
+  final int endMinutes;
+}
+
+/// Half-hour steps: the window is a rough boundary, and minute precision would
+/// imply it decides more than it does.
+Future<WorkWindow?> editWorkWindow(
+  BuildContext context, {
+  required int startMinutes,
+  required int endMinutes,
+}) {
+  var start = startMinutes;
+  var end = endMinutes;
+  const step = 30;
+
+  return showAppDialog<WorkWindow>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) {
+        final colors = context.colors;
+
+        return AppDialog(
+          title: 'Work hours',
+          subtitle: 'Outside these, an idle hour means the day is done.',
+          actions: [
+            AppTextButton(label: 'Cancel', onPressed: () => Navigator.pop(context)),
+            PrimaryPill(
+              label: 'Save',
+              expand: false,
+              height: AppSize.touch,
+              onPressed: () => Navigator.pop(
+                context,
+                WorkWindow(startMinutes: start, endMinutes: end),
+              ),
+            ),
+          ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('FROM', style: AppTextStyles.kicker.copyWith(color: colors.textMuted)),
+              const SizedBox(height: AppSpace.s2),
+              StepperField(
+                label: AppFormat.minutesOfDay(start),
+                // The two bounds are kept a step apart rather than allowed to
+                // cross: a window that ends before it starts reads as wrapping
+                // past midnight, which is a different setting entirely.
+                onDecrease: start <= 0 ? null : () => setState(() => start -= step),
+                onIncrease:
+                    start >= end - step ? null : () => setState(() => start += step),
+              ),
+              const SizedBox(height: AppSpace.s5),
+              Text('UNTIL', style: AppTextStyles.kicker.copyWith(color: colors.textMuted)),
+              const SizedBox(height: AppSpace.s2),
+              StepperField(
+                label: AppFormat.minutesOfDay(end),
+                onDecrease:
+                    end <= start + step ? null : () => setState(() => end -= step),
+                onIncrease: end >= 24 * 60 - step ? null : () => setState(() => end += step),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
 /// The two optional balance bounds and whether they reset each year.
 class BalanceBounds {
   const BalanceBounds({this.floorHours, this.capHours, required this.annualReset});

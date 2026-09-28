@@ -1,7 +1,11 @@
-/// The v1 -> v2 migration only ever runs for real on one database: the one on
-/// the phone, holding every tracked day since March. So it is tested three
-/// ways — the schema matches afterwards, no row is touched, and the real
-/// backup file opens.
+/// These migrations only ever run for real on one database: the one on the
+/// phone, holding every tracked day since March. So each is tested three ways —
+/// the schema matches afterwards, no row is touched, and the real backup file
+/// opens.
+///
+/// The phone is at v2, so `v2 -> v3` is the path that will actually execute
+/// there. `v1 -> v3` is tested too because `onUpgrade`'s `if`s are
+/// non-exclusive by design and a two-step jump has to run both bodies.
 library;
 
 import 'dart:io';
@@ -14,6 +18,7 @@ import 'package:time_manager/data/database/database.dart';
 
 import '../drift/generated/schema.dart';
 import '../drift/generated/schema_v1.dart' as v1;
+import '../drift/generated/schema_v2.dart' as v2;
 
 void main() {
   late SchemaVerifier verifier;
@@ -22,10 +27,17 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('migrates a v1 database to v2', () async {
+  test('migrates a v1 database to v3', () async {
     final connection = await verifier.startAt(1);
     final db = AppDatabase(connection);
-    await verifier.migrateAndValidate(db, 2);
+    await verifier.migrateAndValidate(db, 3);
+    await db.close();
+  });
+
+  test('migrates a v2 database to v3 — the path the phone will take', () async {
+    final connection = await verifier.startAt(2);
+    final db = AppDatabase(connection);
+    await verifier.migrateAndValidate(db, 3);
     await db.close();
   });
 
@@ -34,7 +46,7 @@ void main() {
 
     await verifier.testWithDataIntegrity(
       oldVersion: 1,
-      newVersion: 2,
+      newVersion: 3,
       createOld: v1.DatabaseAtV1.new,
       createNew: AppDatabase.new,
       openTestedDatabase: AppDatabase.new,
@@ -76,9 +88,52 @@ void main() {
         expect(settings.balanceFloorHours, isNull);
         expect(settings.balanceCapHours, isNull);
         expect(settings.balanceAnnualReset, isFalse);
+        // The work window, unlike the balance bounds, has no "not configured"
+        // state — a row that predates the column has to come out usable.
+        expect(settings.workWindowStartMinutes, 8 * 60);
+        expect(settings.workWindowEndMinutes, 18 * 60);
 
         final day = await db.select(db.dayEntries).getSingle();
         expect(day.netWorkedHours, 8.1);
+      },
+    );
+  });
+
+  test('v2 -> v3 leaves the settings row intact and defaults the window', () async {
+    final date = DateTime(2026, 3, 16);
+
+    await verifier.testWithDataIntegrity(
+      oldVersion: 2,
+      newVersion: 3,
+      createOld: v2.DatabaseAtV2.new,
+      createNew: AppDatabase.new,
+      openTestedDatabase: AppDatabase.new,
+      createItems: (batch, db) {
+        batch.insert(
+          db.appSettings,
+          RawValuesInsertable({
+            'id': Variable<String>('settings-1'),
+            'effective_from': Variable<int>(date.millisecondsSinceEpoch ~/ 1000),
+            'weekly_hours': Variable<double>(39.5),
+            'work_days': Variable<String>('1,2,3,4,5'),
+            'min_session_minutes': Variable<int>(5),
+            'auto_break_enabled': Variable<bool>(true),
+            'restrict_checkin': Variable<bool>(false),
+            // Set on the old row so the assertion below proves the migration
+            // carried a v2-only column across rather than re-defaulting it.
+            'balance_floor_hours': Variable<double>(-40),
+            'balance_annual_reset': Variable<bool>(false),
+            'created_at': Variable<int>(date.millisecondsSinceEpoch ~/ 1000),
+          }),
+        );
+      },
+      validateItems: (db) async {
+        final settings = await db.select(db.appSettings).getSingle();
+        expect(settings.weeklyHours, 39.5);
+        expect(settings.workDays, [1, 2, 3, 4, 5]);
+        expect(settings.balanceFloorHours, -40);
+        expect(settings.workWindowStartMinutes, 8 * 60);
+        expect(settings.workWindowEndMinutes, 18 * 60);
       },
     );
   });
@@ -122,5 +177,9 @@ void main() {
     expect(sessions, isNotEmpty, reason: 'the backup should hold real sessions');
     expect(snapshots, isNotEmpty);
     expect(settings.every((s) => s.balanceFloorHours == null), isTrue);
+    // Every pre-v3 row must come out of the upgrade with a usable window,
+    // because the balance now asks it whether the working day is over.
+    expect(settings.every((s) => s.workWindowStartMinutes == 8 * 60), isTrue);
+    expect(settings.every((s) => s.workWindowEndMinutes == 18 * 60), isTrue);
   });
 }
