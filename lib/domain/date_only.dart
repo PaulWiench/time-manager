@@ -13,6 +13,19 @@ DateTime dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
 DateTime shiftDays(DateTime date, int days) =>
     DateTime(date.year, date.month, date.day + days);
 
+/// Steps a date-only [DateTime] by whole calendar months, keeping the day of
+/// the month where it exists and clamping where it does not — 31 March back one
+/// month is 28 February, not 3 March.
+///
+/// `DateTime(y, m + n, d)` overflows rather than clamping, which is harmless
+/// for the first of a month and wrong for every other day.
+DateTime shiftMonths(DateTime date, int months) {
+  final target = DateTime(date.year, date.month + months);
+  // Day zero of the following month is the last day of this one.
+  final lastDay = DateTime(target.year, target.month + 1, 0).day;
+  return DateTime(target.year, target.month, date.day.clamp(1, lastDay));
+}
+
 /// The Monday of [date]'s week. Weeks start on Monday throughout the app —
 /// ISO-8601, which is also how the work-days setting numbers its days.
 DateTime startOfWeek(DateTime date) => shiftDays(date, -(date.weekday - 1));

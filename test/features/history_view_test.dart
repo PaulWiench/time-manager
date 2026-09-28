@@ -149,4 +149,51 @@ void main() {
       'Delete to count 12:00–12:30 as work (8:06 → 8:36)',
     );
   });
+
+  group('stepping keeps your place', () {
+    final september = DateTime(2026, 9, 22);
+
+    test('a year back in Month mode keeps the month and the day', () {
+      final back = stepAnchor(
+          mode: HistoryMode.month, anchor: september, direction: -1);
+      expect(back, DateTime(2025, 9, 22));
+
+      // ...so dropping to Week lands on September 2025, not January.
+      expect(back.month, 9);
+    });
+
+    test('a month back in Week mode keeps the day, clamped to the month', () {
+      expect(
+        stepAnchor(mode: HistoryMode.week, anchor: DateTime(2026, 3, 31), direction: -1),
+        DateTime(2026, 2, 28),
+      );
+      expect(
+        stepAnchor(mode: HistoryMode.week, anchor: september, direction: 1),
+        DateTime(2026, 10, 22),
+      );
+    });
+
+    test('a week in Day mode is seven calendar days', () {
+      expect(
+        stepAnchor(mode: HistoryMode.day, anchor: september, direction: -1),
+        DateTime(2026, 9, 15),
+      );
+    });
+
+    test('there is nothing ahead of the current period', () {
+      bool forward(HistoryMode mode, DateTime anchor) =>
+          canStepForward(mode: mode, anchor: anchor, today: september);
+
+      expect(forward(HistoryMode.month, september), isFalse);
+      expect(forward(HistoryMode.month, DateTime(2025, 12, 31)), isTrue);
+
+      expect(forward(HistoryMode.week, september), isFalse);
+      expect(forward(HistoryMode.week, DateTime(2026, 8, 1)), isTrue);
+
+      expect(forward(HistoryMode.day, september), isFalse);
+      expect(forward(HistoryMode.day, DateTime(2026, 9, 15)), isTrue);
+      // Same week, earlier day: still nothing ahead.
+      expect(forward(HistoryMode.day, DateTime(2026, 9, 21)), isFalse);
+    });
+  });
 }

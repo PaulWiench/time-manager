@@ -76,15 +76,20 @@ class SegmentedControl<T> extends StatelessWidget {
                           button: true,
                           selected: segment.$1 == selected,
                           label: segment.$2,
-                          child: Center(
-                            child: Text(
-                              segment.$2,
-                              style: AppTextStyles.label.copyWith(
-                                color: segment.$1 == selected
-                                    ? colors.onSelected
-                                    : colors.textMuted,
-                              ),
+                          // Animated on the same curve and duration as the
+                          // pill. The colour used to flip instantly, so for
+                          // 200 ms the newly-selected word sat as near-white
+                          // cream on `surface2` with no pill under it yet —
+                          // a pale smear on the control you were using.
+                          child: AnimatedDefaultTextStyle(
+                            duration: motion.control,
+                            curve: AppCurves.control,
+                            style: AppTextStyles.label.copyWith(
+                              color: segment.$1 == selected
+                                  ? colors.onSelected
+                                  : colors.textMuted,
                             ),
+                            child: Center(child: Text(segment.$2)),
                           ),
                         ),
                       ),

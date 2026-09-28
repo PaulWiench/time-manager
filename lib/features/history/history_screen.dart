@@ -43,19 +43,61 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   DateTime get _weekStart => startOfWeek(_anchor);
 
+  /// The last fully-loaded row list, and the level it belongs to.
+  ///
+  /// Every provider here is read as `valueOrNull ?? const []`, so stepping to a
+  /// new period — which instantiates fresh family providers — used to render
+  /// one frame of zero-hour rows with no balance, and therefore no warning
+  /// treatment, before the real data landed and the pale-yellow band snapped
+  /// in. `BandedNumber` deliberately overhangs its own bounds unclipped, so it
+  /// painted over its neighbours on the way. Holding the previous rows for that
+  /// frame costs nothing and removes the flash.
+  List<HistoryRow> _loaded = const [];
+  HistoryMode? _loadedMode;
+
+  /// Set by [_settled] while the rows are being built.
+  bool _pending = false;
+
+  T _settled<T>(AsyncValue<T> value, T fallback) {
+    if (!value.hasValue) _pending = true;
+    return value.valueOrNull ?? fallback;
+  }
+
   void _step(int direction) {
+    if (direction > 0 && !_canStepForward) return;
     setState(() {
-      _anchor = switch (_mode) {
-        HistoryMode.month => DateTime(_anchor.year + direction, 1, 1),
-        HistoryMode.week => DateTime(_anchor.year, _anchor.month + direction, 1),
-        HistoryMode.day => shiftDays(_anchor, 7 * direction),
-      };
+      _anchor = stepAnchor(mode: _mode, anchor: _anchor, direction: direction);
     });
   }
+
+  bool get _canStepForward => canStepForward(
+        mode: _mode,
+        anchor: _anchor,
+        today: dateOnly(DateTime.now()),
+      );
 
   @override
   Widget build(BuildContext context) {
     final today = dateOnly(DateTime.now());
+
+    _pending = false;
+    final built = switch (_mode) {
+      HistoryMode.month => _monthRows(today),
+      HistoryMode.week => _weekRows(today),
+      HistoryMode.day => _dayRows(today),
+    };
+    if (!_pending) {
+      _loaded = built;
+      _loadedMode = _mode;
+    }
+    // A half-loaded list is worse than the one before it — but only if the one
+    // before it was the same kind of list. Across a level change there is
+    // nothing honest to hold, so it shows nothing for the frame.
+    final rows = !_pending
+        ? built
+        : _loadedMode == _mode
+            ? _loaded
+            : const <HistoryRow>[];
 
     return HistoryBody(
       mode: _mode,
@@ -64,11 +106,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         HistoryMode.week => AppFormat.monthYear(_anchor),
         HistoryMode.day => AppFormat.weekRange(_weekStart, shiftDays(_weekStart, 6)),
       },
-      rows: switch (_mode) {
-        HistoryMode.month => _monthRows(today),
-        HistoryMode.week => _weekRows(today),
-        HistoryMode.day => _dayRows(today),
-      },
+      rows: rows,
       expandedDay: _expandedDay,
       onModeChanged: (mode) => setState(() {
         _mode = mode;
@@ -76,6 +114,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         _selectedBreakId = null;
       }),
       onStep: _step,
+      canStepForward: _canStepForward,
       onOpenDatePicker: _jumpToDate,
       onTapRow: _tapRow,
       // Day mode only: a month or a week row stands for a range, so there is
@@ -128,29 +167,33 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         mode: _mode,
         start: start,
         endExclusive: endExclusive,
-        entries: ref.watch(dayEntriesInRangeProvider(start, endExclusive)).valueOrNull ??
-            const [],
+        entries: _settled(
+          ref.watch(dayEntriesInRangeProvider(start, endExclusive)),
+          const <DayEntry>[],
+        ),
         today: today,
       );
 
   List<HistoryRow> _dayRows(DateTime today) {
     final weekEnd = shiftDays(_weekStart, 7);
-    final snapshots =
-        ref.watch(balanceSnapshotsInRangeProvider(_weekStart, weekEnd)).valueOrNull ??
-            const <BalanceSnapshot>[];
+    final snapshots = _settled(
+      ref.watch(balanceSnapshotsInRangeProvider(_weekStart, weekEnd)),
+      const <BalanceSnapshot>[],
+    );
 
     // The day before the week is needed too: whether Monday *crossed* a bound
     // depends on where the balance stood on Sunday.
-    final previous = ref
-        .watch(balanceSnapshotsInRangeProvider(shiftDays(_weekStart, -1), _weekStart))
-        .valueOrNull;
+    final previous = _settled(
+      ref.watch(balanceSnapshotsInRangeProvider(shiftDays(_weekStart, -1), _weekStart)),
+      const <BalanceSnapshot>[],
+    );
 
     return [
       for (var i = 0; i < 7; i++)
         _dayRow(
           shiftDays(_weekStart, i),
           today,
-          [...?previous, ...snapshots],
+          [...previous, ...snapshots],
         ),
     ];
   }
@@ -162,12 +205,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     final facts = DayFacts(
       date: date,
-      settings: ref.watch(effectiveSettingsForProvider(date)).valueOrNull,
-      dayEntry: ref.watch(dayEntryForDateProvider(date)).valueOrNull,
-      holiday: ref.watch(publicHolidayForDateProvider(date)).valueOrNull,
-      leave: ref.watch(leaveForDateProvider(date)).valueOrNull ?? const [],
-      sessions: ref.watch(sessionsForDateProvider(date)).valueOrNull ?? const [],
-      breaks: ref.watch(breaksForDateProvider(date)).valueOrNull ?? const [],
+      settings: _settled(ref.watch(effectiveSettingsForProvider(date)), null),
+      dayEntry: _settled(ref.watch(dayEntryForDateProvider(date)), null),
+      holiday: _settled(ref.watch(publicHolidayForDateProvider(date)), null),
+      leave: _settled(ref.watch(leaveForDateProvider(date)), const <LeaveEntry>[]),
+      sessions: _settled(ref.watch(sessionsForDateProvider(date)), const <WorkSession>[]),
+      breaks: _settled(ref.watch(breaksForDateProvider(date)), const <BreakEntry>[]),
       closingBalance: _closingBalance(date, snapshots),
       previousClosingBalance: _closingBalance(shiftDays(date, -1), snapshots),
       runningSince: active?.startTime,

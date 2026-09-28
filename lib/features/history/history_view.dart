@@ -22,6 +22,40 @@ import '../../widgets/event_timeline.dart';
 
 enum HistoryMode { month, week, day }
 
+/// Where ◀/▶ lands, given where you were.
+///
+/// The anchor is a whole date at every level; a level is just a different
+/// window onto it. Stepping moves the unit that level shows and leaves the rest
+/// of the date alone, which is what lets a level change need no logic at all.
+/// It used to snap to 1 January in Month mode and to the 1st in Week mode, so
+/// changing the year and then tapping Week put you in January no matter where
+/// you had been looking.
+DateTime stepAnchor({
+  required HistoryMode mode,
+  required DateTime anchor,
+  required int direction,
+}) =>
+    switch (mode) {
+      HistoryMode.month => shiftMonths(anchor, 12 * direction),
+      HistoryMode.week => shiftMonths(anchor, direction),
+      HistoryMode.day => shiftDays(anchor, 7 * direction),
+    };
+
+/// False once the anchor is in the current period. There is nothing ahead to
+/// show — `_monthRows` returns an empty list for a future year — and stepping
+/// into it left a blank screen with a date in the header.
+bool canStepForward({
+  required HistoryMode mode,
+  required DateTime anchor,
+  required DateTime today,
+}) =>
+    switch (mode) {
+      HistoryMode.month => anchor.year < today.year,
+      HistoryMode.week => anchor.year < today.year ||
+          (anchor.year == today.year && anchor.month < today.month),
+      HistoryMode.day => startOfWeek(anchor).isBefore(startOfWeek(today)),
+    };
+
 /// One row, ready to hand to [DayRow].
 class HistoryRow {
   const HistoryRow({

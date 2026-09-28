@@ -24,6 +24,7 @@ class HistoryBody extends StatelessWidget {
     this.expandedDay,
     this.onModeChanged,
     this.onStep,
+    this.canStepForward = true,
     this.onOpenDatePicker,
     this.onTapRow,
     this.onLongPressRow,
@@ -41,6 +42,10 @@ class HistoryBody extends StatelessWidget {
 
   /// −1 or +1 unit of the active mode.
   final ValueChanged<int>? onStep;
+
+  /// False at the current period: there is nothing ahead to show, so the
+  /// forward arrow greys out rather than walking into a blank list.
+  final bool canStepForward;
 
   final VoidCallback? onOpenDatePicker;
   final ValueChanged<HistoryRow>? onTapRow;
@@ -85,7 +90,7 @@ class HistoryBody extends StatelessWidget {
             AppIconButton(
               icon: AppIcons.caretRight,
               semanticLabel: 'Next',
-              onPressed: onStep == null ? null : () => onStep!(1),
+              onPressed: onStep == null || !canStepForward ? null : () => onStep!(1),
             ),
           ],
         ),
@@ -107,6 +112,16 @@ class HistoryBody extends StatelessWidget {
           duration: motion.drillDown,
           switchInCurve: AppCurves.emphasized,
           switchOutCurve: AppCurves.emphasized,
+          // Without this, `AnimatedSwitcher` uses `Stack(alignment: center)`,
+          // which for 240 ms paints the outgoing list and the incoming list
+          // centred on each other at different scales and different lengths.
+          // Both carry an apricot "today" block and a 2 dp accent outline, so
+          // the switch flashed two orange rows sliding through each other and
+          // the list jumped to the taller one's height and back.
+          layoutBuilder: (current, previous) => Stack(
+            alignment: Alignment.topCenter,
+            children: [...previous, if (current != null) current],
+          ),
           transitionBuilder: (child, animation) => FadeTransition(
             opacity: animation,
             child: ScaleTransition(
