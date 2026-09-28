@@ -86,17 +86,28 @@ void main() {
   test('opens the phone\'s own backup and migrates it', () async {
     // The emulator's database is v2-native from here on, so it never
     // exercises the path that matters. This is the file pulled off the phone.
-    final backups = Directory('${Platform.environment['HOME']}/time-manager-backups/db')
+    final dir = Directory('${Platform.environment['HOME']}/time-manager-backups/db');
+    if (!dir.existsSync()) {
+      markTestSkipped('no backup directory on this machine');
+      return;
+    }
+
+    // Sorted by modification time, not by name. Two naming schemes have been
+    // through this directory — `time_manager_<stamp>` and `timemanager-<stamp>`
+    // — and they sort against each other by prefix rather than by date, so a
+    // lexicographic "last" could quietly pick a months-old file and still pass.
+    final backups = dir
         .listSync()
         .whereType<File>()
         .where((f) => f.path.endsWith('.sqlite'))
         .toList()
-      ..sort((a, b) => a.path.compareTo(b.path));
+      ..sort((a, b) => a.statSync().modified.compareTo(b.statSync().modified));
 
     if (backups.isEmpty) {
       markTestSkipped('no backup on this machine');
       return;
     }
+    printOnFailure('migrating ${backups.last.path}');
 
     final copy = File('${Directory.systemTemp.createTempSync('tm-migrate').path}/db.sqlite');
     await backups.last.copy(copy.path);
