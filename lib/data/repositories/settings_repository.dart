@@ -19,6 +19,9 @@ class SettingsRepository {
 
   Stream<AppSetting?> watchLatest() => db.settingsDao.watchLatest();
 
+  Stream<AppSetting?> watchEffectiveFor(DateTime date) =>
+      db.settingsDao.watchEffectiveFor(date);
+
   /// True once onboarding has written the first Settings row.
   Future<bool> hasCompletedOnboarding() async =>
       (await db.settingsDao.effectiveFor(DateTime.now())) != null;

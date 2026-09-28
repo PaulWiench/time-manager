@@ -23,6 +23,17 @@ class SettingsDao extends DatabaseAccessor<AppDatabase>
         ..limit(1))
       .getSingleOrNull();
 
+  /// [effectiveFor] as a stream, so a screen showing settings-derived numbers
+  /// updates when they change rather than at the next app launch.
+  Stream<AppSetting?> watchEffectiveFor(DateTime date) => (select(appSettings)
+        ..where((t) => t.effectiveFrom.isSmallerOrEqualValue(date))
+        ..orderBy([
+          (t) => OrderingTerm.desc(t.effectiveFrom),
+          (t) => OrderingTerm.desc(t.createdAt),
+        ])
+        ..limit(1))
+      .watchSingleOrNull();
+
   Stream<AppSetting?> watchLatest() => (select(appSettings)
         ..orderBy([
           (t) => OrderingTerm.desc(t.effectiveFrom),
