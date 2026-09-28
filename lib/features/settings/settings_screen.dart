@@ -15,10 +15,12 @@ import '../../providers/database_providers.dart';
 import '../../providers/holiday_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/settings_providers.dart';
+import '../../providers/stats_providers.dart';
 import '../../providers/vacation_quota_providers.dart';
 import 'audit_log_screen.dart';
 import 'export_service.dart';
 import 'holiday_list_screen.dart';
+import 'leave_list_screen.dart';
 import 'settings_body.dart';
 import 'settings_editors.dart';
 import 'settings_view.dart';
@@ -34,6 +36,7 @@ class SettingsScreen extends ConsumerWidget {
     final year = DateTime.now().year;
     final quota = ref.watch(vacationQuotaForYearProvider(year)).valueOrNull;
     final holidays = ref.watch(publicHolidaysForYearProvider(year)).valueOrNull;
+    final leave = ref.watch(leaveForYearProvider(year)).valueOrNull;
 
     final view = SettingsView(
       weeklyHours: AppFormat.hoursLabel(settings.weeklyHours),
@@ -45,8 +48,15 @@ class SettingsScreen extends ConsumerWidget {
       balanceBounds:
           balanceBoundsLabel(settings.balanceFloorHours, settings.balanceCapHours),
       annualResetLabel: 'Annual reset ${settings.balanceAnnualReset ? 'on' : 'off'}',
+      leaveCount: switch (leave?.length ?? 0) {
+        0 => 'None yet',
+        final n => '$n in $year',
+      },
       vacationQuota: '${(quota?.totalDays ?? 30).round()} days/yr',
-      rolloverPolicy: 'Indefinite',
+      // Was hardcoded to 'Indefinite' over a stub editor. `VacationQuotas` has
+      // no column saying which policy applies, so the app does not know one —
+      // and claiming otherwise on a settings screen is worse than admitting it.
+      rolloverPolicy: 'Not configured',
       holidayRegion: 'Baden-Württemberg',
       holidayCount: 'DE · ${holidays?.length ?? 0}',
       notifications: 'All off',
@@ -138,6 +148,8 @@ class SettingsScreen extends ConsumerWidget {
               .setQuota(year: year, totalDays: value);
         }
       },
+      onOpenLeave: () => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const LeaveListScreen())),
       onEditRollover: () => _notYet(context),
       onOpenHolidays: () => Navigator.of(context)
           .push(MaterialPageRoute(builder: (_) => const HolidayListScreen())),

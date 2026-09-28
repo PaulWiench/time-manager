@@ -16,15 +16,19 @@ class LeaveEntryDao extends DatabaseAccessor<AppDatabase>
   Stream<List<LeaveEntry>> watchForDate(DateTime date) =>
       (select(leaveEntries)..where((t) => t.date.equals(date))).watch();
 
-  Future<List<LeaveEntry>> forYear(int year) {
+  SimpleSelectStatement<$LeaveEntriesTable, LeaveEntry> _year(int year) {
     final start = DateTime(year);
     final end = DateTime(year + 1);
-    return (select(leaveEntries)
-          ..where((t) =>
-              t.date.isBiggerOrEqualValue(start) &
-              t.date.isSmallerThanValue(end)))
-        .get();
+    return select(leaveEntries)
+      ..where((t) =>
+          t.date.isBiggerOrEqualValue(start) & t.date.isSmallerThanValue(end));
   }
+
+  Future<List<LeaveEntry>> forYear(int year) => _year(year).get();
+
+  /// Watched rather than fetched, so the year list and the Stats leave ring
+  /// both follow an add or a remove without anyone having to invalidate them.
+  Stream<List<LeaveEntry>> watchForYear(int year) => _year(year).watch();
 
   Future<int> insertLeave(LeaveEntriesCompanion entry) =>
       into(leaveEntries).insert(entry);

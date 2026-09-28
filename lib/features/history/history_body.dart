@@ -26,6 +26,7 @@ class HistoryBody extends StatelessWidget {
     this.onStep,
     this.onOpenDatePicker,
     this.onTapRow,
+    this.onLongPressRow,
   });
 
   final HistoryMode mode;
@@ -43,6 +44,10 @@ class HistoryBody extends StatelessWidget {
 
   final VoidCallback? onOpenDatePicker;
   final ValueChanged<HistoryRow>? onTapRow;
+
+  /// Opens the leave editor. Only wired in Day mode — a month or a week row
+  /// stands for a range, and there is no single date to mark.
+  final ValueChanged<HistoryRow>? onLongPressRow;
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +117,12 @@ class HistoryBody extends StatelessWidget {
             children: [
               for (final (i, row) in rows.indexed) ...[
                 if (i > 0) const SizedBox(height: AppSpace.s3),
-                _Row(row: row, expanded: row.date == expandedDay, onTap: onTapRow),
+                _Row(
+                  row: row,
+                  expanded: row.date == expandedDay,
+                  onTap: onTapRow,
+                  onLongPress: onLongPressRow,
+                ),
               ],
             ],
           ),
@@ -123,11 +133,17 @@ class HistoryBody extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.row, required this.expanded, required this.onTap});
+  const _Row({
+    required this.row,
+    required this.expanded,
+    required this.onTap,
+    required this.onLongPress,
+  });
 
   final HistoryRow row;
   final bool expanded;
   final ValueChanged<HistoryRow>? onTap;
+  final ValueChanged<HistoryRow>? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -146,6 +162,7 @@ class _Row extends StatelessWidget {
       expanded: expanded && expansion != null,
       expansion: expansion == null ? null : _Expansion(expansion: expansion),
       onTap: onTap == null || !(row.chevron || row.expandable) ? null : () => onTap!(row),
+      onLongPress: onLongPress == null ? null : () => onLongPress!(row),
     );
   }
 }

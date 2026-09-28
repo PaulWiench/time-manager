@@ -17,7 +17,9 @@ import 'package:time_manager/core/theme/app_dimens.dart';
 import 'package:time_manager/data/database/enums.dart';
 import 'package:time_manager/features/settings/audit_log_body.dart';
 import 'package:time_manager/features/settings/holiday_list_body.dart';
+import 'package:time_manager/features/settings/leave_list_body.dart';
 import 'package:time_manager/widgets/edit_session_sheet.dart';
+import 'package:time_manager/widgets/leave_sheet.dart';
 
 import '../fixtures/rows.dart';
 import 'harness.dart';
@@ -101,7 +103,72 @@ void main() {
     end: DateTime(2026, 9, 21, 16, 41),
   );
 
+  // Paul's own shape: a solid block already taken, and three days still ahead
+  // that he is not actually taking — the entries this screen exists to remove.
+  final leave = [
+    for (var day = 31; day <= 31; day++)
+      LeaveListItem(
+        id: 'l$day',
+        date: DateTime(2026, 8, day),
+        type: LeaveType.vacation,
+        amountLabel: 'full day',
+        planned: false,
+      ),
+    for (var day = 1; day <= 4; day++)
+      LeaveListItem(
+        id: 's$day',
+        date: DateTime(2026, 9, day),
+        type: LeaveType.vacation,
+        amountLabel: 'full day',
+        planned: false,
+      ),
+    LeaveListItem(
+      id: 'sick',
+      date: DateTime(2026, 9, 15),
+      type: LeaveType.sick,
+      amountLabel: 'full day',
+      planned: false,
+    ),
+    LeaveListItem(
+      id: 'half',
+      date: DateTime(2026, 9, 24),
+      type: LeaveType.flexDay,
+      amountLabel: '½ day',
+      planned: false,
+    ),
+    for (var day = 28; day <= 30; day++)
+      LeaveListItem(
+        id: 'p$day',
+        date: DateTime(2026, 9, day),
+        type: LeaveType.vacation,
+        amountLabel: 'full day',
+        planned: true,
+      ),
+  ];
+
   final screens = <String, Widget>{
+    'settings-leave-list': LeaveListBody(
+      year: 2026,
+      items: leave,
+      usedDays: 5,
+      plannedDays: 3,
+      quotaDays: 30,
+      onAdd: () {},
+      onEdit: (_) {},
+      onRemove: (_) {},
+      onStepYear: (_) {},
+    ),
+    'settings-leave-sheet': _asSheet(LeaveSheetView(
+      date: DateTime(2026, 9, 28),
+      targetHours: 7.9,
+      type: LeaveType.vacation,
+      fraction: LeaveFraction.full,
+      hasExisting: true,
+      onType: (_) {},
+      onFraction: (_) {},
+      onClear: () {},
+      onSave: () {},
+    )),
     'settings-holidays': HolidayListBody(
       year: 2026,
       holidays: holidays,

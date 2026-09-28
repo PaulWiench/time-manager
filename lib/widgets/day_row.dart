@@ -56,6 +56,7 @@ class DayRow extends StatelessWidget {
     this.trailingIcon,
     this.chevron = false,
     this.onTap,
+    this.onLongPress,
     this.expanded = false,
     this.expansion,
   });
@@ -78,6 +79,10 @@ class DayRow extends StatelessWidget {
   final IconData? trailingIcon;
   final bool chevron;
   final VoidCallback? onTap;
+
+  /// Day rows only: opens the leave editor for that date. Summary rows (a month
+  /// or a week) stand for a range, so there is nothing to mark.
+  final VoidCallback? onLongPress;
 
   final bool expanded;
 
@@ -150,6 +155,7 @@ class DayRow extends StatelessWidget {
 
     return PressScale(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         constraints: const BoxConstraints(minHeight: 60),
         padding: const EdgeInsets.fromLTRB(AppSpace.s3, AppSpace.s2, AppSpace.s4, AppSpace.s2),

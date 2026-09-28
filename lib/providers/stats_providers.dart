@@ -30,11 +30,11 @@ AutoDisposeFutureProvider<List<WorkSession>> workSessionsInRangeProvider(
     _workSessionsInRange((start: start, endExclusive: endExclusive));
 
 final leaveForYearProvider =
-    FutureProvider.autoDispose.family<List<LeaveEntry>, int>((ref, year) {
-  return ref.watch(leaveRepositoryProvider).forYear(year);
+    StreamProvider.autoDispose.family<List<LeaveEntry>, int>((ref, year) {
+  return ref.watch(leaveRepositoryProvider).watchForYear(year);
 });
 
-final vacationQuotaForYearProvider =
-    FutureProvider.autoDispose.family<VacationQuota?, int>((ref, year) {
-  return ref.watch(vacationQuotaRepositoryProvider).forYear(year);
-});
+// The vacation quota lives in `vacation_quota_providers.dart` and is watched,
+// not fetched. A one-shot copy used to sit here under the same name, so Stats
+// showed a stale quota until the tab was rebuilt — and no file could import
+// both providers without an ambiguous-import error.

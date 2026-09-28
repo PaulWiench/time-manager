@@ -20,6 +20,9 @@ class LeaveRepository {
 
   Future<List<LeaveEntry>> forYear(int year) => db.leaveEntryDao.forYear(year);
 
+  Stream<List<LeaveEntry>> watchForYear(int year) =>
+      db.leaveEntryDao.watchForYear(year);
+
   Future<void> addLeave({
     required DateTime date,
     required LeaveType type,

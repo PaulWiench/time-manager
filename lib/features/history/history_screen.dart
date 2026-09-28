@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/format.dart';
 import '../../data/database/database.dart';
 import '../../domain/date_only.dart';
+import '../../domain/recalculation_engine.dart';
 import '../../providers/day_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/session_providers.dart';
@@ -19,6 +20,7 @@ import '../../providers/settings_providers.dart';
 import '../../providers/stats_providers.dart';
 import '../../widgets/app_date_picker.dart';
 import '../../widgets/edit_session_sheet.dart';
+import '../../widgets/leave_sheet.dart';
 import 'history_body.dart';
 import 'history_view.dart';
 
@@ -76,6 +78,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       onStep: _step,
       onOpenDatePicker: _jumpToDate,
       onTapRow: _tapRow,
+      // Day mode only: a month or a week row stands for a range, so there is
+      // no single date to mark as leave.
+      onLongPressRow: _mode == HistoryMode.day ? (row) => _editLeave(row.date) : null,
     );
   }
 
@@ -215,6 +220,43 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           _expandedDay = _expandedDay == row.date ? null : row.date;
           _selectedBreakId = null;
         });
+    }
+  }
+
+  /// Long-pressing a day opens the leave editor. Every provider read here is
+  /// already being watched by the row that was pressed, so none of them is
+  /// cold.
+  Future<void> _editLeave(DateTime date) async {
+    final settings = ref.read(effectiveSettingsForProvider(date)).valueOrNull;
+    if (settings == null) return;
+
+    final existing =
+        ref.read(leaveForDateProvider(date)).valueOrNull ?? const <LeaveEntry>[];
+    final targetHours = ref.read(dayEntryForDateProvider(date)).valueOrNull?.targetHours ??
+        computeTargetHours(
+          date: date,
+          workDays: settings.workDays,
+          weeklyHours: settings.weeklyHours,
+          holidayFraction: ref.read(publicHolidayForDateProvider(date)).valueOrNull?.fraction,
+        );
+
+    final edit = await showLeaveSheet(
+      context: context,
+      date: date,
+      targetHours: targetHours,
+      existing: existing,
+    );
+    if (edit == null || !mounted) return;
+
+    final repo = ref.read(leaveRepositoryProvider);
+    // Replace rather than accumulate. A day has one kind of leave; leaving the
+    // old row behind would double it against the quota and against the day's
+    // balance, which is the failure mode a bare "add" would have shipped with.
+    for (final entry in existing) {
+      await repo.deleteLeave(entry.id, date);
+    }
+    if (!edit.cleared) {
+      await repo.addLeave(date: date, type: edit.type!, hours: edit.hours!);
     }
   }
 

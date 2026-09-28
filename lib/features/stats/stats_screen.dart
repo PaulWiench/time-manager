@@ -12,6 +12,7 @@ import '../../domain/date_only.dart';
 import '../../domain/stats_aggregation.dart';
 import '../../providers/day_providers.dart';
 import '../../providers/stats_providers.dart';
+import '../../providers/vacation_quota_providers.dart';
 import 'stats_body.dart';
 import 'stats_view.dart';
 

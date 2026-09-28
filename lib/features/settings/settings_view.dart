@@ -13,6 +13,7 @@ class SettingsView {
     required this.restrictCheckin,
     required this.balanceBounds,
     required this.annualResetLabel,
+    required this.leaveCount,
     required this.vacationQuota,
     required this.rolloverPolicy,
     required this.holidayRegion,
@@ -28,6 +29,9 @@ class SettingsView {
   final bool restrictCheckin;
   final String balanceBounds;
   final String annualResetLabel;
+  /// `16 this year`, or `None yet`.
+  final String leaveCount;
+
   final String vacationQuota;
   final String rolloverPolicy;
   final String holidayRegion;

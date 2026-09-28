@@ -19,6 +19,7 @@ class SettingsBody extends StatelessWidget {
     this.onEditMinSession,
     this.onToggleRestrictCheckin,
     this.onEditBalanceBounds,
+    this.onOpenLeave,
     this.onEditVacationQuota,
     this.onEditRollover,
     this.onOpenHolidays,
@@ -35,6 +36,7 @@ class SettingsBody extends StatelessWidget {
   final VoidCallback? onEditMinSession;
   final ValueChanged<bool>? onToggleRestrictCheckin;
   final VoidCallback? onEditBalanceBounds;
+  final VoidCallback? onOpenLeave;
   final VoidCallback? onEditVacationQuota;
   final VoidCallback? onEditRollover;
   final VoidCallback? onOpenHolidays;
@@ -115,6 +117,13 @@ class SettingsBody extends StatelessWidget {
         SettingsGroup(
           title: 'LEAVE',
           rows: [
+            SettingsRow.navigate(
+              icon: AppIcons.calendarCheck,
+              label: 'Vacation & sick days',
+              sub: 'Book, edit or remove a day',
+              value: view.leaveCount,
+              onTap: onOpenLeave,
+            ),
             SettingsRow.navigate(
               icon: AppIcons.airplaneTilt,
               label: 'Vacation quota',
