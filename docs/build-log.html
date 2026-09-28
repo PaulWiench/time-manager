@@ -1145,6 +1145,55 @@
         rediscovered.
       </p>
     </div>
+    <div class="entry">
+      <div class="date">28 September 2026</div>
+      <h3>The first week of actually using it</h3>
+      <span class="pill">First-use pass</span>
+      <p>
+        The redesign shipped to the phone in the morning and was used as
+        a real tracker for the rest of the day. By the evening there were
+        eight complaints, and the most interesting one was not a
+        rendering bug at all: Home said today was a vacation day, and it
+        was right. Seventeen leave entries had come in with the August
+        import, three of them for 28, 29 and 30 September — a plan made
+        six weeks earlier and quietly abandoned. The app had been
+        crediting the balance for both the vacation and the work done on
+        top of it, which is where the headline number's sudden five-hour
+        improvement had come from.
+      </p>
+      <p>
+        And there was nowhere to fix it. The repository had a working
+        <code>addLeave</code> and <code>deleteLeave</code>, audited and
+        recalculating, with no caller anywhere in the app — leave could
+        arrive from an import and then never change, while Settings went
+        on offering a vacation quota for it to count against. That is now
+        a long-press on any day in History and a year list under
+        Settings, and an entry is always a fraction of that date's own
+        target rather than a typed number of hours.
+      </p>
+      <p>
+        The striped bar under the balance was the same story seen from
+        the other end. It was a composition bar on a wall-clock axis with
+        leave appended to it, and the design document said in so many
+        words that it was not a progress bar — but it sits directly under
+        "5:49 of 7:54 · 2:05 left", full width, rounded like every
+        progress bar ever drawn. The phantom vacation day took fifty-four
+        per cent of it, so a day that was seventy-three per cent worked
+        read as about a third. It stacks against the target now, and the
+        empty part of it is the number written above it.
+      </p>
+      <p>
+        Two findings were self-inflicted. Every work-session chip on Home
+        had drifted into the middle of the screen while breaks and leave
+        stayed flush left, because a wrapper added four days earlier to
+        grow tap targets centred its child — and the render fixtures
+        passed no tap callbacks, so no reference image had ever shown a
+        tappable chip. And the History year stepper threw away the month
+        every time it moved, so changing the year and then switching to
+        Week landed you in January. Both had been in front of the camera
+        the whole time and neither was in frame.
+      </p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -1589,6 +1638,30 @@
     <div class="log-entry">
       <span class="ts">2026-09-28</span><span class="tag">[redesign/phase-10]</span>
       <p><code>test/data/migration_test.dart</code> globbed <code>~/time-manager-backups/db</code> and took the lexicographically greatest <code>.sqlite</code>. Two naming schemes have been through that directory — <code>time_manager_&lt;stamp&gt;</code> from the August <code>adb pull</code> and <code>timemanager-&lt;stamp&gt;</code> from the in-app export — and they sort against each other by prefix rather than by date. It picked correctly only by the accident that <code>timemanager-</code> sorts above <code>time_manager_</code>; a future backup named the old way would have sent the test back to the August database, where it would still pass and prove nothing about the schema anyone has. Now sorts by <code>statSync().modified</code>, skips instead of throwing when the directory is absent, and prints which file it migrated on failure. Also gitignored <code>test/screenshots/failures/</code>, which is diff output <code>flutter_test</code> writes on any golden mismatch; eight such PNGs had been committed.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[first-use/leave-editor]</span>
+      <p><code>LeaveRepository.addLeave</code> / <code>deleteLeave</code> had existed since the data layer was built — transactional, audited, calling <code>recalculateFrom</code> — and had <strong>zero callers in <code>lib/</code></strong>. Every leave entry on the real install came from the onboarding import on 2026-08-09 and could never be touched again, while Settings advertised a vacation quota for it to count against and Stats charted it. Two entry points now, both writing through the same path: <code>DayRow</code> gained <code>onLongPress</code> (<code>PressScale</code> already took one) wired only in Day mode, since a month or week row stands for a range and has no single date; and a new <code>LeaveListScreen</code>/<code>LeaveListBody</code> pair modelled on the holiday list, reached from a new LEAVE row in Settings. <code>leave_sheet.dart</code> writes <code>fraction * computeTargetHours(date)</code> rather than typed hours — full, three-quarter, half, quarter — so a half-day public holiday (target 3.95) resolves correctly and the day count can always divide back out to a clean quarter. Both writers delete the day's existing entries before inserting: a day has one kind of leave, and a bare add would have doubled it against the quota <em>and</em> against the day's balance. <code>leaveForYearProvider</code> became a <code>StreamProvider</code> over a new <code>LeaveEntryDao.watchForYear</code>, because a list that cannot see its own writes is worse than no list. Cost: <code>stats_providers.dart</code> declared a one-shot <code>vacationQuotaForYearProvider</code> under the same name as the live one in <code>vacation_quota_providers.dart</code>, which no file could import both of; the <code>Future</code> copy is deleted and Stats' quota now updates when Settings changes it. Also stopped Settings claiming "Indefinite" for a rollover policy over a stub editor — <code>VacationQuotas</code> has no column saying which policy applies, so it says "Not configured".</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[first-use/leave-conflict]</span>
+      <p>The balance is <code>netHours + leaveHours - targetHours</code>, so once leave and work together pass the target the overshoot is credited twice. On the real database 2026-09-28 read <code>net_worked 5.82, leave_hours 7.9, target 7.9</code> — <code>balance_delta +5.82</code> — and the headline moved from −19:20 to −13:31 with nothing on screen to explain it. Decided with Paul: <strong>keep both credits and say so</strong>, rather than having check-in silently delete a leave entry. <code>HomeView.leaveConflict</code> is set only when the overshoot is real, not merely when both are present — half a day off plus half a day worked lands on the target and is an ordinary day, which <code>home-g-leave</code> is exactly, and it stays silent. History's leave branch let leave outrank work absolutely (<code>Vacation · 7:54</code> and nothing else: no worked figure, no delta, not expandable), so the row now carries "Also worked 5:49", the day's delta, and opens.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[first-use/day-rail]</span>
+      <p><code>DayRail</code> was a composition bar: axis <code>railStart..railEnd</code> in wall-clock time, with leave appended past the last check-out and the axis extended to hold it. Measured off the phone, the four segments came out 159 / 35 / 163 / 455 px against durations 2:53 / 0:48 / 2:57 / 7:54 — the axis was <code>daySpan + leave</code>, so a stale full-day vacation entry ate 54 % of the bar. Its own header comment said "not a progress bar", but it sits under <code>5:49 of 7:54 · 2:05 left</code>, full width, pill-rounded, and the first reading it got was "I guess that's the time left". <code>RailSegment</code> now carries a <code>Duration</code> instead of two <code>DateTime</code>s; work and leave stack against <code>max(target, counted)</code>, the uncovered track is exactly the "X left" figure, and a day past its target rescales with a 2dp tick left where the target was. Breaks cannot be proportional — a break earns no target, so width given to it comes out of the work either side — and are drawn at a fixed 10dp where they fell, with the usable width reduced by the same amount so the arithmetic stays exact. <code>remainingHours</code> subtracts <code>leaveHours</code> too, so a whole vacation day reads "0:00 left" rather than "7:54 left" on a day the engine settled at zero. <code>ringProgress</code> is untouched: the ring says how much was <em>worked</em>, and it was measured at 0.75 against 5.82/7.9 = 0.736 — it was never lying. Falling out of the rewrite: <code>_railStart</code>, <code>_railEnd</code> and the <code>cursor = now</code> leave placement are gone, and with them the bug where a leave-only day started its hatch at <code>now</code> on an axis anchored at midnight and clipped it off the end entirely.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[first-use/chip-alignment]</span>
+      <p>Self-inflicted, four days old. Phase 10 wrapped a tappable <code>EventChip</code> in <code>SizedBox(height: AppSize.touch, child: Center(child: chip))</code> to grow its hit area. <code>Center</code> is <code>Align(Alignment.center)</code> with no factors, and <code>RenderPositionedBox</code> under a bounded width sizes to <code>constraints.biggest</code> — so the 32dp chip was centred in the full content column. <code>home_screen.dart</code> passes <code>onEditSession</code>, which gives every work-session chip an <code>onLongPress</code>, while break, leave and active chips have none: alternate rows shoved to the middle of the screen, measured at 359 px against 136. No golden caught it because <code>home_fixtures.dart</code> passed no callbacks at all and therefore never rendered an interactive chip; it passes <code>onEditSession</code> now. Two related jitters fixed while in there: chip rows were 40 or 44 depending on whether they happened to be tappable, which is 4dp of stutter down the timeline for no reason a reader could see (all 44 now, a deliberate deviation from §5.3's 40 — uniform rhythm is worth more than the 4dp); and the leading element was 16 (icon), 12 (swatch) or nothing (selected synthetic break), so labels started at three different offsets and a chip's text jumped 20dp sideways at the moment it was selected. One fixed 16dp slot.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[first-use/history-nav]</span>
+      <p><code>_step</code> did <code>DateTime(_anchor.year + direction, 1, 1)</code> in Month mode, discarding the month and the day, and <code>onModeChanged</code> never re-derived the anchor — so changing the year and then tapping Week hit <code>_weekRows</code>, which reads <code>_anchor.month</code>, and landed in January. Week mode had the same defect one level down. Extracted to <code>stepAnchor</code>/<code>canStepForward</code> in <code>history_view.dart</code> so they are testable: the anchor stays a whole date and stepping moves only the unit that level shows, which makes a level change need no logic at all — each level is a window onto the same day. New <code>shiftMonths</code> clamps rather than overflowing (<code>DateTime(y, m+n, d)</code> rolls 31 March back to 3 March). <code>_monthRows</code> returns <code>const []</code> past the current year while stepping had no upper bound, so the forward arrow walked into a blank screen with a year in the header; it greys out at the current period. Three separate causes of the yellow flashes: (1) <code>AnimatedSwitcher</code> had no <code>layoutBuilder</code>, so it defaulted to <code>Stack(alignment: center)</code> and for 240ms painted the outgoing and incoming lists centred on each other at different scales and lengths — both carrying an apricot "today" block and a 2dp accent outline — now top-aligned; (2) every provider was read <code>valueOrNull ?? const []</code>, so a new period rendered one frame of zero-hour, balance-less and therefore warning-free rows before the data landed and the <code>warningTint</code> band snapped in, and <code>BandedNumber</code> overhangs its own bounds unclipped so it painted across its neighbours on the way — the previous rows are held for that frame, keyed by mode so a level change holds nothing rather than something wrong; (3) <code>SegmentedControl</code> slid its pill over 200ms but flipped the label to <code>onSelected</code> cream instantly, leaving the selected word as near-white on <code>surface2</code> with no pill under it.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[first-use/leave-days]</span>
+      <p><code>kLeaveHoursPerDay = 8</code> in <code>stats_view.dart</code>, and the same <code>/ 8.0</code> duplicated in <code>VacationQuotaRepository.usedDaysForYear</code> under a comment conceding it was a stand-in. A full day is <code>weeklyHours / workDays.length</code> — 7.9 for a 39.5h week — so each whole vacation day contributed 0.9875 and sixteen of them rendered as 15.8, with no whole number reachable at all. Wrong the other way on a half-day public holiday (target 3.95) and again on a four-day week (9.875). Replaced by <code>domain/leave_days.dart</code>: each entry against the target its own date carried, read from <code>DayEntries.targetHours</code> and recomputed as a fallback, snapped to the nearest quarter — which is every value the editor can write, and which also absorbs an entry recorded before the weekly hours were last changed. Separately, <code>leave_entry_dao.forYear</code> has no upper bound at today and nothing compared an entry's date to <code>now</code>, so future-dated leave counted as used: "Remaining" quietly meant "after everything already booked" while reading as "days left to take". Three figures now — Used, Planned, Remaining — with a second muted arc on the ring for what is booked ahead, and <code>remainingDays</code> no longer clamped at zero, because over-booking a quota is worth seeing. <code>LeaveType.flexDay</code> fell through a bare <code>break</code> and vanished from Stats while still counting in the balance; it gets a card when there are any. And the heatmap punched out <code>leaveHours &gt; 0</code> only, so a public holiday — which carries no leave hours — drew as an ordinary blank cell, indistinguishable from a day simply not worked.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
