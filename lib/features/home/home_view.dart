@@ -13,6 +13,8 @@ import 'package:flutter/widgets.dart';
 import '../../core/format.dart';
 import '../../data/database/database.dart';
 import '../../data/database/enums.dart';
+import '../../domain/day_settlement.dart';
+import '../../domain/midnight_cutoff.dart';
 import '../../domain/recalculation_engine.dart';
 import '../../domain/timeline_builder.dart';
 import '../../domain/tracking_state.dart';
@@ -24,6 +26,7 @@ class HomeView {
     required this.dateLabel,
     required this.state,
     required this.balanceHours,
+    required this.balanceProvisional,
     required this.balanceWarning,
     required this.netHours,
     required this.targetHours,
@@ -42,9 +45,16 @@ class HomeView {
 
   final TrackingState state;
 
-  /// The latest snapshot, which is a closed figure — it does not tick with the
-  /// running session, and the design says it never counts up.
+  /// Everything settled before today, plus whatever today has *earned* —
+  /// see `lib/domain/day_settlement.dart`. It does not tick second by second,
+  /// and it never counts down while the day is still being worked.
   final double balanceHours;
+
+  /// True while today is still open and behind its target, i.e. while
+  /// [balanceHours] is deliberately holding back a shortfall that will land
+  /// once the day is over. The caption under the balance says so, because a
+  /// number that quietly declines to move is worse than one that explains why.
+  final bool balanceProvisional;
 
   /// Past a floor or cap the user actually configured.
   final bool balanceWarning;
@@ -153,12 +163,31 @@ HomeView buildHomeView({
     ],
   );
 
-  final balanceHours = balance?.balance ?? 0.0;
+  final leaveHours = leave.fold<double>(0, (sum, l) => sum + l.hours);
+
+  // `balance` is the last *settled* snapshot — everything up to yesterday.
+  // Today is added live, and only if it helps: a day still being worked is
+  // assumed to be heading for its target, so it cannot pull the number down
+  // until it is genuinely over.
+  final settled = balance?.balance ?? 0.0;
+  final todayDelta = netHours + leaveHours - targetHours;
+  final finished = dayIsFinished(
+    now: now,
+    day: today,
+    hasActiveSession: active != null,
+    lastCheckOut: lastCheckOut,
+    workWindow: TimeOfDayWindow(
+      startMinutes: settings.workWindowStartMinutes,
+      endMinutes: settings.workWindowEndMinutes,
+    ),
+  );
+  final balanceHours = settled + todayContribution(delta: todayDelta, finished: finished);
 
   return HomeView(
     dateLabel: AppFormat.headerDate(now),
     state: state,
     balanceHours: balanceHours,
+    balanceProvisional: !finished && todayDelta < 0,
     balanceWarning: balanceBeyondBounds(
       balanceHours,
       floorHours: settings.balanceFloorHours,
@@ -187,7 +216,7 @@ HomeView buildHomeView({
       state: state,
       lastCheckOut: lastCheckOut,
     ),
-    leaveHours: leave.fold<double>(0, (sum, l) => sum + l.hours),
+    leaveHours: leaveHours,
     timeline: _timeline(
       blocks: blocks,
       completed: completed,

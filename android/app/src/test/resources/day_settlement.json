@@ -1,0 +1,115 @@
+{
+  "_comment": [
+    "Cases for the rule that decides when today stops being provisional, and",
+    "what an unfinished day is allowed to do to the balance.",
+    "",
+    "The rule: with nothing running, a gap of more than an hour outside normal",
+    "work hours means the day is done. Until it is done, the day can only add",
+    "a surplus to the balance, never subtract a shortfall.",
+    "",
+    "It exists twice — in lib/domain/day_settlement.dart and, so the launcher",
+    "tile cannot disagree with the screen, in the widget's Kotlin. Both are",
+    "tested against this file:",
+    "",
+    "  flutter test test/domain/day_settlement_fixture_test.dart",
+    "  cd android && ./gradlew :app:testDebugUnitTest",
+    "",
+    "The window is 08:00-18:00 (480-1080) unless a case says otherwise. Times",
+    "are minutes since midnight; idle gaps are in seconds.",
+    "",
+    "Only the same-day judgement is shared. The Dart original also settles any",
+    "day the calendar has moved past, which the widget can never be asked."
+  ],
+  "windowStartMinutes": 480,
+  "windowEndMinutes": 1080,
+  "cases": [
+    {
+      "name": "a running session means the day is not over",
+      "nowMinutesOfDay": 1380,
+      "hasActiveSession": true,
+      "secondsSinceLastCheckOut": 7200,
+      "expectedFinished": false
+    },
+    {
+      "name": "nothing logged yet is not a finished day",
+      "nowMinutesOfDay": 420,
+      "hasActiveSession": false,
+      "secondsSinceLastCheckOut": null,
+      "expectedFinished": false
+    },
+    {
+      "name": "a long lunch inside work hours is not the end of the day",
+      "nowMinutesOfDay": 840,
+      "hasActiveSession": false,
+      "secondsSinceLastCheckOut": 9000,
+      "expectedFinished": false
+    },
+    {
+      "name": "an hour idle after work hours ends the day",
+      "nowMinutesOfDay": 1170,
+      "hasActiveSession": false,
+      "secondsSinceLastCheckOut": 4500,
+      "expectedFinished": true
+    },
+    {
+      "name": "a short gap after work hours does not",
+      "nowMinutesOfDay": 1120,
+      "hasActiveSession": false,
+      "secondsSinceLastCheckOut": 1800,
+      "expectedFinished": false
+    },
+    {
+      "name": "exactly one hour is not yet more than an hour",
+      "nowMinutesOfDay": 1170,
+      "hasActiveSession": false,
+      "secondsSinceLastCheckOut": 3600,
+      "expectedFinished": false
+    },
+    {
+      "name": "the last minute of the window still counts as inside it",
+      "nowMinutesOfDay": 1080,
+      "hasActiveSession": false,
+      "secondsSinceLastCheckOut": 7200,
+      "expectedFinished": false
+    },
+    {
+      "name": "an early finish before the window opens settles too",
+      "nowMinutesOfDay": 460,
+      "hasActiveSession": false,
+      "secondsSinceLastCheckOut": 5400,
+      "expectedFinished": true
+    }
+  ],
+  "contributionCases": [
+    {
+      "name": "an unfinished day never subtracts",
+      "delta": -7.9,
+      "finished": false,
+      "expected": 0
+    },
+    {
+      "name": "not even by a minute",
+      "delta": -0.0167,
+      "finished": false,
+      "expected": 0
+    },
+    {
+      "name": "an unfinished day adds a surplus immediately",
+      "delta": 1.5,
+      "finished": false,
+      "expected": 1.5
+    },
+    {
+      "name": "a finished day counts its shortfall",
+      "delta": -7.9,
+      "finished": true,
+      "expected": -7.9
+    },
+    {
+      "name": "a finished day counts its surplus",
+      "delta": 1.5,
+      "finished": true,
+      "expected": 1.5
+    }
+  ]
+}

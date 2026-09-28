@@ -124,8 +124,52 @@ void main() {
     final result = row(facts);
     expect(result.line1, '5:40 worked');
     expect(result.line2, 'Today · 09:00–now');
-    // A day in progress has no settled delta; it is derived live.
-    expect(result.delta, '−2:14');
+    // The worked figure is live, but the shortfall is not shown: the day is
+    // still running, and −2:14 at 16:37 is a verdict on an afternoon that has
+    // not happened yet. It lands when the day is over.
+    expect(result.delta, isNull);
+  });
+
+  test("today's surplus shows the moment it exists", () {
+    final facts = DayFacts(
+      date: today,
+      settings: settings,
+      dayEntry: dayEntryRow(
+        date: today,
+        netWorkedHours: 8.5,
+        targetHours: 7.9,
+        balanceDelta: 0.6,
+      ),
+      sessions: [
+        sessionRow(id: 'a', start: DateTime(2026, 9, 22, 9), end: DateTime(2026, 9, 22, 17, 30)),
+      ],
+      now: DateTime(2026, 9, 22, 17, 35),
+    );
+
+    // Still inside working hours and still the same day, so the day is not
+    // finished — but going *over* is never held back.
+    expect(row(facts).delta, '+0:36');
+  });
+
+  test("today's shortfall lands once the working day is over", () {
+    final facts = DayFacts(
+      date: today,
+      settings: settings,
+      dayEntry: dayEntryRow(
+        date: today,
+        netWorkedHours: 6.9,
+        targetHours: 7.9,
+        balanceDelta: -1,
+      ),
+      sessions: [
+        sessionRow(id: 'a', start: DateTime(2026, 9, 22, 9), end: DateTime(2026, 9, 22, 16, 54)),
+      ],
+      // 18:30 is outside the 08:00–18:00 window, and more than an hour has
+      // passed since the last check-out.
+      now: DateTime(2026, 9, 22, 18, 30),
+    );
+
+    expect(row(facts).delta, '−1:00');
   });
 
   test('selecting a synthetic break says what deleting it would do', () {

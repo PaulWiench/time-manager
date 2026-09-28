@@ -61,7 +61,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final sessions = ref.watch(sessionsForDateProvider(today)).valueOrNull ?? const [];
     final breaks = ref.watch(breaksForDateProvider(today)).valueOrNull ?? const [];
     final leave = ref.watch(leaveForDateProvider(today)).valueOrNull ?? const [];
-    final balance = ref.watch(latestBalanceProvider).valueOrNull;
+    // Strictly before today: buildHomeView adds today back live, under the
+    // rule that an unfinished day cannot count against you.
+    final balance = ref.watch(settledBalanceProvider(today)).valueOrNull;
     final active = ref.watch(activeSessionProvider).valueOrNull;
 
     if (settings == null) {

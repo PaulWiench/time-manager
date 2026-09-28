@@ -114,13 +114,35 @@ object WidgetRepository {
             }
             if (!hasTargetRow || targetHours <= 0.0) targetHours = fallbackTargetHours(db, today)
 
+            // Strictly before today: today's stored snapshot carries a
+            // full-day shortfall until the day has actually been worked, and
+            // the app stopped printing that. Today is composed back on below.
             var balanceHours = 0.0
             db.rawQuery(
-                "SELECT balance FROM balance_snapshots ORDER BY date DESC LIMIT 1",
-                null,
+                "SELECT balance FROM balance_snapshots WHERE date < ? " +
+                    "ORDER BY date DESC LIMIT 1",
+                arrayOf(today.toString()),
             ).use { c -> if (c.moveToFirst()) balanceHours = c.getDouble(0) }
 
+            var leaveHours = 0.0
+            db.rawQuery(
+                "SELECT leave_hours FROM day_entries WHERE date = ?",
+                arrayOf(today.toString()),
+            ).use { c -> if (c.moveToFirst()) leaveHours = c.getDouble(0) }
+
             val lastCheckOut = completed.maxOfOrNull { it.second }
+
+            val window = workWindow(db, today)
+            balanceHours += DaySettlement.todayContribution(
+                delta = netHours + leaveHours - targetHours,
+                finished = DaySettlement.todayIsFinished(
+                    nowMinutesOfDay = minutesOfDay(now),
+                    hasActiveSession = activeStart != null,
+                    secondsSinceLastCheckOut = lastCheckOut?.let { now - it },
+                    windowStartMinutes = window.first,
+                    windowEndMinutes = window.second,
+                ),
+            )
             return WidgetState(
                 trackingState = trackingStateFor(
                     now = now,
@@ -153,6 +175,30 @@ object WidgetRepository {
         if (targetMet) return TrackingState.CHECKED_OUT
         val since = now - lastCheckOut
         return if (since <= BREAK_WINDOW_SECONDS) TrackingState.BREAK else TrackingState.CHECKED_OUT
+    }
+
+    /** Local time-of-day of [epochSeconds], in minutes since midnight. */
+    private fun minutesOfDay(epochSeconds: Long): Int {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = epochSeconds * 1000
+        return cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+    }
+
+    /** The configured normal work hours as (start, end) minutes since midnight. */
+    private fun workWindow(db: SQLiteDatabase, today: Long): Pair<Int, Int> {
+        var start = 8 * 60
+        var end = 18 * 60
+        db.rawQuery(
+            "SELECT work_window_start_minutes, work_window_end_minutes FROM app_settings " +
+                "WHERE effective_from <= ? ORDER BY effective_from DESC, created_at DESC LIMIT 1",
+            arrayOf(today.toString()),
+        ).use { c ->
+            if (c.moveToFirst()) {
+                start = c.getInt(0)
+                end = c.getInt(1)
+            }
+        }
+        return start to end
     }
 
     private fun fallbackTargetHours(db: SQLiteDatabase, today: Long): Double {

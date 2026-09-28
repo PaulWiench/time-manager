@@ -12,6 +12,7 @@ import '../../domain/date_only.dart';
 import '../../domain/leave_days.dart';
 import '../../domain/recalculation_engine.dart';
 import '../../domain/stats_aggregation.dart';
+import '../../providers/balance_providers.dart';
 import '../../providers/day_providers.dart';
 import '../../providers/holiday_providers.dart';
 import '../../providers/settings_providers.dart';
@@ -91,12 +92,26 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
         ref.watch(dayEntriesInRangeProvider(range.start, range.endExclusive)).valueOrNull ??
             const <DayEntry>[];
 
+    // Today's stored snapshot is a full-day shortfall until the day has been
+    // worked, so plotting it made the trend dip every afternoon and recover
+    // overnight. The settled days are plotted as recorded and today is
+    // appended under the same rule Home prints.
+    final displayed = ref.watch(displayedBalanceProvider(DateTime.now()));
+
     return OverviewData(
       balance: [
         for (final snapshot in snapshots)
-          BalancePoint(date: snapshot.date, balance: snapshot.balance),
+          if (snapshot.date.isBefore(today))
+            BalancePoint(date: snapshot.date, balance: snapshot.balance),
+        if (!range.endExclusive.isBefore(today))
+          BalancePoint(date: today, balance: displayed.hours),
       ],
-      weeks: weeklyAggregates(_dayStats(entries)),
+      // Future day entries — a vacation booked for next month — are excluded
+      // from the balance cascade but would otherwise land in a weekly bar,
+      // crediting hours nobody has taken yet.
+      weeks: weeklyAggregates(
+        _dayStats([for (final e in entries) if (!e.date.isAfter(today)) e]),
+      ),
       today: today,
     );
   }

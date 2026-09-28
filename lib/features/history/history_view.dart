@@ -14,6 +14,8 @@ import '../../core/icons/app_icons.dart';
 import '../../data/database/database.dart';
 import '../../data/database/enums.dart';
 import '../../domain/date_only.dart';
+import '../../domain/day_settlement.dart';
+import '../../domain/midnight_cutoff.dart';
 import '../../domain/recalculation_engine.dart';
 import '../../domain/timeline_builder.dart';
 import '../../domain/tracking_state.dart';
@@ -202,8 +204,31 @@ HistoryRow historyDayRow({
   // replaces fifteen useful time spans with the same sentence.
   final crossed = warning && !beyond(facts.previousClosingBalance);
 
-  String? deltaText(double? value) =>
-      value == null ? null : AppFormat.hm(value, signed: true);
+  // Today is only allowed to show a shortfall once it is actually over — the
+  // same rule Home applies to the running balance. Without it this row reads
+  // "0:00 worked · −7:54" at nine in the morning, which is a verdict on a day
+  // that has barely started.
+  final todayOpen = isToday &&
+      facts.now != null &&
+      settings != null &&
+      !dayIsFinished(
+        now: facts.now!,
+        day: date,
+        hasActiveSession: facts.runningSince != null,
+        lastCheckOut: _lastCheckOut(facts.sessions),
+        workWindow: TimeOfDayWindow(
+          startMinutes: settings.workWindowStartMinutes,
+          endMinutes: settings.workWindowEndMinutes,
+        ),
+      );
+
+  String? deltaText(double? value) {
+    if (value == null) return null;
+    // Nothing rather than a zero: "±0:00" would claim the day came out even,
+    // when in fact it has not been judged yet.
+    if (todayOpen && value < 0) return null;
+    return AppFormat.hm(value, signed: true);
+  }
 
   // A holiday outranks leave, which outranks work: a day off is what the day
   // was, even if an hour got logged on it.
@@ -334,6 +359,18 @@ HistoryRow historyDayRow({
   );
 }
 
+/// The end of the last completed session, which is what "how long have you
+/// been idle" is measured from.
+DateTime? _lastCheckOut(List<WorkSession> sessions) {
+  DateTime? latest;
+  for (final session in sessions) {
+    final end = session.endTime;
+    if (session.status != SessionStatus.completed || end == null) continue;
+    if (latest == null || end.isAfter(latest)) latest = end;
+  }
+  return latest;
+}
+
 List<TimelineBlock> _blocksFor(DayFacts facts) => buildDayTimeline(
       sessions: [
         for (final s in facts.sessions)
@@ -440,8 +477,20 @@ HistoryRow historySummaryRow({
   required List<DayEntry> entries,
   required DateTime today,
 }) {
-  final hours = entries.fold<double>(0, (sum, e) => sum + e.netWorkedHours);
-  final delta = entries.fold<double>(0, (sum, e) => sum + e.balanceDelta);
+  // A `day_entries` row exists for any date carrying leave or a holiday,
+  // including dates in the future — vacation booked for next month has a row
+  // the day it is booked. Those rows are excluded from the balance cascade,
+  // but folded in here they would credit a month with hours nobody has taken.
+  final settled = [for (final e in entries) if (!e.date.isAfter(today)) e];
+
+  final hours = settled.fold<double>(0, (sum, e) => sum + e.netWorkedHours);
+  // Today's stored delta is a full-day shortfall until the day is worked, so a
+  // summary containing today would read several hours worse every morning and
+  // recover by evening. It is held back here exactly as the day row holds it.
+  final delta = settled.fold<double>(
+    0,
+    (sum, e) => sum + (e.date == today && e.balanceDelta < 0 ? 0 : e.balanceDelta),
+  );
   final inProgress = !today.isBefore(start) && today.isBefore(endExclusive);
 
   return HistoryRow(

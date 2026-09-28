@@ -226,6 +226,13 @@ class _Balance extends StatelessWidget {
             Text('h', style: AppTextStyles.statSm.copyWith(color: colors.onSlabMuted)),
           ],
         ),
+        // A number that declines to move needs to say so. Without this the
+        // balance would simply sit still all morning and look broken.
+        if (view.balanceProvisional)
+          Text(
+            'today counts tonight',
+            style: AppTextStyles.caption.copyWith(color: colors.onSlabMuted),
+          ),
       ],
     );
   }

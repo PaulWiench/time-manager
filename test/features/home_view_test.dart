@@ -34,8 +34,81 @@ void main() {
         sessions: sessions.cast(),
         breaks: const [],
         leave: leaveHours == 0 ? const [] : [leaveRow(date: today, hours: leaveHours)],
-        balance: balanceRow(date: today, balance: balance),
+        // The settled balance, carried in from yesterday — buildHomeView adds
+        // today itself.
+        balance: balanceRow(date: DateTime(2026, 9, 21), balance: balance),
       );
+
+  group('the balance holds today back until the day is over', () {
+    // Every case starts from the same settled figure: −15:58 carried in from
+    // yesterday, on a 7:54 day.
+    test('checking in does not cost a whole day', () {
+      // The old behaviour: checking in wrote today as 0 + 0 − 7.9 and the
+      // headline fell to −23:52 before any work had been done.
+      final v = view(
+        now: at(8, 43),
+        sessions: [sessionRow(start: at(8, 43), status: SessionStatus.active)],
+      );
+
+      expect(v.balanceHours, closeTo(-15.9667, 0.001));
+      expect(v.balanceProvisional, isTrue);
+    });
+
+    test('a morning short of target still costs nothing', () {
+      final v = view(
+        now: at(11, 30),
+        committedNet: 2.5,
+        sessions: [sessionRow(start: at(9, 0), end: at(11, 30))],
+      );
+
+      expect(v.balanceHours, closeTo(-15.9667, 0.001));
+      expect(v.balanceProvisional, isTrue);
+    });
+
+    test('passing the target moves the balance that minute', () {
+      final v = view(
+        now: at(17, 30),
+        committedNet: 8.5,
+        sessions: [sessionRow(start: at(9, 0), end: at(17, 30))],
+      );
+
+      // −15:58 + 0:36 = −15:22, and nothing is being withheld.
+      expect(v.balanceHours, closeTo(-15.3667, 0.001));
+      expect(v.balanceProvisional, isFalse);
+    });
+
+    test('the shortfall lands once the working day is over', () {
+      final v = view(
+        now: at(19, 30),
+        committedNet: 6.9,
+        sessions: [sessionRow(start: at(9, 0), end: at(16, 54))],
+      );
+
+      // Outside 08:00–18:00 and idle for over an hour: −15:58 + −1:00.
+      expect(v.balanceHours, closeTo(-16.9667, 0.001));
+      expect(v.balanceProvisional, isFalse);
+    });
+
+    test('a long lunch inside working hours does not settle the day', () {
+      final v = view(
+        now: at(14, 0),
+        committedNet: 2.5,
+        sessions: [sessionRow(start: at(9, 0), end: at(11, 30))],
+      );
+
+      expect(v.balanceHours, closeTo(-15.9667, 0.001));
+      expect(v.balanceProvisional, isTrue);
+    });
+
+    test('a full vacation day is settled, not provisional', () {
+      // Nothing worked, but leave covers the target exactly, so the day comes
+      // out level and there is no shortfall to withhold.
+      final v = view(now: at(11, 0), leaveHours: 7.9);
+
+      expect(v.balanceHours, closeTo(-15.9667, 0.001));
+      expect(v.balanceProvisional, isFalse);
+    });
+  });
 
   test('the ring counts the running session, not just what was committed', () {
     final v = view(

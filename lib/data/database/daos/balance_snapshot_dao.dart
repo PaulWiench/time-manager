@@ -36,6 +36,21 @@ class BalanceSnapshotDao extends DatabaseAccessor<AppDatabase>
         ..limit(1))
       .watchSingleOrNull();
 
+  /// The balance as of the last day that is genuinely over — the stream behind
+  /// every displayed balance.
+  ///
+  /// The plain [watchLatest] returns today's row whenever anything has
+  /// triggered a cascade today, and today's stored delta is a full-day
+  /// shortfall until the day is actually worked. Everything on screen composes
+  /// this with a live figure for today instead. See
+  /// `lib/domain/day_settlement.dart`.
+  Stream<BalanceSnapshot?> watchLatestBefore(DateTime date) =>
+      (select(balanceSnapshots)
+            ..where((t) => t.date.isSmallerThanValue(date))
+            ..orderBy([(t) => OrderingTerm.desc(t.date)])
+            ..limit(1))
+          .watchSingleOrNull();
+
   Future<int> upsert(BalanceSnapshotsCompanion entry) =>
       into(balanceSnapshots).insertOnConflictUpdate(entry);
 

@@ -15,6 +15,11 @@ import '../../fixtures/rows.dart';
 /// Tuesday 22 September 2026, the day every render was drawn for. The target
 /// is 7:54 — 39.5 hours over five days.
 final today = DateTime(2026, 9, 22);
+
+/// `buildHomeView` now takes the last *settled* snapshot and adds today to it
+/// itself, so the row every fixture passes is dated the day before.
+final yesterday = DateTime(2026, 9, 21);
+
 DateTime at(int hour, int minute) => DateTime(2026, 9, 22, hour, minute);
 
 const _target = 7.9; // 7:54
@@ -38,7 +43,7 @@ HomeView tracking() => buildHomeView(
       ],
       breaks: const [],
       leave: const [],
-      balance: balanceRow(date: today, balance: _balance),
+      balance: balanceRow(date: yesterday, balance: _balance),
       onEditSession: _noop,
     );
 
@@ -50,7 +55,7 @@ HomeView onBreak() => buildHomeView(
       sessions: [sessionRow(id: 'a', start: at(8, 43), end: at(12, 37))],
       breaks: const [],
       leave: const [],
-      balance: balanceRow(date: today, balance: _balance),
+      balance: balanceRow(date: yesterday, balance: _balance),
       onEditSession: _noop,
     );
 
@@ -65,7 +70,7 @@ HomeView checkedOut() => buildHomeView(
       ],
       breaks: [breakRow(start: at(12, 0), end: at(12, 30))],
       leave: const [],
-      balance: balanceRow(date: today, balance: _balance),
+      balance: balanceRow(date: yesterday, balance: _balance),
       onEditSession: _noop,
     );
 
@@ -77,7 +82,7 @@ HomeView empty() => buildHomeView(
       sessions: const [],
       breaks: const [],
       leave: const [],
-      balance: balanceRow(date: today, balance: _balance),
+      balance: balanceRow(date: yesterday, balance: _balance),
       onEditSession: _noop,
     );
 
@@ -92,7 +97,7 @@ HomeView overtime() => buildHomeView(
       ],
       breaks: const [],
       leave: const [],
-      balance: balanceRow(date: today, balance: _balance),
+      balance: balanceRow(date: yesterday, balance: _balance),
       onEditSession: _noop,
     );
 
@@ -107,7 +112,7 @@ HomeView warning() => buildHomeView(
       ],
       breaks: [breakRow(start: at(12, 0), end: at(12, 30))],
       leave: const [],
-      balance: balanceRow(date: today, balance: -20.6833), // −20:41
+      balance: balanceRow(date: yesterday, balance: -20.6833), // −20:41
     );
 
 /// A day that was partly leave, to exercise the rail's hatched block and the
@@ -125,7 +130,7 @@ HomeView partialLeave() => buildHomeView(
       sessions: [sessionRow(id: 'a', start: at(8, 30), end: at(12, 24))],
       breaks: const [],
       leave: [leaveRow(date: today, hours: 4, type: LeaveType.vacation)],
-      balance: balanceRow(date: today, balance: _balance),
+      balance: balanceRow(date: yesterday, balance: _balance),
       onEditSession: _noop,
     );
 
@@ -148,5 +153,5 @@ HomeView leaveConflict() => buildHomeView(
       ],
       breaks: [breakRow(start: at(12, 15), end: at(13, 3))],
       leave: [leaveRow(date: today, hours: _target, type: LeaveType.vacation)],
-      balance: balanceRow(date: today, balance: -13.5167), // −13:31
+      balance: balanceRow(date: yesterday, balance: -13.5167), // −13:31
     );
