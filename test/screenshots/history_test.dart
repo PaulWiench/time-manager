@@ -48,6 +48,12 @@ void main() {
       rows: fixtures.septemberDays(expanded: monday, selectedBreakId: 'mon-break'),
       expandedDay: monday,
     ),
+    'history-day-leave-worked': HistoryBody(
+      mode: HistoryMode.day,
+      stepperLabel: '28 Sep – 4 Oct 2026',
+      rows: fixtures.leaveWorkedDays(),
+      expandedDay: DateTime(2026, 9, 28),
+    ),
     // `now` is pinned, not defaulted: the "today" outline used to come from
     // the wall clock, so this render drifted by one cell every day and the
     // golden failed a little more each morning.

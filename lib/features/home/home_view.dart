@@ -35,6 +35,7 @@ class HomeView {
     required this.railEnd,
     required this.timeline,
     required this.hasActivity,
+    this.leaveConflict,
   });
 
   /// `Tue 22 Sep`.
@@ -72,6 +73,16 @@ class HomeView {
   /// False only on a day with nothing logged at all, which gets the empty
   /// state instead of a timeline.
   final bool hasActivity;
+
+  /// Set only when leave and work together overshoot the day's target.
+  ///
+  /// Half a day off plus half a day worked is an ordinary day and says nothing.
+  /// But the balance is `netHours + leaveHours - targetHours`, so once the two
+  /// add up to more than the target the overshoot is credited twice — which is
+  /// exactly what a leave entry left over from a plan that changed does, and it
+  /// does it silently. The arithmetic is not second-guessed here; the
+  /// contradiction is put on screen next to the number it moved.
+  final LeaveConflict? leaveConflict;
 
   /// Remaining, or surplus when over — the design wants the honest number, not
   /// a remaining clamped to zero.
@@ -192,8 +203,53 @@ HomeView buildHomeView({
       onDeleteSyntheticBreak: onDeleteSyntheticBreak,
     ),
     hasActivity: sessions.isNotEmpty || leave.isNotEmpty,
+    leaveConflict: _leaveConflict(
+      leave: leave,
+      netHours: netHours,
+      targetHours: targetHours,
+    ),
   );
 }
+
+class LeaveConflict {
+  const LeaveConflict({required this.headline, required this.detail});
+
+  /// `Worked 5:49 on a vacation day`.
+  final String headline;
+
+  /// `5:49 of today's balance is counted twice`.
+  final String detail;
+}
+
+LeaveConflict? _leaveConflict({
+  required List<LeaveEntry> leave,
+  required double netHours,
+  required double targetHours,
+}) {
+  if (leave.isEmpty || netHours <= 0) return null;
+  final leaveHours = leave.fold<double>(0, (sum, l) => sum + l.hours);
+  final overlap = netHours + leaveHours - targetHours;
+  // A minute of slop: a half day off plus a half day worked lands on the
+  // target and is not a contradiction.
+  if (overlap <= 1 / 60) return null;
+
+  return LeaveConflict(
+    headline: 'Worked ${AppFormat.hm(netHours)} on a '
+        '${_leaveNoun(_dominantLeave(leave).type)} day',
+    detail: '${AppFormat.hm(overlap)} of it is counted twice in the balance',
+  );
+}
+
+/// The entry that best describes the day, when more than one was recorded for
+/// it — the longest one.
+LeaveEntry _dominantLeave(List<LeaveEntry> leave) =>
+    leave.reduce((a, b) => b.hours > a.hours ? b : a);
+
+String _leaveNoun(LeaveType type) => switch (type) {
+      LeaveType.vacation => 'vacation',
+      LeaveType.sick => 'sick',
+      LeaveType.flexDay => 'flex',
+    };
 
 Duration _nonNegative(Duration d) => d.isNegative ? Duration.zero : d;
 

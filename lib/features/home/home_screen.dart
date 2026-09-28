@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/database/database.dart';
 import '../../domain/date_only.dart';
 import '../../domain/tracking_state.dart';
 import '../../providers/balance_providers.dart';
@@ -89,7 +90,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       view: view,
       onOpenSettings: widget.onOpenSettings,
       onToggleTracking: () => _toggleTracking(active?.id),
+      onRemoveLeave: leave.isEmpty ? null : () => _removeLeave(today, leave),
     );
+  }
+
+  Future<void> _removeLeave(DateTime date, List<LeaveEntry> leave) async {
+    final repo = ref.read(leaveRepositoryProvider);
+    for (final entry in leave) {
+      await repo.deleteLeave(entry.id, date);
+    }
   }
 
   Future<void> _toggleTracking(String? activeSessionId) async {

@@ -56,6 +56,9 @@ class HistoryBody extends StatelessWidget {
 
     return TabScreen(
       title: 'History',
+      // Long-press is invisible otherwise, and it is now the fastest way to
+      // fix a day the import got wrong.
+      subtitle: mode == HistoryMode.day ? 'Long-press a day to mark it as leave' : null,
       gutter: AppSpace.gutterDense,
       action: AppIconButton(
         icon: AppIcons.calendarDots,

@@ -187,6 +187,13 @@ HistoryRow historyDayRow({
 
   if (facts.leave.isNotEmpty) {
     final leave = _dominantLeave(facts.leave);
+    // Leave used to hide the work entirely: a day marked as vacation that was
+    // also worked showed "Vacation · 7:54" and nothing else, while the balance
+    // quietly credited both and moved by a whole extra day. The status stays —
+    // the day *is* marked as leave — but the work comes back into view, and
+    // the row opens so the sessions can be checked.
+    final leaveBlocks = hasWork ? _blocksFor(facts) : const <TimelineBlock>[];
+
     return HistoryRow(
       date: date,
       status: switch (leave.type) {
@@ -197,12 +204,26 @@ HistoryRow historyDayRow({
       blockTop: blockTop,
       blockBottom: blockBottom,
       line1: '${_leaveLabel(leave.type)} · ${AppFormat.hm(leave.hours)}',
-      line2: leave.notes?.isNotEmpty == true ? leave.notes : 'Leave',
+      line2: hasWork
+          ? 'Also worked ${AppFormat.hm(worked)}'
+          : (leave.notes?.isNotEmpty == true ? leave.notes : 'Leave'),
+      delta: hasWork ? deltaText(entry?.balanceDelta) : null,
       trailingIcon: switch (leave.type) {
         LeaveType.vacation => AppIcons.airplaneTilt,
         LeaveType.sick => AppIcons.thermometerSimple,
         LeaveType.flexDay => AppIcons.arrowsLeftRight,
       },
+      expandable: hasWork,
+      expansion: hasWork && expanded
+          ? _expansionFor(
+              facts: facts,
+              blocks: leaveBlocks,
+              selectedBreakId: selectedBreakId,
+              onEditSession: onEditSession,
+              onSelectBreak: onSelectBreak,
+              onDeleteBreak: onDeleteBreak,
+            )
+          : null,
     );
   }
 

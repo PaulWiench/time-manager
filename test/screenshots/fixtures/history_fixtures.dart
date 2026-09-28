@@ -213,3 +213,52 @@ List<HistoryRow> juneDays() {
       historyDayRow(facts: factsFor(shiftDays(june, i)), today: today),
   ];
 }
+
+/// The week of 28 September 2026, where a vacation block booked in August was
+/// worked through anyway. The leave row used to show only `Vacation · 7:54` and
+/// swallow the day's work and its delta whole; here it carries both, and opens.
+List<HistoryRow> leaveWorkedDays() {
+  final settings = settingsRow();
+  final week = DateTime(2026, 9, 28);
+
+  DayFacts factsFor(DateTime date) => switch (date.day) {
+        28 => DayFacts(
+            date: date,
+            settings: settings,
+            dayEntry: dayEntryRow(
+              date: date,
+              netWorkedHours: 5.8167,
+              leaveHours: _target,
+              targetHours: _target,
+              balanceDelta: 5.8167,
+            ),
+            leave: [leaveRow(date: date, hours: _target)],
+            sessions: [
+              sessionRow(
+                  id: 's1',
+                  start: DateTime(2026, 9, 28, 9, 22),
+                  end: DateTime(2026, 9, 28, 12, 15)),
+              sessionRow(
+                  id: 's2',
+                  start: DateTime(2026, 9, 28, 13, 3),
+                  end: DateTime(2026, 9, 28, 16, 0)),
+            ],
+          ),
+        29 || 30 => DayFacts(
+            date: date,
+            settings: settings,
+            dayEntry: dayEntryRow(date: date, leaveHours: _target, targetHours: _target),
+            leave: [leaveRow(date: date, hours: _target)],
+          ),
+        _ => DayFacts(date: date, settings: settings),
+      };
+
+  return [
+    for (var i = 0; i < 7; i++)
+      historyDayRow(
+        facts: factsFor(shiftDays(week, i)),
+        today: DateTime(2026, 9, 28),
+        expanded: shiftDays(week, i) == week,
+      ),
+  ];
+}

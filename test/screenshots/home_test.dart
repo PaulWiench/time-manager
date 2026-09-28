@@ -20,6 +20,7 @@ void main() {
     'home-e-overtime': fixtures.overtime,
     'home-f-warning': fixtures.warning,
     'home-g-leave': fixtures.partialLeave,
+    'home-h-leave-conflict': fixtures.leaveConflict,
   };
 
   for (final brightness in [Brightness.light, Brightness.dark]) {
@@ -35,6 +36,7 @@ void main() {
             view: entry.value(),
             onOpenSettings: () {},
             onToggleTracking: () {},
+            onRemoveLeave: () {},
           ),
         );
       });

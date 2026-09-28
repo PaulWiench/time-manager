@@ -114,3 +114,25 @@ HomeView partialLeave() => buildHomeView(
       leave: [leaveRow(date: today, hours: 4, type: LeaveType.vacation)],
       balance: balanceRow(date: today, balance: _balance),
     );
+
+/// A full vacation day that was then worked anyway — Paul's 28 September, where
+/// an August plan he did not take credited the balance with an extra 5:49. Half
+/// a day off plus half a day worked (see [partialLeave]) is an ordinary day and
+/// must stay silent; this one is not, and says so.
+HomeView leaveConflict() => buildHomeView(
+      now: at(20, 7),
+      settings: settingsRow(),
+      dayEntry: dayEntryRow(
+        date: today,
+        netWorkedHours: 5.8167,
+        leaveHours: _target,
+        targetHours: _target,
+      ),
+      sessions: [
+        sessionRow(id: 'a', start: at(9, 22), end: at(12, 15)),
+        sessionRow(id: 'b', start: at(13, 3), end: at(16, 0)),
+      ],
+      breaks: [breakRow(start: at(12, 15), end: at(13, 3))],
+      leave: [leaveRow(date: today, hours: _target, type: LeaveType.vacation)],
+      balance: balanceRow(date: today, balance: -13.5167), // −13:31
+    );

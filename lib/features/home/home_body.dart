@@ -29,6 +29,7 @@ class HomeBody extends StatelessWidget {
     required this.view,
     this.onOpenSettings,
     this.onToggleTracking,
+    this.onRemoveLeave,
   });
 
   final HomeView view;
@@ -36,6 +37,10 @@ class HomeBody extends StatelessWidget {
 
   /// Check in or out, depending on the state — the ring is the button.
   final VoidCallback? onToggleTracking;
+
+  /// Clears today's leave, from the notice that appears when the day carries
+  /// both leave and real work.
+  final VoidCallback? onRemoveLeave;
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +57,11 @@ class HomeBody extends StatelessWidget {
       ),
       children: [
         const SizedBox(height: AppSpace.s4),
-        _DuskSlab(view: view, onToggleTracking: onToggleTracking),
+        _DuskSlab(
+          view: view,
+          onToggleTracking: onToggleTracking,
+          onRemoveLeave: onRemoveLeave,
+        ),
         const SizedBox(height: AppSpace.s8),
         if (view.hasActivity)
           _TodaySection(view: view)
@@ -66,10 +75,15 @@ class HomeBody extends StatelessWidget {
 /// The hero block: balance, ring and today bar on one deep-violet card. The
 /// three things you open the app to see, in one glance, without scrolling.
 class _DuskSlab extends StatelessWidget {
-  const _DuskSlab({required this.view, required this.onToggleTracking});
+  const _DuskSlab({
+    required this.view,
+    required this.onToggleTracking,
+    required this.onRemoveLeave,
+  });
 
   final HomeView view;
   final VoidCallback? onToggleTracking;
+  final VoidCallback? onRemoveLeave;
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +108,85 @@ class _DuskSlab extends StatelessWidget {
           Center(child: _Ring(view: view, onToggleTracking: onToggleTracking)),
           const SizedBox(height: AppSpace.s4),
           _TodayBar(view: view),
+          if (view.leaveConflict != null) ...[
+            const SizedBox(height: AppSpace.s4),
+            _LeaveConflictNotice(
+                conflict: view.leaveConflict!, onRemove: onRemoveLeave),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Both leave and real work on the same day. Says so, and offers the one fix
+/// the app cannot choose for you.
+class _LeaveConflictNotice extends StatelessWidget {
+  const _LeaveConflictNotice({required this.conflict, required this.onRemove});
+
+  final LeaveConflict conflict;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.s3,
+        AppSpace.s3,
+        AppSpace.s3,
+        AppSpace.s1,
+      ),
+      decoration: BoxDecoration(
+        color: colors.slabTrack,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Icon(AppIcons.airplaneTilt,
+                    size: AppIconSize.sm, color: colors.accentFill),
+              ),
+              const SizedBox(width: AppSpace.s2),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(conflict.headline,
+                        style: AppTextStyles.bodyStrong.copyWith(color: colors.onSlab)),
+                    const SizedBox(height: 2),
+                    Text(conflict.detail,
+                        style:
+                            AppTextStyles.caption.copyWith(color: colors.onSlabMuted)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: PressScale(
+              onTap: onRemove,
+              child: Semantics(
+                button: true,
+                label: "Remove today's leave",
+                child: Container(
+                  height: AppSize.touch,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(left: AppSpace.s4),
+                  child: Text('Remove',
+                      style: AppTextStyles.label.copyWith(color: colors.accentFill)),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
