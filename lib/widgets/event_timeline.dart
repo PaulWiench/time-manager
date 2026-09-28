@@ -28,9 +28,13 @@ const double _railCentre = 11;
 const double _railGap = AppSpace.s2;
 const double _eventHeight = 30;
 
-/// Handoff §5.3: a chip row is 40 tall with a 32 chip inside it. Interactive
-/// chips override this to [AppSize.touch] — see [TimelineChipItem.interactive].
-const double _chipRowHeight = 40;
+/// Handoff §5.3 puts a chip row at 40 tall with a 32 chip inside it, and for a
+/// while interactive chips alone were raised to [AppSize.touch] so their hit
+/// area met the 44 the token file calls the minimum everywhere. That left the
+/// timeline stuttering between 40 and 44 depending on whether a given row
+/// happened to be tappable, which reads as rows that do not line up. Every chip
+/// row is 44 now: uniform rhythm is worth 4 dp of the design's spacing.
+const double _chipRowHeight = AppSize.touch;
 
 /// What a chip is, which decides its fill, its outline and its swatch.
 enum EventChipRole {
@@ -213,7 +217,7 @@ class _TimelineRow extends StatelessWidget {
           ),
         ),
       TimelineChipItem chip => (
-          chip.interactive ? AppSize.touch : _chipRowHeight,
+          _chipRowHeight,
           const SizedBox.shrink(),
           Align(alignment: Alignment.centerLeft, child: EventChip(item: chip)),
         ),
@@ -291,6 +295,8 @@ class _TimelineRow extends StatelessWidget {
   double _markerCentre(TimelineItem item) => switch (item) {
         TimelineEvent() => _eventHeight / 2,
         TimelineActiveItem() => AppSize.timelineActiveDot / 2 + 4,
+        // Never reached — `markerAt` is forced null for chip rows — but it has
+        // to stay right, or it will be wrong the day one gets a marker.
         TimelineChipItem() => _chipRowHeight / 2,
       };
 }
@@ -474,16 +480,27 @@ class EventChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // A selected synthetic break has neither a swatch nor an icon — the
-          // focus ring is doing that job — so it gets no leading gap either.
-          if (style.icon != null) ...[
-            Icon(style.icon, size: AppIconSize.sm, color: style.ink),
-            const SizedBox(width: AppSpace.s2),
-          ] else if (style.dashed || style.swatch.a > 0) ...[
-            _Swatch(color: style.swatch, dashed: style.dashed, outline: style.outline),
-            const SizedBox(width: AppSpace.s2),
-          ] else
-            const SizedBox(width: AppSpace.s1),
+          // One fixed-width slot for whatever leads the chip, so every label in
+          // the timeline starts at the same x. The three leading elements are
+          // 16 (icon), 12 (swatch) and nothing (a selected synthetic break,
+          // where the focus ring is doing that job), and letting each set its
+          // own width left the labels on three different offsets — and made a
+          // chip's text jump 20 dp sideways at the moment it was selected.
+          SizedBox(
+            width: AppIconSize.sm,
+            child: Center(
+              child: style.icon != null
+                  ? Icon(style.icon, size: AppIconSize.sm, color: style.ink)
+                  : style.dashed || style.swatch.a > 0
+                      ? _Swatch(
+                          color: style.swatch,
+                          dashed: style.dashed,
+                          outline: style.outline,
+                        )
+                      : const SizedBox.shrink(),
+            ),
+          ),
+          const SizedBox(width: AppSpace.s2),
           Text(item.label, style: AppTextStyles.bodyStrong.copyWith(color: style.ink)),
         ],
       ),
@@ -494,6 +511,13 @@ class EventChip extends StatelessWidget {
     // press is the full 44 dp row around it. Tapping one of these selects a
     // synthetic break and long-pressing edits a session; neither should need
     // a careful finger.
+    //
+    // `Align` with both factors, not `Center`: a `Center` under a bounded width
+    // sizes itself to `constraints.biggest` and puts the chip in the middle of
+    // it. Every work-session chip on Home carries an `onLongPress`, and break
+    // and leave chips do not, so the timeline came out with alternate rows
+    // shoved into the centre of the screen — 359 px against 136 px on a Pixel.
+    // No golden caught it because the Home fixtures passed no callbacks.
     final body = tappable
         ? Semantics(
             button: true,
@@ -502,9 +526,11 @@ class EventChip extends StatelessWidget {
             child: PressScale(
               onTap: item.onTap,
               onLongPress: item.onLongPress,
-              child: SizedBox(
-                height: AppSize.touch,
-                child: Center(child: chip),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: 1,
+                heightFactor: AppSize.touch / AppSize.chipHeight,
+                child: chip,
               ),
             ),
           )

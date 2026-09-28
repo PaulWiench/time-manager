@@ -6,6 +6,7 @@
 /// comparable to `home-a-tracking` and its siblings.
 library;
 
+import 'package:time_manager/data/database/database.dart';
 import 'package:time_manager/data/database/enums.dart';
 import 'package:time_manager/features/home/home_view.dart';
 
@@ -19,6 +20,13 @@ DateTime at(int hour, int minute) => DateTime(2026, 9, 22, hour, minute);
 const _target = 7.9; // 7:54
 const _balance = -15.9667; // −15:58
 
+/// Every fixture passes this. The app wires `onEditSession` on Home, which makes
+/// every work-session chip interactive — and for a while an interactive chip was
+/// wrapped in a `Center` that shoved it into the middle of the screen. The
+/// fixtures used to pass no callbacks at all, so the renders showed a tidy
+/// left-aligned timeline that the running app never had.
+void _noop(WorkSession _) {}
+
 /// (a) Tracking at 16:37, an hour and three quarters into the afternoon.
 HomeView tracking() => buildHomeView(
       now: at(16, 37),
@@ -31,6 +39,7 @@ HomeView tracking() => buildHomeView(
       breaks: const [],
       leave: const [],
       balance: balanceRow(date: today, balance: _balance),
+      onEditSession: _noop,
     );
 
 /// (b) On break at 13:05, twenty-eight minutes after checking out.
@@ -42,6 +51,7 @@ HomeView onBreak() => buildHomeView(
       breaks: const [],
       leave: const [],
       balance: balanceRow(date: today, balance: _balance),
+      onEditSession: _noop,
     );
 
 /// (c) Checked out at 19:20, having hit the target exactly.
@@ -56,6 +66,7 @@ HomeView checkedOut() => buildHomeView(
       breaks: [breakRow(start: at(12, 0), end: at(12, 30))],
       leave: const [],
       balance: balanceRow(date: today, balance: _balance),
+      onEditSession: _noop,
     );
 
 /// (d) 07:58, nothing logged. The slab still carries the real balance.
@@ -67,6 +78,7 @@ HomeView empty() => buildHomeView(
       breaks: const [],
       leave: const [],
       balance: balanceRow(date: today, balance: _balance),
+      onEditSession: _noop,
     );
 
 /// (e) 20:09 and still going: the ring has lapped past the target.
@@ -81,6 +93,7 @@ HomeView overtime() => buildHomeView(
       breaks: const [],
       leave: const [],
       balance: balanceRow(date: today, balance: _balance),
+      onEditSession: _noop,
     );
 
 /// (f) A closed day whose balance has fallen past a floor the user set.
@@ -113,6 +126,7 @@ HomeView partialLeave() => buildHomeView(
       breaks: const [],
       leave: [leaveRow(date: today, hours: 4, type: LeaveType.vacation)],
       balance: balanceRow(date: today, balance: _balance),
+      onEditSession: _noop,
     );
 
 /// A full vacation day that was then worked anyway — Paul's 28 September, where

@@ -1,10 +1,24 @@
-/// The Day Rail (handoff §5.2): what today was made of, on a time axis.
+/// The Day Rail (handoff §5.2, revised): how much of today is done, and what
+/// it was made of.
 ///
-/// Not a progress bar — the ring is the only thing that says how far through
-/// the day you are. The rail says how the day was *composed*: where the work
-/// sat, where the breaks fell, which stretch was leave. Its axis runs from the
-/// first check-in to now (or to the last check-out), so an early start and a
-/// late one look different rather than both filling from the left.
+/// It used to be a composition bar on a wall-clock axis running from the first
+/// check-in to now, with leave appended on the end — and the handoff said in so
+/// many words that it was "not a progress bar". But it sits directly under
+/// `5:49 of 7:54 · 2:05 left`, full width, rounded like every progress bar ever
+/// drawn, and the first thing anyone said about it was "I guess that's the time
+/// left". It was not: because the axis was `daySpan + leave`, a stale full-day
+/// vacation entry took 54 % of the bar and a day that was 73 % worked read as
+/// about a third.
+///
+/// So it means what the line above it says. Work and leave stack by duration
+/// against the target, the uncovered remainder is the track and equals "X left"
+/// exactly, and a day that overshoots scales to its own total with a tick left
+/// at the target.
+///
+/// Breaks are the one thing that cannot be proportional. A break earns no
+/// target, so giving it width would take width from the work either side and
+/// reintroduce the same lie in miniature — it is drawn as a fixed marker where
+/// it fell instead.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -17,43 +31,79 @@ import '../domain/tracking_state.dart';
 
 enum RailSegmentType { work, realBreak, syntheticBreak, vacation, sick, holiday, flex }
 
+extension on RailSegmentType {
+  /// Whether the segment earns against the day's target, and so takes width in
+  /// proportion to its length.
+  bool get counts => switch (this) {
+        RailSegmentType.realBreak || RailSegmentType.syntheticBreak => false,
+        _ => true,
+      };
+}
+
 class RailSegment {
-  const RailSegment({required this.type, required this.start, required this.end});
+  const RailSegment({required this.type, required this.hours});
 
   final RailSegmentType type;
-  final DateTime start;
-  final DateTime end;
+
+  /// Ignored for break types, which are drawn at a fixed width.
+  final double hours;
 }
+
+/// Wide enough to see, narrow enough not to distort the day around it.
+const double _breakMarker = 10;
 
 class DayRail extends StatelessWidget {
   const DayRail({
     super.key,
     required this.segments,
-    required this.axisStart,
-    required this.axisEnd,
+    required this.targetHours,
     required this.state,
   });
 
+  /// In the order they happened.
   final List<RailSegment> segments;
 
-  /// First check-in and now (or the last check-out). Equal or inverted bounds
-  /// mean there is nothing to place, and the rail draws as an empty track.
-  final DateTime axisStart;
-  final DateTime axisEnd;
+  /// A full bar. Zero on a rest day, where the rail is all track.
+  final double targetHours;
 
   final TrackingState state;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final span = axisEnd.difference(axisStart).inSeconds;
     final live = state == TrackingState.tracking || state == TrackingState.onBreak;
+
+    var counted = 0.0;
+    var breaks = 0;
+    for (final segment in segments) {
+      if (segment.type.counts) {
+        counted += segment.hours;
+      } else {
+        breaks++;
+      }
+    }
+    // Over target the bar rescales to the day rather than clipping, so the
+    // overshoot stays visible instead of silently sitting at 100 %.
+    final axis = counted > targetHours ? counted : targetHours;
 
     return SizedBox(
       height: AppSize.railHeight,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
+          final usable = (width - breaks * _breakMarker).clamp(0.0, width);
+
+          final blocks = <Widget>[];
+          var cursor = 0.0;
+          for (final segment in segments) {
+            final span = segment.type.counts
+                ? (axis > 0 ? segment.hours / axis * usable : 0.0)
+                : _breakMarker;
+            if (span > 0) {
+              blocks.add(_block(segment.type, cursor, span, width, colors));
+            }
+            cursor += span;
+          }
 
           return Stack(
             clipBehavior: Clip.none,
@@ -66,15 +116,27 @@ class DayRail extends StatelessWidget {
                   ),
                 ),
               ),
-              if (span > 0)
-                for (final segment in segments)
-                  ..._positioned(segment, span, width, colors),
+              ...blocks,
+              // Where the target sat, on a day that went past it.
+              if (counted > targetHours && targetHours > 0)
+                Positioned(
+                  left: targetHours / axis * usable,
+                  top: 0,
+                  bottom: 0,
+                  width: AppStroke.focus,
+                  child: DecoratedBox(decoration: BoxDecoration(color: colors.slab)),
+                ),
               if (live)
                 Positioned(
-                  left: width - AppSize.railKnob / 2,
+                  left: (cursor - AppSize.railKnob / 2).clamp(
+                    -AppSize.railKnob / 2,
+                    width - AppSize.railKnob / 2,
+                  ),
                   top: (AppSize.railHeight - AppSize.railKnob) / 2,
                   child: _NowKnob(
-                    color: state == TrackingState.onBreak ? colors.breakFill : colors.accentFill,
+                    color: state == TrackingState.onBreak
+                        ? colors.breakFill
+                        : colors.accentFill,
                     rim: colors.slab,
                   ),
                 ),
@@ -85,28 +147,26 @@ class DayRail extends StatelessWidget {
     );
   }
 
-  /// One segment, inset 2 dp each side so adjacent blocks read as separate
-  /// pills rather than one striped bar, and never narrower than 4 dp — a
-  /// six-minute break still has to be visible.
-  List<Widget> _positioned(RailSegment segment, int span, double width, AppColors colors) {
+  /// Inset 2 dp each side so adjacent blocks read as separate pills rather than
+  /// one striped bar, and never narrower than 4 dp — a six-minute session still
+  /// has to be visible.
+  Widget _block(
+    RailSegmentType type,
+    double left,
+    double span,
+    double width,
+    AppColors colors,
+  ) {
     const inset = AppSpace.s1 / 2;
-    final from = segment.start.difference(axisStart).inSeconds / span;
-    final to = segment.end.difference(axisStart).inSeconds / span;
-    if (to <= 0 || from >= 1) return const [];
+    final drawn = (span - inset * 2).clamp(4.0, width);
 
-    final left = (from.clamp(0.0, 1.0) * width) + inset;
-    final right = (to.clamp(0.0, 1.0) * width) - inset;
-    final drawn = (right - left).clamp(4.0, width);
-
-    return [
-      Positioned(
-        left: left.clamp(0.0, width - drawn),
-        top: 0,
-        bottom: 0,
-        width: drawn,
-        child: _SegmentBlock(type: segment.type, colors: colors),
-      ),
-    ];
+    return Positioned(
+      left: (left + inset).clamp(0.0, width - drawn),
+      top: 0,
+      bottom: 0,
+      width: drawn,
+      child: _SegmentBlock(type: type, colors: colors),
+    );
   }
 }
 
@@ -154,8 +214,9 @@ class _SegmentBlock extends StatelessWidget {
   }
 }
 
-/// The right end of the axis while something is running: a disc cut out of the
-/// slab, pulsing so "now" reads as moving even though the rail is still.
+/// The leading edge of the filled bar while something is running: a disc cut
+/// out of the slab, pulsing so "now" reads as moving even though the rail is
+/// still.
 class _NowKnob extends StatefulWidget {
   const _NowKnob({required this.color, required this.rim});
 

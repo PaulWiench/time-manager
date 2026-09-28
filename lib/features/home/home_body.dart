@@ -323,8 +323,7 @@ class _TodayBar extends StatelessWidget {
         const SizedBox(height: AppSpace.s2),
         DayRail(
           segments: view.rail,
-          axisStart: view.railStart,
-          axisEnd: view.railEnd,
+          targetHours: view.targetHours,
           state: view.state,
         ),
       ],

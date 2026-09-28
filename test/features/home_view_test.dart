@@ -20,14 +20,20 @@ void main() {
     List<dynamic> sessions = const [],
     double? floor,
     double balance = -15.9667,
+    double leaveHours = 0,
   }) =>
       buildHomeView(
         now: now,
         settings: settingsRow(balanceFloorHours: floor),
-        dayEntry: dayEntryRow(date: today, netWorkedHours: committedNet, targetHours: target),
+        dayEntry: dayEntryRow(
+          date: today,
+          netWorkedHours: committedNet,
+          leaveHours: leaveHours,
+          targetHours: target,
+        ),
         sessions: sessions.cast(),
         breaks: const [],
-        leave: const [],
+        leave: leaveHours == 0 ? const [] : [leaveRow(date: today, hours: leaveHours)],
         balance: balanceRow(date: today, balance: balance),
       );
 
@@ -58,7 +64,7 @@ void main() {
     expect(v.sinceText, 'since 12:37');
     // The break in progress has no row, but the rail still has to show it.
     expect(v.rail.last.type, RailSegmentType.realBreak);
-    expect(v.rail.last.end, at(13, 5));
+    expect(v.rail.last.hours, closeTo(28 / 60, 1e-6));
   });
 
   test('over the target, the surplus is reported instead of a clamped zero', () {
@@ -87,5 +93,48 @@ void main() {
     expect(v.timerText, '0:00');
     expect(v.sinceText, 'today');
     expect(v.rail, isEmpty);
+  });
+
+  group('leave', () {
+    test('a whole vacation day is a finished day, not one with 7:54 left', () {
+      final v = view(now: at(19, 20), leaveHours: 7.9);
+
+      expect(v.netHours, 0);
+      expect(v.remainingHours, closeTo(0, 0.001));
+      expect(v.isOverTarget, isFalse);
+      expect(v.leaveConflict, isNull);
+      // On the rail it is one hatched block filling the bar.
+      expect(v.rail.single.type, RailSegmentType.vacation);
+      expect(v.rail.single.hours, 7.9);
+    });
+
+    test('half off and half worked lands on the target and says nothing', () {
+      final v = view(
+        now: at(17, 30),
+        committedNet: 3.95,
+        leaveHours: 3.95,
+        sessions: [sessionRow(start: at(8, 30), end: at(12, 27))],
+      );
+
+      expect(v.remainingHours, closeTo(0, 0.001));
+      expect(v.leaveConflict, isNull);
+    });
+
+    test('a vacation day that was worked anyway names the double credit', () {
+      final v = view(
+        now: at(20, 7),
+        committedNet: 5.8167,
+        leaveHours: 7.9,
+        sessions: [sessionRow(start: at(9, 22), end: at(16, 0))],
+      );
+
+      expect(v.leaveConflict, isNotNull);
+      expect(v.leaveConflict!.headline, 'Worked 5:49 on a vacation day');
+      expect(v.leaveConflict!.detail, contains('5:49'));
+      // The day is 5:49 past its target once the leave is counted, which is
+      // exactly the swing the balance took.
+      expect(v.remainingHours, closeTo(-5.8167, 0.001));
+      expect(v.isOverTarget, isTrue);
+    });
   });
 }

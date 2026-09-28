@@ -31,10 +31,6 @@ import 'package:time_manager/widgets/sun_dial.dart';
 
 import 'harness.dart';
 
-/// The day the design's renders were drawn for, so the sheets and the renders
-/// carry the same numbers.
-final _day = DateTime(2026, 9, 22);
-DateTime _at(int hour, int minute) => DateTime(2026, 9, 22, hour, minute);
 
 void main() {
   setUpAll(loadAppFonts);
@@ -156,20 +152,15 @@ class _RingSheet extends StatelessWidget {
               label: 'Work, break, synthetic, leave (hatched), now knob',
               width: 560,
               child: onSlab(
-                DayRail(
+                const DayRail(
                   segments: [
-                    RailSegment(type: RailSegmentType.work, start: _at(8, 5), end: _at(10, 30)),
-                    RailSegment(type: RailSegmentType.realBreak, start: _at(10, 30), end: _at(11, 0)),
-                    RailSegment(
-                        type: RailSegmentType.syntheticBreak,
-                        start: _at(12, 0),
-                        end: _at(12, 30)),
-                    RailSegment(type: RailSegmentType.work, start: _at(12, 30), end: _at(14, 30)),
-                    RailSegment(
-                        type: RailSegmentType.vacation, start: _at(14, 30), end: _at(16, 0)),
+                    RailSegment(type: RailSegmentType.work, hours: 2.4),
+                    RailSegment(type: RailSegmentType.realBreak, hours: 0.5),
+                    RailSegment(type: RailSegmentType.syntheticBreak, hours: 0.5),
+                    RailSegment(type: RailSegmentType.work, hours: 2.5),
+                    RailSegment(type: RailSegmentType.vacation, hours: 1.5),
                   ],
-                  axisStart: _at(8, 5),
-                  axisEnd: _at(16, 37),
+                  targetHours: 7.9,
                   state: TrackingState.tracking,
                 ),
               ),
@@ -178,10 +169,9 @@ class _RingSheet extends StatelessWidget {
               label: 'Nothing logged yet',
               width: 400,
               child: onSlab(
-                DayRail(
-                  segments: const [],
-                  axisStart: _day,
-                  axisEnd: _day,
+                const DayRail(
+                  segments: [],
+                  targetHours: 7.9,
                   state: TrackingState.notStarted,
                 ),
               ),

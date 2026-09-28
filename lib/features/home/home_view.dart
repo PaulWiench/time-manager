@@ -31,8 +31,7 @@ class HomeView {
     required this.timerText,
     required this.sinceText,
     required this.rail,
-    required this.railStart,
-    required this.railEnd,
+    required this.leaveHours,
     required this.timeline,
     required this.hasActivity,
     this.leaveConflict,
@@ -65,8 +64,10 @@ class HomeView {
   final String sinceText;
 
   final List<RailSegment> rail;
-  final DateTime railStart;
-  final DateTime railEnd;
+
+  /// Leave credited to the day. Kept apart from [netHours], which the ring and
+  /// the centre figure use, because those two say how much was *worked*.
+  final double leaveHours;
 
   final List<TimelineItem> timeline;
 
@@ -86,7 +87,11 @@ class HomeView {
 
   /// Remaining, or surplus when over — the design wants the honest number, not
   /// a remaining clamped to zero.
-  double get remainingHours => targetHours - netHours;
+  ///
+  /// Leave counts towards the day being done, exactly as the balance counts it.
+  /// A full vacation day used to read "0:00 of 7:54 · 7:54 left" on a day the
+  /// engine had already settled at zero.
+  double get remainingHours => targetHours - netHours - leaveHours;
   bool get isOverTarget => remainingHours < 0;
 }
 
@@ -182,15 +187,7 @@ HomeView buildHomeView({
       state: state,
       lastCheckOut: lastCheckOut,
     ),
-    railStart: _railStart(blocks: blocks, active: active, today: today),
-    railEnd: _railEnd(
-      blocks: blocks,
-      active: active,
-      now: now,
-      today: today,
-      state: state,
-      leave: leave,
-    ),
+    leaveHours: leave.fold<double>(0, (sum, l) => sum + l.hours),
     timeline: _timeline(
       blocks: blocks,
       completed: completed,
@@ -253,42 +250,15 @@ String _leaveNoun(LeaveType type) => switch (type) {
 
 Duration _nonNegative(Duration d) => d.isNegative ? Duration.zero : d;
 
-/// Leave is stored as a number of hours with no clock times, so it cannot be
-/// placed truthfully anywhere on the day's axis. It is drawn as a block of its
-/// own length at the end instead, and the axis is extended to hold it — an
-/// honest "this much of today was leave" rather than an invented 09:00–13:00.
-Duration _leaveDuration(List<LeaveEntry> leave) => Duration(
-      seconds: (leave.fold<double>(0, (sum, l) => sum + l.hours) * 3600).round(),
-    );
+double _hoursOf(DateTime start, DateTime end) =>
+    end.difference(start).inSeconds / 3600.0;
 
-DateTime _railStart({
-  required List<TimelineBlock> blocks,
-  required WorkSession? active,
-  required DateTime today,
-}) {
-  if (blocks.isNotEmpty) return blocks.first.start;
-  if (active != null) return active.startTime;
-  return today;
-}
-
-DateTime _railEnd({
-  required List<TimelineBlock> blocks,
-  required WorkSession? active,
-  required DateTime now,
-  required DateTime today,
-  required TrackingState state,
-  required List<LeaveEntry> leave,
-}) {
-  final leaveFor = _leaveDuration(leave);
-  // While anything is running the axis ends at now, so the rail keeps
-  // stretching; once the day is closed it ends at the last check-out.
-  final end = switch (state) {
-    TrackingState.tracking || TrackingState.onBreak => now,
-    _ => blocks.isEmpty ? today : blocks.last.end,
-  };
-  return end.add(leaveFor);
-}
-
+/// The day in order, as lengths rather than clock times.
+///
+/// Leave goes on the end, because it is stored as a number of hours with no
+/// clock times of its own and an invented 09:00–13:00 would be a lie. It used
+/// to be given a stretch of wall-clock axis for the same reason, which is what
+/// made the axis grow by a whole extra target on a day that carried both.
 List<RailSegment> _railSegments({
   required List<TimelineBlock> blocks,
   required WorkSession? active,
@@ -305,8 +275,7 @@ List<RailSegment> _railSegments({
           TimelineBlockType.realBreak => RailSegmentType.realBreak,
           TimelineBlockType.syntheticBreak => RailSegmentType.syntheticBreak,
         },
-        start: block.start,
-        end: block.end,
+        hours: _hoursOf(block.start, block.end),
       ),
   ];
 
@@ -316,23 +285,27 @@ List<RailSegment> _railSegments({
     if (blocks.isNotEmpty && active.startTime.isAfter(blocks.last.end)) {
       segments.add(RailSegment(
         type: RailSegmentType.realBreak,
-        start: blocks.last.end,
-        end: active.startTime,
+        hours: _hoursOf(blocks.last.end, active.startTime),
       ));
     }
-    segments.add(RailSegment(type: RailSegmentType.work, start: active.startTime, end: now));
+    segments.add(RailSegment(
+      type: RailSegmentType.work,
+      hours: _hoursOf(active.startTime, now),
+    ));
   } else if (state == TrackingState.onBreak && lastCheckOut != null) {
     // The break in progress has no row of its own — a break is only ever the
     // gap between two sessions — but it is the thing currently happening, so
-    // the rail has to show it growing.
-    segments.add(RailSegment(type: RailSegmentType.realBreak, start: lastCheckOut, end: now));
+    // the rail has to show it.
+    segments.add(RailSegment(
+      type: RailSegmentType.realBreak,
+      hours: _hoursOf(lastCheckOut, now),
+    ));
   }
 
-  var cursor = segments.isEmpty ? now : segments.last.end;
   for (final entry in leave) {
-    final end = cursor.add(Duration(seconds: (entry.hours * 3600).round()));
-    segments.add(RailSegment(type: _railTypeForLeave(entry.type), start: cursor, end: end));
-    cursor = end;
+    segments.add(
+      RailSegment(type: _railTypeForLeave(entry.type), hours: entry.hours),
+    );
   }
 
   return segments;
