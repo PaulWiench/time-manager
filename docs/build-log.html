@@ -701,7 +701,7 @@
         <code>shiftDays</code> stays exact across the exact date that broke
         it. Re-running the import after the fix landed on numbers that
         checked out exactly against the source PDFs' own totals.
-      </p>
+      </div>
       <p>
         Also wired up <code>PublicHolidayRepository.seedYear</code>, which
         existed since Milestone 4 but was never actually called from
@@ -994,6 +994,155 @@
         nothing at all can be run until the icon package is dealt with.
         Neither has a newer version to upgrade to. That decision is the
         first thing the next session picks up.
+      </p>
+    </div>
+    <div class="entry">
+      <div class="date">24 September 2026</div>
+      <h3>Golden Hour: getting out of the toolchain, then rebuilding every screen</h3>
+      <span class="pill">Redesign · Phases 1–3</span>
+      <p>
+        The last entry ended with nothing able to build. Two dependencies
+        had not survived the jump from Flutter 3.35 to 3.47, and neither
+        had a newer version to move to. The way out was to stop depending
+        on them: the Phosphor icon font is now bundled as an asset with
+        the twenty-odd glyphs the design actually uses declared by hand,
+        and Riverpod's code generation is gone entirely, its providers
+        written out longhand. Both were removals rather than upgrades,
+        which is why the app compiles on an SDK neither package supports.
+      </p>
+      <p>
+        Then a decision that shaped everything after it. A redesign of
+        seven screens needs to be <em>looked at</em>, constantly, in two
+        themes — and this machine cannot run an emulator and a Gradle
+        build at the same time without the desktop falling over. So the
+        app learned to draw itself into PNG files from a test: about six
+        seconds for every designed state, no device, no database. That
+        only works if a screen can be built from plain values rather than
+        from live providers, which is why each one was split into a half
+        that fetches and a half that draws. It sounds like bookkeeping.
+        It is the reason the next six phases were verifiable at all.
+      </p>
+      <p>
+        With that in place the shell was rebuilt around a floating pill
+        nav, and the pieces the screens are made of — the Sun Dial, the
+        timeline, the day row in its nine states, the dashed and hatched
+        borders — became a component sheet that renders on its own. The
+        first real bug of the redesign showed up here and was pure
+        Flutter: a row stretching its children inside a list, which has
+        no bounded height to stretch into, overflowed by ninety-nine
+        thousand pixels. The fix retired an <code>IntrinsicHeight</code>
+        construction that an earlier entry in this log had been rather
+        pleased with.
+      </p>
+    </div>
+    <div class="entry">
+      <div class="date">24 September 2026</div>
+      <h3>What a real database did to a design that had never met one</h3>
+      <span class="pill">Redesign · Phases 4–8</span>
+      <p>
+        Home, History, Stats, Settings and Onboarding were rebuilt in
+        turn, each against its renders, each in both themes. Home gained
+        the Dusk Slab — the balance as the largest number in the app with
+        the ring cut into it, and the ring itself became the check-in
+        button. History became one row drawn at three zoom levels instead
+        of three screens. Stats got a single chart palette, which is what
+        had been making light-mode marks look thin, and headline
+        sentences that say what a chart means before you read it.
+      </p>
+      <p>
+        Then the app was pointed at six months of seeded data on an
+        emulator, and two things fell out that no render could have
+        caught. Home and History disagreed about today — 12:03 against
+        3:52 — because the committed day row only knows about sessions
+        that have ended, and Home was counting the one still running.
+        History now counts it too. And the designed "checked out" state
+        turned out to be almost unreachable: a gap of under two hours had
+        been reading as a break, so leaving at 18:51 still claimed you
+        were on a break at 20:00. A gap is only a break while the day's
+        hours are still outstanding.
+      </p>
+      <p>
+        The third finding was about volume rather than correctness. The
+        balance had been past its floor for three weeks, so every single
+        History row wore the warning treatment and explained itself —
+        fifteen rows all replacing a useful time span with the same
+        sentence. Only the day that <em>crosses</em> a bound says anything
+        now. The band still marks the rest.
+      </p>
+    </div>
+    <div class="entry">
+      <div class="date">24 September 2026</div>
+      <h3>The widget stops disagreeing with the app</h3>
+      <span class="pill">Redesign · Phase 9</span>
+      <p>
+        The home-screen widget had two problems that were easy to miss
+        because it is small and you only glance at it. It was still
+        painting the old lavender — and worse, it was reporting gross
+        tracked time, because the statutory break deduction and the
+        balance cascade are both Dart, and the widget is Kotlin.
+      </p>
+      <p>
+        The palette is now generated from the app's own colour file into
+        Android resources, with a test that fails if the two drift apart.
+        That also killed a documented half-hour lag when the system theme
+        flipped, since a resource-backed colour is re-resolved by the
+        launcher rather than baked into a bitmap. For the numbers, the
+        balance is read straight out of the snapshot table Dart has
+        already cascaded, and only the one rule that cannot be read from
+        a stored row — the break deduction for a session running right
+        now — was ported: about ten lines, checked from both Kotlin and
+        Dart against the same fixture file, so the copy cannot quietly
+        drift from the original.
+      </p>
+      <p>
+        Two cosmetic fixes landed after the last emulator pass and were
+        left unverified: a one-line cap on the wide widget's text, and a
+        rounded rectangle instead of an oval behind the small one. They
+        compile. Whether they look right is a question only a real
+        launcher can answer, which is the next entry.
+      </p>
+    </div>
+    <div class="entry">
+      <div class="date">28 September 2026</div>
+      <h3>Subtraction, two clocks that should not have been there, and shipping</h3>
+      <span class="pill">Redesign · Phase 10</span>
+      <p>
+        Most of the last phase was removal. Nine deprecated type styles,
+        a whole colour-space file whose two functions had both been
+        superseded, the Kotlin mirror of one of them, an orphaned widget,
+        four motion entries nothing had ever asked for. None of it changed
+        what the app does; all of it was scaffolding that had quietly
+        stopped holding anything up.
+      </p>
+      <p>
+        The interesting part was a test that had started failing on its
+        own. The date picker drew its "today" outline by asking the
+        system clock, inside a leaf widget — so its reference image,
+        captured on the 24th, disagreed with every day after it, and the
+        render suite was decaying at a rate of one calendar cell a day.
+        The same defect turned up twice more once it was worth looking
+        for: the holiday list tinted past days against the clock, and the
+        audit log picked its "today" group the same way. A screen that
+        reads the clock cannot be photographed; all three now take the
+        time from whoever calls them.
+      </p>
+      <p>
+        A survey also found three tap targets below the forty-four
+        density-independent pixels the app's own token file calls the
+        minimum "everywhere" — and they were, exactly, the only three
+        tappable things in the app that skipped the shared press-feedback
+        wrapper. One of them deletes a break with no confirmation behind
+        it. Nothing about how they look changed; what grew is the part
+        your finger has to hit.
+      </p>
+      <p>
+        Three screens were rendered for the first time — the holiday
+        list, the audit log and the edit-session sheet, all rebuilt during
+        the redesign and never once looked at, because each read the
+        database directly and so had been quietly skipped. Coverage
+        finished at thirty-four of the design's thirty-seven frames, with
+        the three exceptions written down rather than left to be
+        rediscovered.
       </p>
     </div>
     <!-- STORY_ENTRIES_END -->
@@ -1339,7 +1488,7 @@
     </div>
     <div class="log-entry">
       <span class="ts">2026-08-10</span><span class="tag">[post-launch/feature]</span>
-      <p>Progress ring redesign, part 2 (Home). Removed the `LinearProgressIndicator` "Daily target" bar from `home_screen.dart` entirely — kept the `Daily target  8:38 / 7:54` text row above where it was, just not its own fill. `_HomeBody.build` now computes `targetRatio = liveNetWorkedHours / targetHours` (unclamped, can exceed 1.0), runs it through `lapProgressFor`, and feeds `ProgressRing` the lap's `fraction` (0..1, safe for the existing painter, no changes needed there) and a `darkenForLap(baseColor, lap.lapIndex)`-derived color instead of the flat `accentFill`/`idle`. No animation framework needed — Home already rebuilds every second while a session is active (the existing `StreamBuilder<int>` in `HomeScreen.build`), so the lap math just gets fed fresh values on the same cadence it already had.</p>
+      <p>Progress ring redesign, part 2 (Home). Removed the `LinearProgressIndicator` "Daily target" bar from `home_screen.dart` entirely — kept the `Daily target  8:38 / 7:54` text row above where it was, just not its own fill. `_HomeBody.build` now computes `targetRatio = liveNetWorkedHours / targetHours` (unclamped, can exceed 1.0), runs it through `lapProgressFor`, and feeds `ProgressRing` the lap's `fraction` (0..1, safe for the existing painter, no changes needed there) and a `darkenForLap(baseColor, lap.lapIndex)`-derived color instead of the flat `accentFill`/`idle`. No animation framework needed — Home already rebuilds every second while a session is active (the existing `StreamBuilder&lt;int&gt;` in `HomeScreen.build`), so the lap math just gets fed fresh values on the same cadence it already had.</p>
     </div>
     <div class="log-entry">
       <span class="ts">2026-08-10</span><span class="tag">[post-launch/widget]</span>
@@ -1376,6 +1525,70 @@
     <div class="log-entry">
       <span class="ts">2026-09-22</span><span class="tag">[redesign/toolchain]</span>
       <p>Current state is deliberately unchanged rather than half-migrated: the checked-in <code>*.g.dart</code> files were restored (<code>build_runner</code>'s <code>--delete-conflicting-outputs</code> had removed them before failing), so <code>flutter analyze</code> is clean and 78/79 tests pass — only <code>widget_test.dart</code> fails, and only on the phosphor error. <code>pubspec.lock</code> did re-resolve cleanly on the new SDK (6 packages moved). The three options for the next session, in order of preference: (a) drop <code>phosphor_flutter</code> and self-host the Phosphor icon font — bundle the Bold and Fill TTFs as assets and declare the ~28 <code>IconData</code> constants the design actually uses — then upgrade <code>drift_dev</code> to 2.35 and replace <code>riverpod_generator</code> with hand-written providers, keeping Riverpod 2 and removing a codegen dependency entirely; (b) pin the project to Flutter 3.35.2 via fvm, which changes nothing but leaves the app on a stale SDK; (c) migrate to Riverpod 3, which is the one option that mixes a framework migration into a redesign. Option (a) also fits the redesign, which bundles Manrope as an asset anyway and specifies Phosphor Bold plus Fill-for-active-nav precisely.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-24</span><span class="tag">[redesign/toolchain]</span>
+      <p>Escaped both blockers by removing dependencies rather than upgrading them. (1) <code>phosphor_flutter</code> is gone; <code>assets/fonts/Phosphor-Bold.ttf</code> and <code>Phosphor-Fill.ttf</code> are bundled and <code>lib/core/icons/app_icons.dart</code> declares the ~28 <code>IconData</code> constants the design uses as plain <code>IconData(0xE0??, fontFamily: 'PhosphorBold')</code> — the package's only value was those constants, and Flutter making <code>IconData</code> <code>final</code> broke only the subclass, not the font. (2) <code>riverpod_generator</code> is gone and every <code>@riverpod</code> provider is hand-written, which drops <code>build_runner</code> from the project entirely and with it the analyzer pin that could not parse the current SDK. Deliberately <em>not</em> Riverpod 3: the framework stays at 2.x, so this is a codegen removal, not a migration, and nothing about provider semantics changed. <code>drift_dev</code> still generates <code>database.g.dart</code>, which is checked in and was regenerated once against the new analyzer. Cost: adding a provider now means writing the boilerplate by hand, and the icon set is a fixed list that has to be extended deliberately.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-24</span><span class="tag">[redesign/phase-1]</span>
+      <p>Golden Hour tokens, in four files under <code>lib/core/theme/</code>: <code>app_colors.dart</code> (an <code>AppColors</code> <code>ThemeExtension</code> with light/dark instances, reached only through a <code>context.colors</code> extension getter so no widget ever touches <code>Theme.of(context).extension&lt;&gt;()!</code> directly), <code>app_dimens.dart</code> (<code>AppSpace</code> on a 4dp grid, <code>AppRadius</code>, <code>AppStroke</code>, <code>AppSize</code>, <code>AppIconSize</code>), <code>app_text_styles.dart</code>, and <code>app_theme.dart</code> mapping the lot onto Material's own <code>ColorScheme</code>/<code>TextTheme</code> so unstyled Material widgets (<code>Switch</code>, <code>TextField</code>) inherit rather than clash. Manrope is a <em>variable</em> font, which needs both <code>fontWeight</code> and <code>FontVariation('wght', n)</code> set — supplying only the former silently renders every weight at 400, which is how the first pass looked wrong in a way that was hard to name.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-24</span><span class="tag">[redesign/phase-2]</span>
+      <p>Schema v3 columns <code>balance_floor_hours</code>/<code>balance_cap_hours</code>/<code>balance_annual_reset</code> on <code>app_settings</code>, additive with a tested <code>onUpgrade</code> (<code>test/data/migration_test.dart</code> opens the phone's own pulled backup and asserts the new columns arrive null on every existing row). New <code>TrackingState.onBreak</code>, inferred in <code>lib/domain/tracking_state.dart</code> from time since the last check-out rather than stored — a stored break state would need a button, and the design does not have one. Renders became the verification mechanism here: <code>test/screenshots/</code> with a <code>renderGolden</code> harness that loads the bundled fonts through <code>FontLoader</code> (without which every render comes out in the fallback font and tells you nothing about the type scale) and forces <code>MediaQueryData.disableAnimations</code> — <code>pumpAndSettle</code> against a repeating controller never returns, so this is what makes the suite terminate at all.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-24</span><span class="tag">[redesign/phase-3]</span>
+      <p>Shell and components. <code>lib/app.dart</code> collapsed to a single <code>Scaffold</code> with the pill nav in a <code>Stack</code> and a hand-rolled fade-through for tab switches — <code>AnimatedSwitcher</code> was wrong here because it destroys the outgoing subtree and loses each tab's scroll position. Each <code>IndexedStack</code> child is wrapped in <code>TickerMode(enabled: i == index)</code> so Home's pulsing markers do not burn frames while you are on Stats. New <code>lib/core/motion.dart</code> holds the §6 duration table behind <code>AppMotion.of(context)</code>, which returns an all-zero table under <code>MediaQuery.disableAnimationsOf</code> so no widget has to branch on the setting. <code>lib/widgets/sun_dial.dart</code> is a new widget rather than a generalised <code>ProgressRing</code> (ticks, knob, lap arc, and a glow restricted to the tracking state — on the lilac break ring it read as a smudge). <strong>Real bug, found by the first component-sheet render:</strong> <code>event_timeline.dart</code> used <code>CrossAxisAlignment.stretch</code> on a <code>Row</code> inside a <code>ListView</code>, which hands children unbounded height; stretch needs an intrinsic pass it does not get, and the row overflowed by 99,570px. Rewritten as a <code>Stack</code> with the rail in a <code>Positioned</code>, which sizes from the content instead — and retires the <code>IntrinsicHeight</code> construction a previous entry in this log introduced.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-24</span><span class="tag">[redesign/phase-4]</span>
+      <p>Home split into <code>home_view.dart</code> (a pure <code>buildHomeView({now, settings, dayEntry, sessions, breaks, leave, balance, …})</code> returning a plain record), <code>home_screen.dart</code> (the Consumer, plus a 1-second <code>Timer.periodic</code> created only while tracking or on break), and <code>home_body.dart</code>. Tracking state is computed <em>after</em> net hours rather than before, so <code>targetMet</code> can be passed into it — see phase 8 for why that mattered. The balance uses the single warning treatment from §8.3: a <code>Stack</code> with a <code>Positioned</code> band behind the text at <code>top: lineHeight * 0.55, bottom: lineHeight * 0.08</code>, at 0.28 opacity on the slab. Deleted the REMAINING TODAY and BALANCE stat cards outright — the slab now says both, and the design's own critique listed them as duplication.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-24</span><span class="tag">[redesign/phase-5]</span>
+      <p>History rebuilt as one <code>DayRow</code> drawn at three zoom levels; month and week rows are the summary variant of the same widget rather than separate screens. <code>lib/domain/date_only.dart</code> gained <code>startOfWeek()</code> and <code>isoWeekNumber()</code>, the latter computing its ordinal day from the calendar rather than from a <code>Duration</code> — a duration-based ordinal is off by one across a DST boundary, which is the bug class this app has shipped once already. <code>historyDayRow()</code> takes <code>runningSince</code> and <code>now</code> so today's row can include the open session (phase 8 finding), and <code>previousClosingBalance</code> so only the day that actually crosses a bound renders the explanation line. The edit-session sheet was restyled to the new sheet component but <strong>kept</strong> its manual breaks and delete action, which the design's mock does not show — dropping working features to match a drawing would be the wrong trade.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-24</span><span class="tag">[redesign/phase-6]</span>
+      <p>Stats. New <code>charts/chart_palette.dart</code> first, because each chart had been re-deciding its own mark colour inline and picking <code>accentFill</code>, which is too light to read against paper in light mode; marks are <code>accentStrong</code> now. <code>fl_chart</code> pinned to exactly <code>0.69.2</code> — 1.x renames <code>belowBarData</code>, <code>titlesData</code> and <code>borderRadius</code>, and a caret constraint would have taken that upgrade silently mid-redesign. The hit-rate pills, weekday bars and check-in bars are plain <code>Row</code>s of <code>Container</code>s rather than <code>BarChart</code>s; fl_chart earns its place on the trend line and nowhere else. <code>charts/month_axis.dart</code> drops any label within 9% of its neighbour and clamps the rest inside the plot. The heatmap ramp is keyed to <strong>absolute hours</strong> (0, &lt;4, 4–6, 6–target, ±15min, over) per the legend the design drew, not to a ratio. Documented deviation from §5.10: range chips are intrinsically sized with <code>spaceBetween</code> rather than five equal widths — "Custom" is about twice as wide as "1W" and gets clipped at a fifth of a phone row, and the design's own render shows them uneven.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-24</span><span class="tag">[redesign/phase-7]</span>
+      <p>Settings as grouped cards, and the balance floor/cap made real — the columns had existed since the phase-2 migration with nothing writing them. <code>settings_editors.dart</code> returns a whole <code>BalanceBounds{floorHours, capHours, annualReset}</code> value rather than individual nullable fields, because <code>app_settings</code> is a versioned table where every save writes a new row: a null argument cannot distinguish "clear this" from "leave it alone", so any field the save signature forgets to carry forward is silently reset. Extend the signature, the companion and the audit-log blob together, every time. "Not set" stays reachable by stepping the number past zero rather than needing its own control.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-24</span><span class="tag">[redesign/phase-8]</span>
+      <p>Onboarding, then the first end-to-end run. <code>tool/seed_scenarios.dart</code> writes 190 days of plausible history <em>through the repositories</em> rather than straight into tables, so the balance-recalculation engine actually runs and the seeded database is one the app could have produced; a deterministic PRNG keeps it reproducible. The dev entrypoint lives at <code>tool/main_dev.dart</code>, not under <code>lib/</code> — a file in <code>lib/</code> cannot import out of it, and putting a wipe-the-database entrypoint inside the shipped source tree is not a thing to rely on a <code>kReleaseMode</code> check for (it has one anyway, plus a required <code>--dart-define=WIPE=yes-really</code>). <strong>Two real bugs, neither findable from a render:</strong> (1) Home and History disagreed about today, 12:03 versus 3:52 — <code>day_entries</code> holds only committed work, so History was blind to the running session; it now takes <code>runningSince</code>/<code>now</code>. (2) The designed checked-out state was nearly unreachable: <code>trackingStateFor</code> read any gap under <code>kBreakWindow</code> (2h) as a break, so checking out at 18:51 still said "on break" at 20:00. Added <code>targetMet</code>, which short-circuits the window once the day's hours are in — walking away after a full day is going home, not taking a break.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-24</span><span class="tag">[redesign/phase-9]</span>
+      <p>Glance widget. <code>lib/core/theme/widget_tokens.dart</code> generates <code>res/values/tm_tokens.xml</code> and <code>values-night/tm_tokens.xml</code> from <code>AppColors</code>, with <code>test/core/theme/widget_tokens_test.dart</code> comparing the checked-in XML against the generator and regenerating under <code>UPDATE_WIDGET_TOKENS=1</code>. Verified first, not assumed: <code>androidx.glance.unit.ColorProvider(@ColorRes Int)</code> <em>does</em> exist in 1.1.1 — confirmed by unzipping the AAR and running <code>javap</code> on the classes, after a previous entry in this log recorded the opposite for a different overload. Resource-backed colours are re-resolved by the launcher process, which is what retires the documented ≤30-minute theme-flip lag for everything except the ring, which is still a <code>Bitmap</code> because Glance has no canvas. <strong>The arithmetic fix:</strong> the widget had been showing gross tracked time. Balance now comes from <code>balance_snapshots ORDER BY date DESC LIMIT 1</code> (already cascaded by Dart, nothing recomputed) and today's net is derived from today's periods through <code>BreakLaw.kt</code> — ~10 lines, the one rule that cannot be read from a stored row because the running session is not committed yet. Both halves read <code>src/test/resources/break_law.json</code>, from <code>BreakLawTest.kt</code> and <code>test/domain/break_law_fixture_test.dart</code>, so the duplication cannot drift. Rejected a Flutter-written cache table: <code>ToggleTrackingAction</code> writes to SQLite while the app is dead, so the cache would be stale exactly when the widget is being used. <code>cornerRadius</code> is API 31+ and silently no-ops below, so the slab's corners are shape drawables. <code>maxResizeWidth</code> raised 250dp → 360dp, which is what had been blocking the 4×2 from being resized to its own layout.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[redesign/phase-10]</span>
+      <p>Subtraction. Deleted <code>lib/widgets/timeline_chip.dart</code> (117 lines, no importers — not to be confused with <code>TimelineChipItem</code>, which is used everywhere and lives in <code>event_timeline.dart</code>), <code>lib/core/theme/color_space.dart</code> entire (<code>oklch()</code> only ever derived the palette that is now literal hex from the handoff; <code>darkenForLap()</code> was superseded when overtime became a full ring plus a <code>ringLap</code> arc), its Kotlin mirror in <code>LapProgress.kt</code>, a dead <code>WidgetTier</code> enum, the nine <code>@Deprecated</code> text styles and <code>AppSpace.screenPadding</code>. Four unused motion entries went too, with the reasons written into <code>motion.dart</code> rather than left implied: <code>drillUp</code> because <code>AnimatedSwitcher</code> has one duration for both directions and History's back-up is not worth owning a route transition for 40ms, and the overlay timings because <code>showModalBottomSheet</code>/<code>showDialog</code> land within ~10ms of §6 and already honour reduced motion. Also corrected <code>app_dimens.dart</code>'s stale claim of ~160 hardcoded spacing call sites; the remainder is one-off chart geometry, and the near-matches found (a 1.5 corner radius against <code>AppStroke.dash</code>, a 64dp row against <code>AppSize.navHeight</code>) are value coincidences across unrelated scales that a token would misrepresent as a relationship.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[redesign/phase-10]</span>
+      <p><strong>A golden that had started failing on its own.</strong> <code>flutter test</code> was 184 passing / 2 failing: <code>history-date-picker</code> in both themes, and it had been degrading daily since the 25th. <code>_DayCell</code> in <code>app_date_picker.dart</code> computed <code>isToday</code> from <code>dateOnly(DateTime.now())</code> inside its own <code>build</code>, so the "today" outline walked one calendar cell per day while the reference image stayed on the 24th. Fixed by injecting <code>now</code> the way every other date-aware thing here already takes it (<code>buildHomeView</code>, <code>DayFacts</code>, <code>historyDayRow</code>), with the grid deciding <code>isToday</code> once and the fixture pinning it to 2026-09-22. Two more instances surfaced once it was worth grepping for: <code>_HolidayRow</code> tinted past holidays against the clock and the audit log picked its TODAY group the same way; both now take <code>now</code> from the caller. Worth generalising — a widget that reads the clock in <code>build</code> cannot be photographed, and this codebase now has three fixed examples of the same smell.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[redesign/phase-10]</span>
+      <p>Three tap targets under <code>AppSize.touch</code> (44), which the token file itself annotates "minimum hit area, everywhere" — and, exactly, the only three tappable widgets in the app that bypassed <code>PressScale</code>; the same cause, each being a bare <code>GestureDetector</code> wrapped straight around its painted box. <code>EventChip</code> (tap selects a synthetic break, long-press edits a session) and <code>_DeletePill</code> were 32dp; <code>_DayCell</code> was 40 in a grid already laid out at <code>7 * 44</code>. Fixed the hit area, not the appearance: the chip is still 32 and the day cell still 40, with the 2dp calendar gutter moved from the grid into the cell so the target fills the slot it was already allocated. §5.3 puts a chip row at 40, so only <em>interactive</em> chips take 44 — <code>TimelineChipItem.interactive</code> gates it, because giving every row the exception would have loosened Home's whole timeline by 4dp per chip to protect rows that do nothing when tapped. <code>_DeletePill</code> also gained press feedback; deleting a synthetic break is irreversible and has no dialog behind it, and it should not have been the one control in the app that stayed silent under a finger.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[redesign/phase-10]</span>
+      <p>The two §6 motions that were specified, tokenised and never wired. Timeline rows in an expanding History row now fade in <code>motion.stagger</code> (20ms) apart via a <code>_StaggeredIn</code> wrapper using an <code>Interval</code> offset into a single <code>TweenAnimationBuilder</code>, capped at <code>kStaggerMax</code> (5) — past five the delay stops reading as sequence and starts reading as lag. The Delete pill fades in over <code>motion.deletePillIn</code> (120ms) instead of appearing mid-layout. Both are gated on <code>AppMotion.of(context).enabled</code> and pass <code>stagger: true</code> only from History, not from Home, where the timeline is already on screen and rebuilding once a second while tracking — staggering there would flicker the whole list every tick. Every golden renders with <code>disableAnimations: true</code>, so neither change moved a reference image; a moved golden would have meant the reduced-motion path was wrong.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[redesign/phase-10]</span>
+      <p>Rendered the three screens that had never been rendered. <code>holiday_list_screen.dart</code>, <code>audit_log_screen.dart</code> and the edit-session sheet each read the database directly, which is why <code>settings_test.dart</code> had a comment excluding them; each is now split into a Consumer and a body (<code>holiday_list_body.dart</code>, <code>audit_log_body.dart</code>, <code>EditSessionSheetView</code>) exactly as Phases 4–7 did. New fixtures <code>holidayRow()</code>/<code>auditRow()</code> in <code>test/fixtures/rows.dart</code>. The audit log also gained a real loading state — it had been replacing the entire <code>SubScreen</code> with an empty box until the future resolved, which took the back button with it; the chrome now draws immediately and only the list waits, which also stops "No activity yet" flashing on the way in. The sheet is staged in its render the way <code>showAppSheet</code> presents it (scrim, bottom-anchored, top-only radius) rather than as a bare widget filling the screen. Coverage: <strong>34 of the handoff's 37 ids</strong> in both themes, 68 PNGs. The three exceptions are deliberate — <code>widget</code> is Glance and not renderable by a Flutter golden (verified on the phone instead), and the six scrolled variants fold into their unscrolled parents, whose clearance under the floating nav the Phase 8 emulator run already covered. Recorded difference from the design: the handoff draws the pill nav over these sub-screens, but the app pushes them as full-screen routes on the root navigator, so it genuinely is not there.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[redesign/phase-10]</span>
+      <p><code>test/data/migration_test.dart</code> globbed <code>~/time-manager-backups/db</code> and took the lexicographically greatest <code>.sqlite</code>. Two naming schemes have been through that directory — <code>time_manager_&lt;stamp&gt;</code> from the August <code>adb pull</code> and <code>timemanager-&lt;stamp&gt;</code> from the in-app export — and they sort against each other by prefix rather than by date. It picked correctly only by the accident that <code>timemanager-</code> sorts above <code>time_manager_</code>; a future backup named the old way would have sent the test back to the August database, where it would still pass and prove nothing about the schema anyone has. Now sorts by <code>statSync().modified</code>, skips instead of throwing when the directory is absent, and prints which file it migrated on failure. Also gitignored <code>test/screenshots/failures/</code>, which is diff output <code>flutter_test</code> writes on any golden mismatch; eight such PNGs had been committed.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
