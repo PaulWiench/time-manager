@@ -10,6 +10,7 @@ import 'features/onboarding/onboarding_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/stats/stats_screen.dart';
 import 'providers/repository_providers.dart';
+import 'providers/rollover_providers.dart';
 import 'providers/settings_providers.dart';
 import 'widgets/pill_nav.dart';
 
@@ -48,9 +49,10 @@ class _RootGate extends ConsumerWidget {
         if (setting == null) {
           return OnboardingScreen(onDone: () {});
         }
-        // Fire-and-forget: idempotent, and the shell doesn't need to block
-        // on it — see holidaySeedProvider.
+        // Fire-and-forget: idempotent, and the shell doesn't need to block on
+        // them — see holidaySeedProvider and dayRolloverProvider.
         ref.watch(holidaySeedProvider);
+        ref.watch(dayRolloverProvider);
         return const AppShell();
       },
     );
