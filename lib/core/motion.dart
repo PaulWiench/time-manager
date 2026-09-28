@@ -36,9 +36,10 @@ class AppMotion {
   Duration get tabIn => _d(120);
   Duration get navPill => _d(200);
 
-  // History.
+  // History. The drill-up reuses [drillDown] with the transition reversed;
+  // §6 asks for 200 there, but `AnimatedSwitcher` has one duration for both
+  // directions and splitting it would mean owning the route transition.
   Duration get drillDown => _d(240);
-  Duration get drillUp => _d(200);
   Duration get rowExpand => _d(200);
   Duration get rowCollapse => _d(160);
 
@@ -47,13 +48,13 @@ class AppMotion {
   Duration get stagger => _d(20);
 
   Duration get chipSelect => _d(200);
-  Duration get chipDelete => _d(160);
   Duration get deletePillIn => _d(120);
 
-  // Overlays.
-  Duration get sheetIn => _d(240);
-  Duration get sheetOut => _d(200);
-  Duration get scrimIn => _d(120);
+  // Overlays deliberately have no entry. `showAppSheet`, `showAppDialog` and
+  // `showAppDatePicker` delegate to Material, whose own transitions land
+  // within ~10 ms of §6's 240/200/120 and already honour reduced motion.
+  // Matching the table exactly would mean hand-rolling three route
+  // transitions to buy a difference nobody can see.
 
   // Controls.
   Duration get control => _d(200);
@@ -74,9 +75,6 @@ class AppMotion {
 /// Curves, which do not vary with the reduced-motion setting.
 class AppCurves {
   AppCurves._();
-
-  static const tabOut = Curves.easeIn;
-  static const tabIn = Curves.easeOutCubic;
 
   /// Shared-axis Z, used by the History drill-down and every overlay.
   static const emphasized = Cubic(0.05, 0.7, 0.1, 1.0);

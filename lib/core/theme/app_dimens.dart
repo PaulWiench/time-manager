@@ -1,9 +1,12 @@
 /// Golden Hour's geometry scales.
 ///
 /// Every number a screen draws should come from here. The old 0.7x scale this
-/// replaces was mostly unused — spacing was hardcoded at ~160 call sites — so
-/// the rule for the redesign is that a screen is not done until its file
-/// contains no bare spacing literals.
+/// replaces was mostly unused — spacing was hardcoded at ~160 call sites — and
+/// the redesign cleared them: what is left is one-off chart geometry with no
+/// place on any scale (a 140 dp plot, a 6 dp legend dot). Resist the urge to
+/// tokenise those by value — `AppStroke.dash` and a 1.5 dp corner radius are
+/// the same number for unrelated reasons, and a token would claim they move
+/// together.
 library;
 
 /// 4 dp grid.
@@ -27,9 +30,6 @@ class AppSpace {
   /// Bottom padding for scroll views, so the floating nav never covers the
   /// last item: nav height 64 + its 16 dp inset + 24 dp of air.
   static const double navClearance = 104;
-
-  @Deprecated('Use gutterSparse or gutterDense; kept so untouched screens still compile.')
-  static const double screenPadding = gutterSparse;
 }
 
 class AppRadius {

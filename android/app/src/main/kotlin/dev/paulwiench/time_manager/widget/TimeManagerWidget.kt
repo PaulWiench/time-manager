@@ -60,8 +60,6 @@ private val tinySize = DpSize(40.dp, 40.dp)
 private val compactSize = DpSize(90.dp, 90.dp)
 private val expandedSize = DpSize(250.dp, 110.dp)
 
-private enum class WidgetTier { COMPACT, EXPANDED }
-
 class TimeManagerWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(tinySize, compactSize, expandedSize))
 

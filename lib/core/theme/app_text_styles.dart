@@ -67,37 +67,4 @@ class AppTextStyles {
   static final bodyStrong = _m(14, 700, lineHeight: 20);
   static final captionStrong = _m(12, 800, lineHeight: 16);
   static final microStrong = _m(10, 800, lineHeight: 12, letterSpacing: 0.3);
-
-  // ---------------------------------------------------------------------
-  // Pre-redesign names, kept only so screens that haven't been rebuilt yet
-  // still compile. Each screen drops its own as it is redesigned; these all
-  // disappear at the end of the redesign.
-  // ---------------------------------------------------------------------
-
-  @Deprecated('Use timer or stat')
-  static TextStyle heroNumber(double size) => _m(size, 800, lineHeight: size * 1.1, letterSpacing: -0.6);
-
-  @Deprecated('Use title')
-  static final screenTitle = title;
-
-  @Deprecated('Use headline')
-  static final sectionTitle = headline;
-
-  @Deprecated('Use bodyLg')
-  static final bodyLarge = bodyLg;
-
-  @Deprecated('Use body')
-  static final bodyRegular = body;
-
-  @Deprecated('Use caption')
-  static final meta = caption;
-
-  @Deprecated('Use caption')
-  static final metaMedium = caption;
-
-  @Deprecated('Use kicker')
-  static final kickerSm = kicker;
-
-  @Deprecated('Use title')
-  static final onboardingTitle = title;
 }
