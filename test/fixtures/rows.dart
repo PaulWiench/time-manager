@@ -108,3 +108,31 @@ LeaveEntry leaveRow({
 
 BalanceSnapshot balanceRow({required DateTime date, required double balance}) =>
     BalanceSnapshot(date: date, balance: balance, updatedAt: date);
+
+PublicHoliday holidayRow({
+  required DateTime date,
+  required String name,
+  double fraction = 1.0,
+  HolidaySource source = HolidaySource.auto,
+}) =>
+    PublicHoliday(
+      date: date,
+      name: name,
+      fraction: fraction,
+      source: source,
+      createdAt: _epoch,
+    );
+
+AuditLogEntry auditRow({
+  required DateTime timestamp,
+  required String action,
+  required String entityType,
+  String? entityId,
+}) =>
+    AuditLogEntry(
+      id: '$action-$entityType-${timestamp.toIso8601String()}',
+      timestamp: timestamp,
+      action: action,
+      entityType: entityType,
+      entityId: entityId,
+    );

@@ -11,76 +11,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format.dart';
-import '../../core/icons/app_icons.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../data/database/database.dart';
-import '../../data/database/enums.dart';
 import '../../domain/date_only.dart';
 import '../../providers/holiday_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/buttons.dart';
 import '../../widgets/press_scale.dart';
-import '../../widgets/screen_scaffold.dart';
+import 'holiday_list_body.dart';
 
 class HolidayListScreen extends ConsumerWidget {
   const HolidayListScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    final year = DateTime.now().year;
+    final now = DateTime.now();
+    final year = now.year;
     final holidays = ref.watch(publicHolidaysForYearProvider(year)).valueOrNull ?? const [];
     final sorted = [...holidays]..sort((a, b) => a.date.compareTo(b.date));
 
-    return SubScreen(
-      title: 'Public holidays',
-      subtitle: 'Baden-Württemberg · $year · tap a day to edit',
-      action: _AddPill(onTap: () => _edit(context, ref, year: year)),
-      child: sorted.isEmpty
-          ? Center(
-              child: Text('No holidays for $year yet',
-                  style: AppTextStyles.body.copyWith(color: colors.textMuted)),
-            )
-          : ListView(
-              padding: EdgeInsets.fromLTRB(
-                AppSpace.gutterDense,
-                0,
-                AppSpace.gutterDense,
-                AppSpace.s6 + MediaQuery.viewPaddingOf(context).bottom,
-              ),
-              children: [
-                Container(
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: colors.surface,
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                    border: Border.all(color: colors.divider, width: AppStroke.hair),
-                    boxShadow: colors.shadowSm,
-                  ),
-                  child: Column(
-                    children: [
-                      for (final (i, holiday) in sorted.indexed) ...[
-                        if (i > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 64, right: AppSpace.s4),
-                            child: Container(height: AppStroke.hair, color: colors.divider),
-                          ),
-                        _HolidayRow(
-                          holiday: holiday,
-                          onTap: () => _edit(context, ref, year: year, existing: holiday),
-                          onRemove: () => ref
-                              .read(publicHolidayRepositoryProvider)
-                              .removeHoliday(holiday.date),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
+    return HolidayListBody(
+      year: year,
+      holidays: sorted,
+      now: now,
+      onAdd: () => _edit(context, ref, year: year),
+      onEdit: (holiday) => _edit(context, ref, year: year, existing: holiday),
+      onRemove: (holiday) =>
+          ref.read(publicHolidayRepositoryProvider).removeHoliday(holiday.date),
     );
   }
 
@@ -215,131 +175,4 @@ class HolidayListScreen extends ConsumerWidget {
   }
 }
 
-class _AddPill extends StatelessWidget {
-  const _AddPill({required this.onTap});
 
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-
-    return PressScale(
-      onTap: onTap,
-      child: Semantics(
-        button: true,
-        label: 'Add holiday',
-        child: Container(
-          height: AppSize.touch,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpace.s4),
-          decoration: BoxDecoration(
-            color: colors.selected,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(AppIcons.plus, size: AppIconSize.md, color: colors.onSelected),
-              const SizedBox(width: AppSpace.s2),
-              Text('Add', style: AppTextStyles.label.copyWith(color: colors.onSelected)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HolidayRow extends StatelessWidget {
-  const _HolidayRow({
-    required this.holiday,
-    required this.onTap,
-    required this.onRemove,
-  });
-
-  final PublicHoliday holiday;
-  final VoidCallback onTap;
-  final VoidCallback onRemove;
-
-  static const _weekdays = [
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final isPast = holiday.date.isBefore(dateOnly(DateTime.now()));
-
-    return PressScale(
-      onTap: onTap,
-      child: Container(
-        height: 64,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpace.s4),
-        child: Row(
-          children: [
-            Container(
-              width: AppSize.dateBlock,
-              height: AppSize.dateBlock,
-              decoration: BoxDecoration(
-                // A holiday that has already happened is history; one still to
-                // come is something to plan around.
-                color: isPast ? colors.surface2 : colors.holidayTint,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    AppFormat.monthAbbrev(holiday.date).toUpperCase(),
-                    style: AppTextStyles.microStrong.copyWith(
-                      color: isPast ? colors.textMuted : colors.holidayText,
-                    ),
-                  ),
-                  Text(
-                    '${holiday.date.day}',
-                    style: AppTextStyles.statSm.copyWith(
-                      color: isPast ? colors.textMuted : colors.holidayText,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppSpace.s3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(holiday.name,
-                      style: AppTextStyles.bodyLg.copyWith(color: colors.text)),
-                  const SizedBox(height: 2),
-                  Text(
-                    [
-                      _weekdays[holiday.date.weekday - 1],
-                      if (holiday.fraction < 1) 'half day',
-                      holiday.source == HolidaySource.manual ? 'added by you' : 'auto',
-                    ].join(' · '),
-                    style: AppTextStyles.caption.copyWith(color: colors.textMuted),
-                  ),
-                ],
-              ),
-            ),
-            AppIconButton(
-              icon: AppIcons.x,
-              semanticLabel: 'Remove ${holiday.name}',
-              size: AppIconSize.md,
-              color: colors.textMuted,
-              onPressed: onRemove,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

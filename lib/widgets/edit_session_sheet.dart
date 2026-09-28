@@ -112,43 +112,20 @@ class _EditSessionSheetState extends ConsumerState<EditSessionSheet> {
             !b.endTime.isAfter(_end))
         .toList();
 
-    return AppSheet(
-      title: 'Edit session',
-      subtitle: [
-        AppFormat.dayRow(widget.session.date),
-        if (dayEntry != null) '${AppFormat.hm(dayEntry.netWorkedHours)} net after breaks',
-      ].join(' · '),
-      actions: [
-        SecondaryPill(label: 'Delete', onPressed: _delete),
-        PrimaryPill(label: 'Save', onPressed: _save),
-      ],
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: SheetField(
-                label: 'START',
-                value: AppFormat.time(_start),
-                onTap: () => _pickTime(isStart: true),
-              ),
-            ),
-            const SizedBox(width: AppSpace.s3),
-            Expanded(
-              child: SheetField(
-                label: 'END',
-                value: AppFormat.time(_end),
-                onTap: () => _pickTime(isStart: false),
-              ),
-            ),
-          ],
-        ),
-        _NoteField(controller: _notes),
-        _ManualBreaks(
-          breaks: manualBreaks,
-          onAdd: _addBreak,
-          onRemove: (id) => ref.read(workSessionRepositoryProvider).deleteManualBreak(id),
-        ),
-      ],
+    return EditSessionSheetView(
+      date: widget.session.date,
+      netHours: dayEntry?.netWorkedHours,
+      start: _start,
+      end: _end,
+      notes: _notes,
+      manualBreaks: manualBreaks,
+      onPickStart: () => _pickTime(isStart: true),
+      onPickEnd: () => _pickTime(isStart: false),
+      onAddBreak: _addBreak,
+      onRemoveBreak: (id) =>
+          ref.read(workSessionRepositoryProvider).deleteManualBreak(id),
+      onSave: _save,
+      onDelete: _delete,
     );
   }
 
@@ -231,6 +208,89 @@ class _EditSessionSheetState extends ConsumerState<EditSessionSheet> {
 
 /// The note, editable in place. A [SheetField] that opens yet another dialog
 /// to type one line would be a dialog too many.
+/// The sheet as drawn, with nothing fetched and nothing stored.
+///
+/// [EditSessionSheet] owns the editing state and the repository calls; this
+/// owns the layout. The split exists so the sheet can be rendered to a golden
+/// — it is the one surface in the app that edits real recorded time, and it
+/// had never been looked at in a render before.
+class EditSessionSheetView extends StatelessWidget {
+  const EditSessionSheetView({
+    super.key,
+    required this.date,
+    required this.netHours,
+    required this.start,
+    required this.end,
+    required this.notes,
+    required this.manualBreaks,
+    this.onPickStart,
+    this.onPickEnd,
+    this.onAddBreak,
+    this.onRemoveBreak,
+    this.onSave,
+    this.onDelete,
+  });
+
+  final DateTime date;
+
+  /// Null until the day entry loads; the subtitle simply omits it.
+  final double? netHours;
+
+  final DateTime start;
+  final DateTime end;
+  final TextEditingController notes;
+  final List<BreakEntry> manualBreaks;
+
+  final VoidCallback? onPickStart;
+  final VoidCallback? onPickEnd;
+  final VoidCallback? onAddBreak;
+  final ValueChanged<String>? onRemoveBreak;
+  final VoidCallback? onSave;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppSheet(
+      title: 'Edit session',
+      subtitle: [
+        AppFormat.dayRow(date),
+        if (netHours != null) '${AppFormat.hm(netHours!)} net after breaks',
+      ].join(' · '),
+      actions: [
+        SecondaryPill(label: 'Delete', onPressed: onDelete),
+        PrimaryPill(label: 'Save', onPressed: onSave),
+      ],
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: SheetField(
+                label: 'START',
+                value: AppFormat.time(start),
+                onTap: onPickStart,
+              ),
+            ),
+            const SizedBox(width: AppSpace.s3),
+            Expanded(
+              child: SheetField(
+                label: 'END',
+                value: AppFormat.time(end),
+                onTap: onPickEnd,
+              ),
+            ),
+          ],
+        ),
+        _NoteField(controller: notes),
+        _ManualBreaks(
+          breaks: manualBreaks,
+          onAdd: onAddBreak,
+          onRemove: onRemoveBreak,
+        ),
+      ],
+    );
+  }
+}
+
 class _NoteField extends StatelessWidget {
   const _NoteField({required this.controller});
 
@@ -281,8 +341,8 @@ class _ManualBreaks extends StatelessWidget {
   });
 
   final List<BreakEntry> breaks;
-  final VoidCallback onAdd;
-  final ValueChanged<String> onRemove;
+  final VoidCallback? onAdd;
+  final ValueChanged<String>? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -318,7 +378,7 @@ class _ManualBreaks extends StatelessWidget {
                   semanticLabel: 'Remove break',
                   size: AppIconSize.md,
                   color: colors.textMuted,
-                  onPressed: () => onRemove(entry.id),
+                  onPressed: onRemove == null ? null : () => onRemove!(entry.id),
                 ),
               ],
             ),
