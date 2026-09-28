@@ -1,7 +1,7 @@
 name: time_manager
 description: "A personal time-tracking app: worked hours, legal break deduction, running balance, and leave management."
 publish_to: 'none'
-version: 0.5.0+5
+version: 0.5.2+7
 
 environment:
   sdk: ^3.9.0

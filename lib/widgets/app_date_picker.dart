@@ -6,7 +6,7 @@
 /// about to land.
 library;
 
-import 'package:flutter/material.dart' show showDialog;
+import 'package:flutter/material.dart' show Material, MaterialType, showDialog;
 import 'package:flutter/widgets.dart';
 
 import '../core/format.dart';
@@ -30,10 +30,22 @@ Future<DateTime?> showAppDatePicker({
   return showDialog<DateTime>(
     context: context,
     barrierColor: colors.scrim,
-    builder: (context) =>
-        AppDatePicker(initial: initial, last: last ?? today, now: today),
+    builder: (context) => _dialogSurface(
+      AppDatePicker(initial: initial, last: last ?? today, now: today),
+    ),
   );
 }
+
+/// A dialog's own Material.
+///
+/// `showModalBottomSheet` supplies one, which is why the sheets never needed
+/// this; `showDialog` does not, and without it every `Text` inside renders with
+/// Flutter's yellow "no Material ancestor" underlines. The render harness wraps
+/// its children in a transparent Material for its own reasons — Switch and
+/// InkWell assert without one — so the goldens looked right and only the phone
+/// showed it.
+Widget _dialogSurface(Widget child) =>
+    Material(type: MaterialType.transparency, child: child);
 
 class AppDatePicker extends StatefulWidget {
   const AppDatePicker({
@@ -158,10 +170,12 @@ Future<Set<DateTime>?> showAppDateRangePicker({
   return showDialog<Set<DateTime>>(
     context: context,
     barrierColor: colors.scrim,
-    builder: (context) => AppDateRangePicker(
-      initialMonth: initialMonth,
-      bookable: bookable,
-      now: now ?? DateTime.now(),
+    builder: (context) => _dialogSurface(
+      AppDateRangePicker(
+        initialMonth: initialMonth,
+        bookable: bookable,
+        now: now ?? DateTime.now(),
+      ),
     ),
   );
 }
