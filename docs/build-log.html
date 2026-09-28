@@ -1194,6 +1194,65 @@
         the whole time and neither was in frame.
       </p>
     </div>
+    <div class="entry">
+      <div class="date">28 September 2026</div>
+      <h3>The day that would not end</h3>
+      <span class="pill">Second-use pass</span>
+      <p>
+        Four more complaints arrived the same evening, noted before the
+        morning's build had shipped, with the instruction to check
+        whether they still applied. One did not — the day bar had already
+        been taught to rescale past the target — which is worth more than
+        it sounds: it is the first time a report has been answered by the
+        previous fix rather than by a new one.
+      </p>
+      <p>
+        The other three all wanted the same missing idea. The balance
+        dropped by a whole day the moment you checked in, because an
+        untracked workday is worth minus its target and today counted as
+        untracked until the hours were in. A morning of work read as a
+        catastrophe and a finished day read as normal, which is exactly
+        backwards: the morning is the part that is still going to be
+        fixed. The app had no way to say "this day is not over yet". It
+        had no way to say "this day is over", either — nothing settled
+        yesterday, nothing stopped a session left running overnight, and
+        a function written months ago to do precisely that had never once
+        been called.
+      </p>
+      <p>
+        The rule that came out of it was the owner's, not the
+        programmer's: outside normal working hours, an idle hour means
+        you have gone home, and midnight means it regardless. What made
+        it cheap was the sentence he added after it — that a day judged
+        wrongly costs nothing, because it only affects the number on the
+        screen. That settled the architecture on the spot. Nothing is
+        persisted, no column was added to mark a day closed, and the
+        recorded balance of every past day is exactly what it was. The
+        only thing that changed is what gets printed, out of one pair of
+        pure functions that four screens and one launcher widget all
+        read.
+      </p>
+      <p>
+        The timer had the same shape of problem. It switched between
+        three unrelated stopwatches depending on what was running, and
+        because a break is stored as a check-out followed by a check-in,
+        both anchors moved to "now" at each boundary — so the big number
+        reset to zero twice per break. Taking lunch made the whole
+        morning disappear from the one figure that gets looked at most.
+        It is the day's total now, in every state, and the break clock
+        moved down to the caption where it shares the line with nothing.
+      </p>
+      <p>
+        The last one was the plainest of the four. Vacation is almost
+        never one day, and booking a fortnight meant fourteen trips
+        through a date picker and a sheet. It is a range now: tap the
+        first day, tap the last, tap anything between to drop it.
+        Weekends cannot be tapped at all, and the footer counts what is
+        actually being booked — which is the number that tells you
+        whether "the twelfth to the twenty-third" is the ten days you
+        meant.
+      </p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -1662,6 +1721,26 @@
     <div class="log-entry">
       <span class="ts">2026-09-28</span><span class="tag">[first-use/leave-days]</span>
       <p><code>kLeaveHoursPerDay = 8</code> in <code>stats_view.dart</code>, and the same <code>/ 8.0</code> duplicated in <code>VacationQuotaRepository.usedDaysForYear</code> under a comment conceding it was a stand-in. A full day is <code>weeklyHours / workDays.length</code> — 7.9 for a 39.5h week — so each whole vacation day contributed 0.9875 and sixteen of them rendered as 15.8, with no whole number reachable at all. Wrong the other way on a half-day public holiday (target 3.95) and again on a four-day week (9.875). Replaced by <code>domain/leave_days.dart</code>: each entry against the target its own date carried, read from <code>DayEntries.targetHours</code> and recomputed as a fallback, snapped to the nearest quarter — which is every value the editor can write, and which also absorbs an entry recorded before the weekly hours were last changed. Separately, <code>leave_entry_dao.forYear</code> has no upper bound at today and nothing compared an entry's date to <code>now</code>, so future-dated leave counted as used: "Remaining" quietly meant "after everything already booked" while reading as "days left to take". Three figures now — Used, Planned, Remaining — with a second muted arc on the ring for what is booked ahead, and <code>remainingDays</code> no longer clamped at zero, because over-booking a quota is worth seeing. <code>LeaveType.flexDay</code> fell through a bare <code>break</code> and vanished from Stats while still counting in the balance; it gets a card when there are any. And the heatmap punched out <code>leaveHours &gt; 0</code> only, so a public holiday — which carries no leave hours — drew as an ordinary blank cell, indistinguishable from a day simply not worked.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[second-use/work-hours]</span>
+      <p>Schema v2 → v3, the first migration since the balance floor/cap. The new settlement rule keys off "normal working hours", which the app had no way to express: <code>AppSettings.restrictCheckin</code> is a bool that is read and written by Settings and enforced by nothing anywhere, and <code>TimeOfDayWindow</code> (<code>domain/midnight_cutoff.dart</code>) appeared only in tests. Added <code>workWindowStartMinutes</code>/<code>workWindowEndMinutes</code> as minutes since midnight — matching <code>TimeOfDayWindow</code> so no Flutter <code>TimeOfDay</code> reaches the data layer — defaulting to 480/1080. Both are <code>ADD COLUMN</code> with a default, which is metadata-only in SQLite and cannot rewrite a row; that is why the v2 branch was the precedent to copy rather than anything needing a table rebuild, which would also have had to handle the <code>foreign_keys</code> pragma. The <code>onUpgrade</code> <code>if</code>s are non-exclusive by design so a phone that skipped a release runs both bodies, and <code>v1 → v3</code> is tested alongside <code>v2 → v3</code> for exactly that reason. Four tests: schema validation each way, row integrity each way, and the real 164 KB backup pulled off the phone minutes before the build. <code>restrictCheckin</code> stays unarmed and its subtitle now says "Not enforced yet" instead of implying a window it never had — a setting that can refuse a check-in can cost a day's tracking.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[second-use/settlement]</span>
+      <p><code>RecalculationService._deltaFor</code> returns <code>missedWorkdayDelta(target)</code> = <code>-targetHours</code> for any workday with no committed work, and that includes today before the first check-in. <code>WorkSessionRepository.checkIn</code> then forces a recalc with a comment saying so, so checking in wrote <code>0 + 0 - 7.9</code> into today's row, cascaded it, and the headline — which is one row, <code>balance_snapshots ORDER BY date DESC LIMIT 1</code> — fell by a whole day and climbed back at each check-out. New <code>domain/day_settlement.dart</code>: <code>dayIsFinished</code> (a later calendar day, or nothing running plus more than an hour idle plus outside the work window) and <code>todayContribution</code> (a finished day counts for what it was; an unfinished one contributes a surplus and never a shortfall). The owner's framing decided the layer: "it's not a big problem if a day is judged wrong, as it only affects the visually shown balance." So nothing is persisted, <code>day_entries.balance_delta</code> is untouched, and no <code>closed</code> column exists. <code>BalanceSnapshotDao.watchLatestBefore</code> supplies the settled half and each surface composes today itself — Home live once a second, everything else through <code>displayedBalanceProvider</code> so Stats and History cannot drift from what Home says. The window is deliberately not <code>kBreakWindow</code>: two hours decides whether to <em>show</em> a break timer, which is a within-the-day question. Ported to Kotlin as <code>DaySettlement.kt</code> against a shared JSON fixture, the same arrangement as <code>BreakLaw</code>, because the widget reads SQLite in the launcher's process and a tile disagreeing with the screen is worse than either being wrong alone. Two leaks fixed in passing, both the same class: a <code>day_entries</code> row exists for any date carrying leave, including future ones, and those rows were excluded from the balance cascade but folded into Stats' weekly bars and History's month summaries — a vacation booked for next month credited hours nobody had taken.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[second-use/rollover]</span>
+      <p>The settlement rule promises a shortfall "lands once the day is over", which is only true if something settles the day once it is over — and nothing did. Snapshots are written only on a mutation, so a day nobody tracked left the headline stale until the next check-in retroactively dropped it, days late and attributed to the wrong moment. Separately <code>evaluateMidnightCutoff</code> has been written, documented and unit-tested since the domain layer was built and had <em>zero</em> production callers, so a session left running overnight was never stopped and a forgotten check-out became a fourteen-hour day. New <code>DayRollover</code> (a repository with an injectable clock, like <code>RecalculationService</code>, so it is testable without the wall clock) behind a fire-and-forget provider beside <code>holidaySeedProvider</code>: close anything active that started before today at 23:59:59 of <em>its own</em> day, then settle the gap with a single <code>recalculateRangeFrom</code> — one cascade, not one per day, and only the cascade can find a missed workday because it has no <code>day_entries</code> row to find. Guarded on there being a snapshot at all, so a database with no history is not charged a shortfall against a floor it does not have. Also fixed <code>activeSessionProvider</code>, which captured <code>dateOnly(DateTime.now())</code> once at construction: an app left open across midnight went on watching yesterday, a session started after midnight was invisible until something disposed the provider, and a session crossing midnight belongs to the day it started on anyway — it watches the active row wherever it is now. <code>WorkSessionDao.watchForDate</code> gained the <code>ORDER BY</code> it always implied.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[second-use/day-timer]</span>
+      <p><code>timerText</code> was a <code>switch</code> over <code>TrackingState</code> with three mutually exclusive origins: <code>now - active.startTime</code> while tracking, <code>now - lastCheckOut</code> while on break, <code>netHours</code> when idle. A break is modelled as check-out then check-in (<code>tracking_state.dart</code> is explicit that there is no break action and does not want one), so both anchors move to "now" at each boundary and the figure reset to zero <em>twice</em> per break. The day total already existed and was simply routed to the ring and the today-bar instead of to the centre. It is <code>netHours</code> in every state now — <code>hms</code> while a session runs so it ticks, <code>hm</code> otherwise — and <code>sinceText</code> names the <em>first</em> check-in rather than the current session's start, since naming one session beside a whole-day total would be two answers to the same question. The break clock is demoted to that caption. <code>design-system-spec.md:73</code> specifies the old behaviour verbatim ("elapsed time since last check-in"), so this is a deliberate departure from the spec, recorded as one.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-09-28</span><span class="tag">[second-use/leave-range]</span>
+      <p><code>showLeaveSheet</code> took one date and <code>LeaveEdit</code> had no date field at all, so a fortnight was fourteen passes through the picker and the sheet. Extended <code>app_date_picker.dart</code> rather than adding a second calendar: <code>_DayCell</code>'s <code>bool isSelected</code> widened to a five-state enum and <code>_MonthGrid</code> now takes a <code>stateFor</code> callback, which both pickers share. A disabled cell has no <code>PressScale</code> around it at all — it is not merely ignored on tap — and carries a <code>Semantics(enabled: false)</code> label so a screen reader finds a rest day rather than a silent gap. Bookability is <code>computeTargetHours(...) &gt; 0</code> rather than a new <code>isWorkday</code> helper: it folds rest days and holidays into one question and lets a half-day holiday through as the half day of leave it is worth. The picker returns the days themselves, already filtered, so no caller repeats the rules. <code>LeaveEdit</code> now carries a <code>LeaveFraction</code> instead of resolved hours, because across a span the hours must be worked out per date, and the sheet says so when the targets are not uniform. New <code>LeaveRepository.setLeaveForDates</code>: one transaction, delete-then-insert per date, one <code>recalculateRangeFrom</code> at the end — ten <code>addLeave</code> calls would have been ten cascades each walking from its own date through today, and a bare add on a date that already held leave double-counts it against both the quota and the day's balance. The list collapses days that run together (same type, same share of the day, nothing but unbookable days between them) using History's own <code>weekRangeShort</code> for the span, after the first render showed the full two-weekday form overrunning the row. <code>renderGolden</code> gained an <code>interact</code> hook, because the initial state of a range picker is an empty calendar and says nothing about the feature.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
