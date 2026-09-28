@@ -196,16 +196,29 @@ HomeView buildHomeView({
     netHours: netHours,
     targetHours: targetHours,
     ringProgress: targetHours > 0 ? netHours / targetHours : 0,
-    timerText: switch (state) {
-      TrackingState.tracking => AppFormat.hms(runningFor),
-      // On a break the relevant clock is the break, not the session that
-      // ended — the ring shows one timer and this is the one that is running.
-      TrackingState.onBreak => AppFormat.hms(_nonNegative(now.difference(lastCheckOut!))),
-      _ => AppFormat.hm(netHours),
-    },
+    // One clock for the day, not one per session.
+    //
+    // This used to switch between three unrelated origins — elapsed since the
+    // current session's start while tracking, elapsed since the last check-out
+    // while on break, the day's net when idle. Since a break is modelled as
+    // check-out then check-in, both anchors moved to "now" at each boundary,
+    // so the big figure reset to zero twice per break. Taking lunch made the
+    // morning disappear.
+    //
+    // It is today's worked total in every state now: it ticks while a session
+    // is running, holds while one is not, and never goes backwards. The break
+    // clock is not lost, only demoted to the caption below.
+    timerText: state == TrackingState.tracking
+        ? AppFormat.hms(_asDuration(netHours))
+        : AppFormat.hm(netHours),
     sinceText: switch (state) {
-      TrackingState.tracking => 'since ${AppFormat.time(active!.startTime)}',
-      TrackingState.onBreak => 'since ${AppFormat.time(lastCheckOut!)}',
+      // The *first* check-in, to match the figure above it. Naming the current
+      // session's start next to a whole-day total would be two answers to the
+      // same question.
+      TrackingState.tracking =>
+        'since ${AppFormat.time(blocks.isEmpty ? active!.startTime : blocks.first.start)}',
+      TrackingState.onBreak =>
+        'on break ${AppFormat.hm(_nonNegative(now.difference(lastCheckOut!)).inSeconds / 3600)}',
       _ => 'today',
     },
     rail: _railSegments(
@@ -278,6 +291,11 @@ String _leaveNoun(LeaveType type) => switch (type) {
     };
 
 Duration _nonNegative(Duration d) => d.isNegative ? Duration.zero : d;
+
+/// Hours back into a Duration, so the day's total can be rendered by the same
+/// `h:mm:ss` formatter a stopwatch uses.
+Duration _asDuration(double hours) =>
+    Duration(milliseconds: (hours * 3600 * 1000).round());
 
 double _hoursOf(DateTime start, DateTime end) =>
     end.difference(start).inSeconds / 3600.0;

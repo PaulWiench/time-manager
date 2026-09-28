@@ -114,18 +114,23 @@ void main() {
     final v = view(
       now: at(16, 37),
       committedNet: 3.9,
-      sessions: [sessionRow(start: at(14, 51), status: SessionStatus.active)],
+      sessions: [
+        sessionRow(id: 'a', start: at(9, 0), end: at(12, 54)),
+        sessionRow(id: 'b', start: at(14, 51), status: SessionStatus.active),
+      ],
     );
 
     expect(v.state, TrackingState.tracking);
-    expect(v.timerText, '1:46:00');
-    expect(v.sinceText, 'since 14:51');
-    // 3:54 committed + 1:46 running = 5:40 of 7:54.
+    // 3:54 committed + 1:46 running = 5:40 of 7:54. The centre figure is the
+    // whole day, not the session — and the caption names the first check-in,
+    // so the two agree.
+    expect(v.timerText, '5:40:00');
+    expect(v.sinceText, 'since 09:00');
     expect(v.netHours, closeTo(5.6667, 0.001));
     expect(v.ringProgress, closeTo(0.717, 0.001));
   });
 
-  test('during a break the ring times the break, not the finished session', () {
+  test('a break holds the day total instead of resetting it', () {
     final v = view(
       now: at(13, 5),
       committedNet: 3.9,
@@ -133,8 +138,11 @@ void main() {
     );
 
     expect(v.state, TrackingState.onBreak);
-    expect(v.timerText, '0:28:00');
-    expect(v.sinceText, 'since 12:37');
+    // The morning's 3:54 stays on screen. It used to read 0:00:00 the instant
+    // the check-out landed, and 0:00:00 again on checking back in — two resets
+    // per break, on the number Paul looks at most.
+    expect(v.timerText, '3:54');
+    expect(v.sinceText, 'on break 0:28');
     // The break in progress has no row, but the rail still has to show it.
     expect(v.rail.last.type, RailSegmentType.realBreak);
     expect(v.rail.last.hours, closeTo(28 / 60, 1e-6));
