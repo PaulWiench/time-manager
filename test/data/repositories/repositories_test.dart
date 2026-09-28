@@ -121,6 +121,34 @@ void main() {
     expect(dayEntry?.balanceDelta, 0);
   });
 
+  test('removing a stale leave day gives the balance back', () async {
+    // Paul's 28 September: a vacation day booked in August, then worked
+    // through anyway. The balance credits both, so the day swung by a whole
+    // extra target — and until the leave editor existed there was no undo.
+    final day = DateTime(2026, 8, 11); // Tuesday, work day
+    await sessions.checkIn(day.add(const Duration(hours: 9)));
+    final active = await sessions.activeSession();
+    await sessions.checkOut(
+      sessionId: active!.id,
+      at: day.add(const Duration(hours: 15)),
+    );
+
+    final worked = (await db.dayEntryDao.forDate(day))!.balanceDelta;
+
+    await leave.addLeave(date: day, type: LeaveType.vacation, hours: 8);
+    final both = await db.dayEntryDao.forDate(day);
+    expect(both!.leaveHours, 8);
+    expect(both.balanceDelta, closeTo(worked + 8, 1e-9));
+
+    for (final entry in (await leave.forYear(2026)).where((e) => e.date == day)) {
+      await leave.deleteLeave(entry.id, day);
+    }
+
+    final after = await db.dayEntryDao.forDate(day);
+    expect(after!.leaveHours, 0);
+    expect(after.balanceDelta, closeTo(worked, 1e-9));
+  });
+
   test('a settings change retroactively updates existing days\' targets', () async {
     // Wednesday -- after the original (Monday-effective) settings row, so a
     // second, more-recent row can cleanly supersede it for this date

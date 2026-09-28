@@ -22,32 +22,50 @@ class LeaveBreakdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
+    // Two arcs on one track: what has been taken, and what is booked on top of
+    // it. Planned days used to be counted as used with nothing saying so, so
+    // "Remaining" read as days left to take while meaning days left to book.
+    final planned = ProgressRing(
+      size: 132,
+      strokeWidth: AppStroke.vacationRing,
+      progress: data.bookedProgress,
+      color: colors.vacationFill.withValues(alpha: 0.4),
+      trackColor: colors.track,
+    );
+
     return Row(
       children: [
-        ProgressRing(
-          size: 132,
-          strokeWidth: AppStroke.vacationRing,
-          progress: data.progress,
-          color: colors.vacationFill,
-          trackColor: colors.track,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            planned,
+            ProgressRing(
+              size: 132,
+              strokeWidth: AppStroke.vacationRing,
+              progress: data.usedProgress,
+              color: colors.vacationFill,
+              trackColor: const Color(0x00000000),
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text(_days(data.usedDays),
-                      style: AppTextStyles.stat.copyWith(color: colors.text)),
-                  const SizedBox(width: 2),
-                  Text('d', style: AppTextStyles.statSm.copyWith(color: colors.textMuted)),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(formatLeaveDays(data.usedDays + data.plannedDays),
+                          style: AppTextStyles.stat.copyWith(color: colors.text)),
+                      const SizedBox(width: 2),
+                      Text('d',
+                          style: AppTextStyles.statSm.copyWith(color: colors.textMuted)),
+                    ],
+                  ),
+                  Text('of ${formatLeaveDays(data.totalDays)} booked',
+                      style: AppTextStyles.caption.copyWith(color: colors.textMuted)),
                 ],
               ),
-              Text('of ${_days(data.totalDays)} used',
-                  style: AppTextStyles.caption.copyWith(color: colors.textMuted)),
-            ],
-          ),
+            ),
+          ],
         ),
         const SizedBox(width: AppSpace.s5),
         Expanded(
@@ -58,14 +76,20 @@ class LeaveBreakdown extends StatelessWidget {
                 icon: AppIcons.airplaneTilt,
                 iconColor: colors.vacationText,
                 label: 'Used',
-                value: '${data.usedDays.toStringAsFixed(1)} d',
+                value: '${formatLeaveDays(data.usedDays)} d',
                 valueColor: colors.vacationText,
+              ),
+              _LegendRow(
+                swatch: colors.vacationFill.withValues(alpha: 0.4),
+                label: 'Planned',
+                value: '${formatLeaveDays(data.plannedDays)} d',
+                valueColor: colors.text,
               ),
               _LegendRow(
                 swatch: colors.track,
                 label: 'Remaining',
-                value: '${data.remainingDays.toStringAsFixed(1)} d',
-                valueColor: colors.text,
+                value: '${formatLeaveDays(data.remainingDays)} d',
+                valueColor: data.remainingDays < 0 ? colors.warningText : colors.text,
               ),
             ],
           ),
@@ -73,11 +97,6 @@ class LeaveBreakdown extends StatelessWidget {
       ],
     );
   }
-
-  /// A whole number of days reads better than "18.0" inside the ring, where
-  /// the caption already says what it is out of.
-  String _days(double value) =>
-      value == value.roundToDouble() ? value.round().toString() : value.toStringAsFixed(1);
 }
 
 class _LegendRow extends StatelessWidget {

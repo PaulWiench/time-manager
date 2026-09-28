@@ -9,8 +9,12 @@ import 'package:intl/intl.dart';
 import '../../data/database/database.dart';
 import '../../data/database/enums.dart';
 import '../../domain/date_only.dart';
+import '../../domain/leave_days.dart';
+import '../../domain/recalculation_engine.dart';
 import '../../domain/stats_aggregation.dart';
 import '../../providers/day_providers.dart';
+import '../../providers/holiday_providers.dart';
+import '../../providers/settings_providers.dart';
 import '../../providers/stats_providers.dart';
 import '../../providers/vacation_quota_providers.dart';
 import 'stats_body.dart';
@@ -50,7 +54,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
       customRangeLabel: _customRange == null ? null : _customLabel(_customRange!),
       overview: _tab == StatsTab.overview ? _overview(range, today) : null,
       patterns: _tab == StatsTab.patterns ? _patterns(range, today) : null,
-      leave: _tab == StatsTab.leave ? _leave() : null,
+      leave: _tab == StatsTab.leave ? _leave(today) : null,
       onTabChanged: (tab) => setState(() => _tab = tab),
       onRangeChanged: (value) {
         if (value == StatsRange.custom) {
@@ -119,9 +123,18 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
       monthDays: _dayStats(monthEntries),
       // A day is "leave" for the heatmap when it logged leave hours and no
       // work — a half day of each is still a day that was partly worked.
+      // Public holidays count too: they carry no leave hours, so they used to
+      // be drawn as an ordinary blank cell, indistinguishable from a day that
+      // was simply not worked.
       leaveDays: {
         for (final entry in monthEntries)
           if (entry.leaveHours > 0 && entry.netWorkedHours <= 0) entry.date,
+        for (final holiday in ref
+                .watch(publicHolidaysForYearProvider(_month.year))
+                .valueOrNull ??
+            const <PublicHoliday>[])
+          if (holiday.date.month == _month.month && holiday.date.year == _month.year)
+            holiday.date,
       },
       days: _dayStats(entries),
       weekdayAverages: averageHoursByWeekday(_dayStats(entries)),
@@ -131,28 +144,64 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
     );
   }
 
-  LeaveData _leave() {
+  LeaveData _leave(DateTime today) {
     final quota = ref.watch(vacationQuotaForYearProvider(_leaveYear)).valueOrNull;
     final entries = ref.watch(leaveForYearProvider(_leaveYear)).valueOrNull ?? const [];
 
-    var vacationHours = 0.0;
-    var sickHours = 0.0;
+    // Each entry against its own date's target, not against a flat 8 hours: a
+    // full day here is weeklyHours / workDays.length, 7.9 for a 39.5 h week, so
+    // sixteen whole vacation days used to come out as 15.8 and no whole number
+    // was reachable at all.
+    final dayEntries = ref
+            .watch(dayEntriesInRangeProvider(
+                DateTime(_leaveYear), DateTime(_leaveYear + 1)))
+            .valueOrNull ??
+        const <DayEntry>[];
+    final targets = {for (final day in dayEntries) day.date: day.targetHours};
+    final settings = ref.watch(latestSettingsProvider).valueOrNull;
+
+    double daysFor(LeaveEntry entry) {
+      final target = targets[dateOnly(entry.date)] ??
+          (settings == null
+              ? 0
+              : computeTargetHours(
+                  date: entry.date,
+                  workDays: settings.workDays,
+                  weeklyHours: settings.weeklyHours,
+                ));
+      return leaveDaysFor(hours: entry.hours, targetHours: target);
+    }
+
+    var used = 0.0;
+    var planned = 0.0;
+    var sick = 0.0;
+    var flex = 0.0;
     for (final entry in entries) {
+      final days = daysFor(entry);
       switch (entry.type) {
         case LeaveType.vacation:
-          vacationHours += entry.hours;
+          // Booked for a date still ahead is planned, not taken.
+          if (entry.date.isAfter(today)) {
+            planned += days;
+          } else {
+            used += days;
+          }
         case LeaveType.sick:
-          sickHours += entry.hours;
+          sick += days;
+        // Flex days used to fall through a bare `break` and vanish from Stats
+        // entirely, while still counting in the balance.
         case LeaveType.flexDay:
-          break;
+          flex += days;
       }
     }
 
     return LeaveData(
       year: _leaveYear,
       totalDays: (quota?.totalDays ?? 30) + (quota?.rolloverDays ?? 0),
-      usedDays: vacationHours / kLeaveHoursPerDay,
-      sickDays: sickHours / kLeaveHoursPerDay,
+      usedDays: used,
+      plannedDays: planned,
+      sickDays: sick,
+      flexDays: flex,
     );
   }
 

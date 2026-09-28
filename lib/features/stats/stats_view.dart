@@ -6,7 +6,6 @@
 library;
 
 import '../../core/format.dart';
-import '../../domain/date_only.dart';
 import '../../domain/stats_aggregation.dart';
 
 enum StatsTab { overview, patterns, leave }
@@ -214,26 +213,44 @@ class LeaveData {
     required this.year,
     required this.totalDays,
     required this.usedDays,
+    required this.plannedDays,
     required this.sickDays,
+    required this.flexDays,
   });
 
   final int year;
   final double totalDays;
+
+  /// Vacation dated on or before today.
   final double usedDays;
+
+  /// Vacation dated after today: booked, not yet taken. It used to be folded
+  /// into [usedDays] with nothing saying so, which made "Remaining" quietly
+  /// mean "after everything you have already booked" while reading as "days
+  /// you have left to take".
+  final double plannedDays;
+
   final double sickDays;
+  final double flexDays;
 
-  double get remainingDays => (totalDays - usedDays).clamp(0.0, totalDays);
+  /// Days that can still be booked. Not clamped: over-booking the quota is a
+  /// thing worth seeing, and a floor at zero hid it.
+  double get remainingDays => totalDays - usedDays - plannedDays;
 
-  double get progress => totalDays > 0 ? (usedDays / totalDays).clamp(0.0, 1.0) : 0;
+  double get usedProgress => totalDays > 0 ? (usedDays / totalDays).clamp(0.0, 1.0) : 0;
+
+  /// The planned arc sits on top of the used one, so it is the pair that is
+  /// clamped rather than each separately.
+  double get bookedProgress =>
+      totalDays > 0 ? ((usedDays + plannedDays) / totalDays).clamp(0.0, 1.0) : 0;
 
   bool get hasData => totalDays > 0;
 }
 
-/// A calendar day counts as this many hours of leave — the same heuristic
-/// `VacationQuotaRepository.usedDaysForYear` already applies.
-const double kLeaveHoursPerDay = 8;
-
-/// The dates in [days] that were spent on leave, for punching out heatmap
-/// cells that were never workable.
-Set<DateTime> leaveDatesFrom(Iterable<DateTime> dates) =>
-    {for (final date in dates) dateOnly(date)};
+/// Days, as a number someone would say out loud: `13` rather than `13.0`, and
+/// `2.5` when it really is a half.
+String formatLeaveDays(double days) {
+  final rounded = (days * 4).round() / 4;
+  if (rounded == rounded.roundToDouble()) return '${rounded.round()}';
+  return rounded.toStringAsFixed(2).replaceFirst(RegExp(r'0$'), '');
+}

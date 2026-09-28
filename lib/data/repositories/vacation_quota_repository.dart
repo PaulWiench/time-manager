@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart';
 
+import '../../domain/date_only.dart';
+import '../../domain/leave_days.dart';
 import '../../domain/vacation_rollover.dart';
 import '../database/database.dart';
 import '../database/enums.dart';
@@ -22,16 +24,28 @@ class VacationQuotaRepository {
     ));
   }
 
+  /// Vacation days used in [year], each entry measured against the target its
+  /// own date carried.
+  ///
+  /// This used to divide the year's hours by a flat 8, with a comment admitting
+  /// it was a stand-in for a settings-aware conversion. A full day here is
+  /// `weeklyHours / workDays.length` — 7.9 for a 39.5 h week — so sixteen whole
+  /// vacation days came out as 15.8, and on a half-day public holiday it was
+  /// wrong in the other direction.
   Future<double> usedDaysForYear(int year) async {
     final leave = await db.leaveEntryDao.forYear(year);
-    var hours = 0.0;
-    for (final l in leave) {
-      if (l.type == LeaveType.vacation) hours += l.hours;
+    final days = await db.dayEntryDao.forRange(DateTime(year), DateTime(year + 1));
+    final targets = {for (final day in days) day.date: day.targetHours};
+
+    var total = 0.0;
+    for (final entry in leave) {
+      if (entry.type != LeaveType.vacation) continue;
+      total += leaveDaysFor(
+        hours: entry.hours,
+        targetHours: targets[dateOnly(entry.date)] ?? 0,
+      );
     }
-    // A "day" in the quota is a full daily target; callers needing an exact
-    // conversion should pass a settings-aware hours-per-day, but for the
-    // common Mon-Fri/8h case dividing by 8 is the practical default.
-    return hours / 8.0;
+    return total;
   }
 
   Future<void> rollIntoNextYear({

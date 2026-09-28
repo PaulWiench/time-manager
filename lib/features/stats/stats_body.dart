@@ -262,11 +262,21 @@ class StatsBody extends StatelessWidget {
         ChartCard(kicker: 'LEAVE BREAKDOWN', child: LeaveBreakdown(data: data)),
         StatCard(
           kicker: 'SICK DAYS',
-          value: data.sickDays.toStringAsFixed(1),
+          value: formatLeaveDays(data.sickDays),
           unit: 'd',
           caption: '${data.year} so far',
           tone: colors.sickText,
         ),
+        // Flex days used to be dropped on the floor: counted in the balance,
+        // shown nowhere. Only worth a card once there are some.
+        if (data.flexDays > 0)
+          StatCard(
+            kicker: 'FLEX DAYS',
+            value: formatLeaveDays(data.flexDays),
+            unit: 'd',
+            caption: '${data.year} so far',
+            tone: colors.accentStrong,
+          ),
       ],
     ];
   }

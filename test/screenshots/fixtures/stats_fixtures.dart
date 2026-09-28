@@ -108,9 +108,13 @@ PatternsData patterns() {
   );
 }
 
+/// Paul's own 2026: thirteen vacation days taken, three more booked for the
+/// end of September, one sick day and a half-day of flex.
 LeaveData leave() => const LeaveData(
       year: 2026,
       totalDays: 30,
-      usedDays: 18,
-      sickDays: 4,
+      usedDays: 13,
+      plannedDays: 3,
+      sickDays: 1,
+      flexDays: 0.5,
     );
