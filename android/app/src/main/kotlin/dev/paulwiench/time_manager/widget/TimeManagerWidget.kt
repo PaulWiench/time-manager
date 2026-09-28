@@ -82,18 +82,36 @@ class TimeManagerWidget : GlanceAppWidget() {
     }
 }
 
-/** 1x1: a slab disc with the ring on it. The whole thing is the button. */
+/**
+ * 1x1: a slab tile with the ring on it. The whole thing is the button.
+ *
+ * Both the ground and the ring are sized from the *shorter* side of the cell
+ * rather than filling it. A launcher cell is not square — on a Pixel 4a 5G a
+ * "1x1" is noticeably taller than it is wide — so `fillMaxSize` stretched the
+ * ground into a tall pill, and a fixed 60dp ring was wider than the cell and
+ * got clipped flat down both sides. Squaring it off first costs a little
+ * height and makes the widget render the same shape in any grid.
+ */
 @Composable
 private fun CompactWidget(context: Context, state: WidgetState) {
+    val size = LocalSize.current
+    val side = if (size.width < size.height) size.width else size.height
+    val ringDp = (side.value - 12f).coerceAtLeast(24f)
+
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(ImageProvider(R.drawable.tm_slab_circle))
-            .clickable(actionRunCallback<ToggleTrackingAction>())
-            .padding(6.dp),
+            .clickable(actionRunCallback<ToggleTrackingAction>()),
         contentAlignment = Alignment.Center,
     ) {
-        Ring(context, state, sizeDp = 60, strokeDp = 7f)
+        Box(
+            modifier = GlanceModifier
+                .size(side)
+                .background(ImageProvider(R.drawable.tm_slab_circle)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Ring(context, state, sizeDp = ringDp.toInt(), strokeDp = ringDp / 8.5f)
+        }
     }
 }
 
