@@ -33,6 +33,7 @@ Future<void> renderGolden(
   Size size = phoneSize,
   double dpr = phoneDpr,
   Color? background,
+  Future<void> Function(WidgetTester)? interact,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = dpr;
@@ -60,6 +61,14 @@ Future<void> renderGolden(
     ),
   );
   await tester.pumpAndSettle();
+
+  // Some states only exist part-way through an interaction — a date range with
+  // both ends placed and one day tapped back off, say. Rendering those from
+  // their initial widget would be a reference image of nothing in particular.
+  if (interact != null) {
+    await interact(tester);
+    await tester.pumpAndSettle();
+  }
 
   final suffix = brightness == Brightness.dark ? 'dark' : 'light';
   await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name--$suffix.png'));

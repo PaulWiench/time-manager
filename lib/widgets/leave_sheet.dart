@@ -54,54 +54,81 @@ enum LeaveFraction {
 
 /// What the sheet was closed with. `null` from [showLeaveSheet] means the user
 /// backed out and nothing should change.
+///
+/// Carries a [fraction] rather than resolved hours. It used to hand back
+/// `targetHours * fraction`, which is only meaningful for one date — across a
+/// range those hours have to be worked out per day, because a half-day public
+/// holiday in the middle is worth half as much as its neighbours.
 class LeaveEdit {
-  const LeaveEdit.set({required LeaveType this.type, required double this.hours})
-      : cleared = false;
+  const LeaveEdit.set({
+    required LeaveType this.type,
+    required LeaveFraction this.fraction,
+  }) : cleared = false;
 
   const LeaveEdit.cleared()
       : type = null,
-        hours = null,
+        fraction = null,
         cleared = true;
 
   final LeaveType? type;
-  final double? hours;
+  final LeaveFraction? fraction;
 
-  /// Remove whatever leave the day already had, and add nothing.
+  /// Remove whatever leave those days already had, and add nothing.
   final bool cleared;
+
+  /// What this edit is worth on a date whose own target is [targetHours].
+  double hoursFor(double targetHours) => targetHours * fraction!.value;
 }
 
+/// [dates] must be sorted and non-empty. One date is the ordinary
+/// long-press-a-day case; more is a booked range.
 Future<LeaveEdit?> showLeaveSheet({
   required BuildContext context,
-  required DateTime date,
-  required double targetHours,
-  required List<LeaveEntry> existing,
+  required List<DateTime> dates,
+  required double Function(DateTime) targetFor,
+  List<LeaveEntry> existing = const [],
 }) {
+  final targets = [for (final date in dates) targetFor(date)];
+  // The labels need one number to quote. Every day in a normal range carries
+  // the same target; a range containing a half-day holiday does not, and says
+  // so rather than quoting a figure that is wrong for one of its days.
+  final headline = targets.first;
+  final mixed = targets.any((t) => (t - headline).abs() > 1 / 60);
+
   final first = existing.isEmpty ? null : existing.first;
   var type = first?.type ?? LeaveType.vacation;
   var fraction = first == null
       ? LeaveFraction.full
-      : LeaveFraction.nearest(first.hours, targetHours);
+      : LeaveFraction.nearest(first.hours, headline);
+
+  final bookable = targets.any((t) => t > 0);
 
   return showAppSheet<LeaveEdit>(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => LeaveSheetView(
-        date: date,
-        targetHours: targetHours,
+        subtitle: _subtitleFor(dates),
+        targetHours: headline,
+        mixedTargets: mixed,
         type: type,
         fraction: fraction,
         hasExisting: existing.isNotEmpty,
         onType: (value) => setState(() => type = value),
         onFraction: (value) => setState(() => fraction = value),
         onClear: () => Navigator.of(context).pop(const LeaveEdit.cleared()),
-        onSave: targetHours <= 0
+        onSave: !bookable
             ? null
-            : () => Navigator.of(context).pop(
-                  LeaveEdit.set(type: type, hours: targetHours * fraction.value),
-                ),
+            : () => Navigator.of(context)
+                .pop(LeaveEdit.set(type: type, fraction: fraction)),
       ),
     ),
   );
+}
+
+String _subtitleFor(List<DateTime> dates) {
+  if (dates.length == 1) return AppFormat.dayRow(dates.first);
+  return '${AppFormat.dayRow(dates.first)} – ${AppFormat.dayRow(dates.last)}'
+      ' · ${dates.length} days';
 }
 
 /// The presentational half, so the sheet can be rendered to a golden without a
@@ -109,22 +136,28 @@ Future<LeaveEdit?> showLeaveSheet({
 class LeaveSheetView extends StatelessWidget {
   const LeaveSheetView({
     super.key,
-    required this.date,
+    required this.subtitle,
     required this.targetHours,
     required this.type,
     required this.fraction,
     required this.hasExisting,
+    this.mixedTargets = false,
     this.onType,
     this.onFraction,
     this.onClear,
     this.onSave,
   });
 
-  final DateTime date;
+  /// `Mon 28 Sep`, or `Mon 12 Oct – Fri 23 Oct · 9 days`.
+  final String subtitle;
 
-  /// That date's own target. Zero on a weekend or a whole public holiday,
-  /// which is the one case where leave cannot be recorded at all.
+  /// The target the hour labels quote. Zero on a weekend or a whole public
+  /// holiday, which is the one case where leave cannot be recorded at all.
   final double targetHours;
+
+  /// Set when the days in this booking do not all carry the same target, so
+  /// the quoted hours are right for most of them and not for all.
+  final bool mixedTargets;
 
   final LeaveType type;
   final LeaveFraction fraction;
@@ -142,7 +175,7 @@ class LeaveSheetView extends StatelessWidget {
 
     return AppSheet(
       title: hasExisting ? 'Edit leave' : 'Mark as leave',
-      subtitle: AppFormat.dayRow(date),
+      subtitle: subtitle,
       actions: [
         if (hasExisting)
           SecondaryPill(label: 'Remove', onPressed: onClear)
@@ -162,10 +195,10 @@ class LeaveSheetView extends StatelessWidget {
         ),
         if (restDay)
           _Notice(
-            text: 'Nothing is scheduled on ${AppFormat.dayRow(date)}, '
+            text: 'Nothing is scheduled on $subtitle, '
                 'so there are no hours to take off.',
           )
-        else
+        else ...[
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -179,6 +212,12 @@ class LeaveSheetView extends StatelessWidget {
                 ),
             ],
           ),
+          if (mixedTargets)
+            _Notice(
+              text: 'Some of these days are shorter than the rest. '
+                  'Each one takes off its own hours.',
+            ),
+        ],
       ],
     );
   }

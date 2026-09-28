@@ -58,16 +58,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
 
     return LeaveListBody(
       year: _year,
-      items: [
-        for (final entry in sorted)
-          LeaveListItem(
-            id: entry.id,
-            date: entry.date,
-            type: entry.type,
-            amountLabel: _amountLabel(entry.hours, targets(entry.date)),
-            planned: entry.date.isAfter(today),
-          ),
-      ],
+      items: _group(sorted, targets, today),
       usedDays: used,
       plannedDays: planned,
       quotaDays: (quota?.totalDays ?? 30) + (quota?.rolloverDays ?? 0),
@@ -75,31 +66,91 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
       // but there is no point walking further into an empty calendar.
       canStepForward: _year < today.year + 1,
       onStepYear: (direction) => setState(() => _year += direction),
-      onAdd: _add,
+      onAdd: () => _book(targets),
       onEdit: (item) => _edit(item.date),
       onRemove: (item) =>
-          ref.read(leaveRepositoryProvider).deleteLeave(item.id, item.date),
+          ref.read(leaveRepositoryProvider).clearLeaveForDates(item.dates),
     );
+  }
+
+  /// Collapses days that run together into one row.
+  ///
+  /// Two entries join when they are the same kind of leave for the same share
+  /// of the day, on the same side of today, with nothing but unbookable days
+  /// between them — so a Friday and the following Monday are one run, and a
+  /// Friday and the Tuesday after are two.
+  List<LeaveListItem> _group(
+    List<LeaveEntry> sorted,
+    double Function(DateTime) targets,
+    DateTime today,
+  ) {
+    String amount(LeaveEntry e) => _amountLabel(e.hours, targets(e.date));
+
+    bool joins(LeaveEntry prev, LeaveEntry next) {
+      if (prev.type != next.type) return false;
+      if (prev.date.isAfter(today) != next.date.isAfter(today)) return false;
+      // Compared as a share of the day, not as hours: two full days either
+      // side of a half-day holiday are both "full day" at different lengths.
+      if (amount(prev) != amount(next)) return false;
+
+      for (var d = shiftDays(dateOnly(prev.date), 1);
+          d.isBefore(dateOnly(next.date));
+          d = shiftDays(d, 1)) {
+        if (targets(d) > 0) return false;
+      }
+      return true;
+    }
+
+    final items = <LeaveListItem>[];
+    var run = <LeaveEntry>[];
+
+    void flush() {
+      if (run.isEmpty) return;
+      items.add(LeaveListItem(
+        dates: [for (final e in run) dateOnly(e.date)],
+        type: run.first.type,
+        amountLabel: amount(run.first),
+        planned: run.first.date.isAfter(today),
+      ));
+      run = [];
+    }
+
+    for (final entry in sorted) {
+      if (run.isNotEmpty && !joins(run.last, entry)) flush();
+      run.add(entry);
+    }
+    flush();
+
+    return items;
   }
 
   /// That date's own target, preferring the stored `DayEntry` and falling back
   /// to recomputing it — a day booked a moment ago has a row, but the range
   /// provider is a one-shot future and may not have caught up yet.
   ///
-  /// Build-time only: it watches. The edit path uses [_targetFor], which awaits
-  /// the same sources instead, because a date picked for next year has no warm
-  /// provider behind it.
+  /// Spans the year either side of [year], because the range picker can be
+  /// walked into December and January. Without the neighbours' holidays a
+  /// public holiday just outside the listed year would look like an ordinary
+  /// workday and quietly consume a vacation day.
+  ///
+  /// Build-time only: it watches. The single-date edit path uses [_targetFor],
+  /// which awaits the same sources instead.
   double Function(DateTime) _targetResolver(int year) {
     final days = ref
-            .watch(dayEntriesInRangeProvider(DateTime(year), DateTime(year + 1)))
+            .watch(dayEntriesInRangeProvider(DateTime(year - 1), DateTime(year + 2)))
             .valueOrNull ??
         const <DayEntry>[];
     final stored = {for (final day in days) day.date: day.targetHours};
 
     final settings = ref.watch(latestSettingsProvider).valueOrNull;
-    final holidays =
-        ref.watch(publicHolidaysForYearProvider(year)).valueOrNull ?? const [];
-    final fractions = {for (final h in holidays) h.date: h.fraction};
+    final fractions = <DateTime, double>{
+      for (final offset in [-1, 0, 1])
+        for (final h in ref
+                .watch(publicHolidaysForYearProvider(year + offset))
+                .valueOrNull ??
+            const <PublicHoliday>[])
+          h.date: h.fraction,
+    };
 
     return (date) {
       final day = stored[dateOnly(date)];
@@ -127,15 +178,46 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     };
   }
 
-  Future<void> _add() async {
-    final picked = await showAppDatePicker(
+  /// Book a span of days at once.
+  ///
+  /// Vacation is almost never one day, and this used to be a single-date picker
+  /// feeding a single-date sheet — a fortnight was fourteen trips through both.
+  /// The picker hands back the days already filtered, so nothing here repeats
+  /// the workday rules.
+  Future<void> _book(double Function(DateTime) targets) async {
+    final picked = await showAppDateRangePicker(
       context: context,
-      initial: dateOnly(DateTime.now()),
-      last: DateTime(_year + 1, 12, 31),
+      initialMonth: DateTime(_year, DateTime.now().month),
+      bookable: (date) => targets(date) > 0,
     );
-    if (picked == null || !mounted) return;
-    await _edit(picked);
-    if (mounted) setState(() => _year = picked.year);
+    if (picked == null || picked.isEmpty || !mounted) return;
+
+    final dates = picked.toList()..sort();
+    // Only a single day can meaningfully offer "Remove": across a span the
+    // sheet is booking, not editing one existing entry.
+    final existing = dates.length == 1
+        ? await ref.read(leaveForDateProvider(dates.first).future)
+        : const <LeaveEntry>[];
+    if (!mounted) return;
+
+    final edit = await showLeaveSheet(
+      context: context,
+      dates: dates,
+      targetFor: targets,
+      existing: existing,
+    );
+    if (edit == null || !mounted) return;
+
+    final repo = ref.read(leaveRepositoryProvider);
+    if (edit.cleared) {
+      await repo.clearLeaveForDates(dates);
+    } else {
+      await repo.setLeaveForDates(
+        hoursByDate: {for (final date in dates) date: edit.hoursFor(targets(date))},
+        type: edit.type!,
+      );
+    }
+    if (mounted) setState(() => _year = dates.first.year);
   }
 
   Future<double> _targetFor(DateTime date) async {
@@ -163,20 +245,23 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
 
     final edit = await showLeaveSheet(
       context: context,
-      date: day,
-      targetHours: targetHours,
+      dates: [day],
+      targetFor: (_) => targetHours,
       existing: existing,
     );
     if (edit == null || !mounted) return;
 
-    final repo = ref.read(leaveRepositoryProvider);
     // One kind of leave per day: the old row goes before the new one lands, or
     // the day would count twice against the quota and twice in its balance.
-    for (final entry in existing) {
-      await repo.deleteLeave(entry.id, day);
-    }
-    if (!edit.cleared) {
-      await repo.addLeave(date: day, type: edit.type!, hours: edit.hours!);
+    // `setLeaveForDates` does that clearing itself.
+    final repo = ref.read(leaveRepositoryProvider);
+    if (edit.cleared) {
+      await repo.clearLeaveForDates([day]);
+    } else {
+      await repo.setLeaveForDates(
+        hoursByDate: {day: edit.hoursFor(targetHours)},
+        type: edit.type!,
+      );
     }
   }
 }

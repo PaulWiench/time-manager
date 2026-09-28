@@ -21,17 +21,24 @@ import '../../widgets/buttons.dart';
 import '../../widgets/press_scale.dart';
 import '../../widgets/screen_scaffold.dart';
 
+/// One row: a single day, or a run of them.
+///
+/// A fortnight off used to be ten identical rows saying "Vacation · full day",
+/// which is how the list looked after the very first range was booked. Days
+/// that run together — same type, same amount, nothing but weekends and
+/// holidays between them — are one row.
 class LeaveListItem {
   const LeaveListItem({
-    required this.id,
-    required this.date,
+    required this.dates,
     required this.type,
     required this.amountLabel,
     required this.planned,
   });
 
-  final String id;
-  final DateTime date;
+  /// Sorted and non-empty. Weekends and holidays inside the span are not in
+  /// here — nothing was booked on them.
+  final List<DateTime> dates;
+
   final LeaveType type;
 
   /// `full day`, `½ day`, or the raw hours if an imported entry does not land
@@ -40,6 +47,11 @@ class LeaveListItem {
 
   /// Dated after today — booked but not yet taken.
   final bool planned;
+
+  DateTime get date => dates.first;
+  DateTime get endDate => dates.last;
+  int get dayCount => dates.length;
+  bool get isRun => dates.length > 1;
 }
 
 class LeaveListBody extends StatelessWidget {
@@ -330,26 +342,47 @@ class _LeaveRow extends StatelessWidget {
                     children: [
                       Icon(leaveTypeIcon(item.type), size: AppIconSize.sm, color: ink),
                       const SizedBox(width: AppSpace.s2),
-                      Text(leaveTypeLabel(item.type),
-                          style: AppTextStyles.bodyLg.copyWith(color: colors.text)),
+                      Expanded(
+                        child: Text(
+                          item.isRun
+                              ? '${leaveTypeLabel(item.type)} · ${item.dayCount} days'
+                              : leaveTypeLabel(item.type),
+                          style: AppTextStyles.bodyLg.copyWith(color: colors.text),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 2),
                   Text(
                     [
-                      _weekdays[item.date.weekday - 1],
+                      // A run names its span; a single day names its weekday,
+                      // which the date block beside it cannot show. The span
+                      // uses History's week-row shape — `28–30 Sep`, or
+                      // `31 Aug – 4 Sep` when it straddles two months — because
+                      // spelling both weekdays out overran the row.
+                      if (item.isRun)
+                        AppFormat.weekRangeShort(item.date, item.endDate)
+                      else
+                        _weekdays[item.date.weekday - 1],
                       item.amountLabel,
                       if (item.planned) 'planned',
                     ].join(' · '),
                     style: AppTextStyles.caption.copyWith(color: colors.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
             AppIconButton(
               icon: AppIcons.x,
-              semanticLabel: 'Remove ${leaveTypeLabel(item.type)} on '
-                  '${AppFormat.dayRow(item.date)}',
+              semanticLabel: item.isRun
+                  ? 'Remove ${item.dayCount} days of ${leaveTypeLabel(item.type)} '
+                      'from ${AppFormat.dayRow(item.date)}'
+                  : 'Remove ${leaveTypeLabel(item.type)} on '
+                      '${AppFormat.dayRow(item.date)}',
               size: AppIconSize.md,
               color: colors.textMuted,
               onPressed: onRemove,

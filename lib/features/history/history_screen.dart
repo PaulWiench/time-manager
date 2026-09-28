@@ -285,21 +285,23 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     final edit = await showLeaveSheet(
       context: context,
-      date: date,
-      targetHours: targetHours,
+      dates: [date],
+      targetFor: (_) => targetHours,
       existing: existing,
     );
     if (edit == null || !mounted) return;
 
+    // Both paths replace rather than accumulate. A day has one kind of leave;
+    // leaving the old row behind would double it against the quota and against
+    // the day's balance.
     final repo = ref.read(leaveRepositoryProvider);
-    // Replace rather than accumulate. A day has one kind of leave; leaving the
-    // old row behind would double it against the quota and against the day's
-    // balance, which is the failure mode a bare "add" would have shipped with.
-    for (final entry in existing) {
-      await repo.deleteLeave(entry.id, date);
-    }
-    if (!edit.cleared) {
-      await repo.addLeave(date: date, type: edit.type!, hours: edit.hours!);
+    if (edit.cleared) {
+      await repo.clearLeaveForDates([date]);
+    } else {
+      await repo.setLeaveForDates(
+        hoursByDate: {date: edit.hoursFor(targetHours)},
+        type: edit.type!,
+      );
     }
   }
 

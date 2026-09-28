@@ -18,8 +18,10 @@ import 'package:time_manager/data/database/enums.dart';
 import 'package:time_manager/features/settings/audit_log_body.dart';
 import 'package:time_manager/features/settings/holiday_list_body.dart';
 import 'package:time_manager/features/settings/leave_list_body.dart';
+import 'package:time_manager/widgets/app_date_picker.dart';
 import 'package:time_manager/widgets/edit_session_sheet.dart';
 import 'package:time_manager/widgets/leave_sheet.dart';
+import 'package:time_manager/widgets/press_scale.dart';
 
 import '../fixtures/rows.dart';
 import 'harness.dart';
@@ -105,45 +107,36 @@ void main() {
 
   // Paul's own shape: a solid block already taken, and three days still ahead
   // that he is not actually taking — the entries this screen exists to remove.
+  // The August-into-September block is one run across a weekend, which is the
+  // case the collapsing exists for.
   final leave = [
-    for (var day = 31; day <= 31; day++)
-      LeaveListItem(
-        id: 'l$day',
-        date: DateTime(2026, 8, day),
-        type: LeaveType.vacation,
-        amountLabel: 'full day',
-        planned: false,
-      ),
-    for (var day = 1; day <= 4; day++)
-      LeaveListItem(
-        id: 's$day',
-        date: DateTime(2026, 9, day),
-        type: LeaveType.vacation,
-        amountLabel: 'full day',
-        planned: false,
-      ),
     LeaveListItem(
-      id: 'sick',
-      date: DateTime(2026, 9, 15),
+      dates: [
+        DateTime(2026, 8, 31),
+        for (var day = 1; day <= 4; day++) DateTime(2026, 9, day),
+      ],
+      type: LeaveType.vacation,
+      amountLabel: 'full day',
+      planned: false,
+    ),
+    LeaveListItem(
+      dates: [DateTime(2026, 9, 15)],
       type: LeaveType.sick,
       amountLabel: 'full day',
       planned: false,
     ),
     LeaveListItem(
-      id: 'half',
-      date: DateTime(2026, 9, 24),
+      dates: [DateTime(2026, 9, 24)],
       type: LeaveType.flexDay,
       amountLabel: '½ day',
       planned: false,
     ),
-    for (var day = 28; day <= 30; day++)
-      LeaveListItem(
-        id: 'p$day',
-        date: DateTime(2026, 9, day),
-        type: LeaveType.vacation,
-        amountLabel: 'full day',
-        planned: true,
-      ),
+    LeaveListItem(
+      dates: [for (var day = 28; day <= 30; day++) DateTime(2026, 9, day)],
+      type: LeaveType.vacation,
+      amountLabel: 'full day',
+      planned: true,
+    ),
   ];
 
   final screens = <String, Widget>{
@@ -159,7 +152,7 @@ void main() {
       onStepYear: (_) {},
     ),
     'settings-leave-sheet': _asSheet(LeaveSheetView(
-      date: DateTime(2026, 9, 28),
+      subtitle: 'Mon 28 Sep',
       targetHours: 7.9,
       type: LeaveType.vacation,
       fraction: LeaveFraction.full,
@@ -167,6 +160,19 @@ void main() {
       onType: (_) {},
       onFraction: (_) {},
       onClear: () {},
+      onSave: () {},
+    )),
+    // The same sheet booking a span — a longer subtitle, no Remove, and the
+    // notice that fires when the days do not all carry the same target.
+    'settings-leave-sheet-range': _asSheet(LeaveSheetView(
+      subtitle: 'Mon 12 Oct – Fri 23 Oct · 9 days',
+      targetHours: 7.9,
+      mixedTargets: true,
+      type: LeaveType.vacation,
+      fraction: LeaveFraction.full,
+      hasExisting: false,
+      onType: (_) {},
+      onFraction: (_) {},
       onSave: () {},
     )),
     'settings-holidays': HolidayListBody(
@@ -214,5 +220,30 @@ void main() {
         );
       });
     }
+
+    // Rendered mid-selection, because the initial state of a range picker is
+    // an ordinary empty calendar and says nothing about the feature. `now` is
+    // pinned so the "today" outline cannot drift the render by a cell each
+    // morning.
+    testWidgets('settings-date-range-picker (${brightness.name})', (tester) async {
+      await renderGolden(
+        tester,
+        name: 'settings-date-range-picker',
+        brightness: brightness,
+        child: AppDateRangePicker(
+          initialMonth: DateTime(2026, 10),
+          // Weekdays only, so every weekend in the span draws as skipped.
+          bookable: (date) => date.weekday <= 5,
+          now: DateTime(2026, 9, 28),
+        ),
+        interact: (tester) async {
+          // Mon 12 to Fri 23 October, then the 21st tapped back off.
+          for (final day in ['12', '23', '21']) {
+            await tester.tap(find.widgetWithText(PressScale, day));
+            await tester.pump();
+          }
+        },
+      );
+    });
   }
 }
