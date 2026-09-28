@@ -21,11 +21,15 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_dimens.dart';
 import '../core/theme/app_text_styles.dart';
 import '../domain/tracking_state.dart';
+import 'press_scale.dart';
 
 const double _railWidth = 24;
 const double _railCentre = 11;
 const double _railGap = AppSpace.s2;
 const double _eventHeight = 30;
+
+/// Handoff §5.3: a chip row is 40 tall with a 32 chip inside it. Interactive
+/// chips override this to [AppSize.touch] — see [TimelineChipItem.interactive].
 const double _chipRowHeight = 40;
 
 /// What a chip is, which decides its fill, its outline and its swatch.
@@ -72,6 +76,12 @@ class TimelineChipItem extends TimelineItem {
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final VoidCallback? onDelete;
+
+  /// Whether this chip is something you press. Display-only chips keep the
+  /// design's 40 dp row; an interactive one takes [AppSize.touch] instead,
+  /// because a 32 dp chip in a 40 dp row is four short of the minimum target
+  /// this app sets itself.
+  bool get interactive => onTap != null || onLongPress != null;
 }
 
 /// The open-ended tail of a live day: a pulsing marker, a "since" line and a
@@ -89,7 +99,12 @@ class TimelineActiveItem extends TimelineItem {
 }
 
 class EventTimeline extends StatelessWidget {
-  const EventTimeline({super.key, required this.items, required this.ground});
+  const EventTimeline({
+    super.key,
+    required this.items,
+    required this.ground,
+    this.stagger = false,
+  });
 
   final List<TimelineItem> items;
 
@@ -97,6 +112,12 @@ class EventTimeline extends StatelessWidget {
   /// expanded History row. Hollow markers are filled with it so the rail line
   /// appears to pass behind them.
   final Color ground;
+
+  /// Fade the rows in one after another (handoff §6). Set where a timeline
+  /// *arrives* — an expanding History row — and left off where it is simply
+  /// already there, as on Home, which would otherwise flicker on every
+  /// one-second rebuild while tracking.
+  final bool stagger;
 
   @override
   Widget build(BuildContext context) {
@@ -106,14 +127,55 @@ class EventTimeline extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final (i, item) in items.indexed)
-          _TimelineRow(
-            item: item,
-            ground: ground,
-            isFirst: i == 0,
-            isLast: i == items.length - 1,
+          _StaggeredIn(
             index: i,
+            enabled: stagger,
+            child: _TimelineRow(
+              item: item,
+              ground: ground,
+              isFirst: i == 0,
+              isLast: i == items.length - 1,
+              index: i,
+            ),
           ),
       ],
+    );
+  }
+}
+
+/// Fades [child] in after `index * stagger`, stopping the ramp at
+/// [kStaggerMax] — past five items the delay is no longer read as sequence,
+/// only as lag.
+class _StaggeredIn extends StatelessWidget {
+  const _StaggeredIn({
+    required this.index,
+    required this.enabled,
+    required this.child,
+  });
+
+  final int index;
+  final bool enabled;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final motion = AppMotion.of(context);
+    if (!enabled || !motion.enabled) return child;
+
+    final steps = index.clamp(0, kStaggerMax);
+    final delay = motion.stagger * steps;
+    final total = motion.rowExpand + delay;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: total,
+      curve: Interval(
+        delay.inMicroseconds / total.inMicroseconds,
+        1,
+        curve: AppCurves.expand,
+      ),
+      builder: (context, t, child) => Opacity(opacity: t, child: child),
+      child: child,
     );
   }
 }
@@ -151,7 +213,7 @@ class _TimelineRow extends StatelessWidget {
           ),
         ),
       TimelineChipItem chip => (
-          _chipRowHeight,
+          chip.interactive ? AppSize.touch : _chipRowHeight,
           const SizedBox.shrink(),
           Align(alignment: Alignment.centerLeft, child: EventChip(item: chip)),
         ),
@@ -428,8 +490,24 @@ class EventChip extends StatelessWidget {
     );
 
     final tappable = item.onTap != null || item.onLongPress != null;
+    // The chip stays 32 dp — that is what the design draws — but the thing you
+    // press is the full 44 dp row around it. Tapping one of these selects a
+    // synthetic break and long-pressing edits a session; neither should need
+    // a careful finger.
     final body = tappable
-        ? GestureDetector(onTap: item.onTap, onLongPress: item.onLongPress, child: chip)
+        ? Semantics(
+            button: true,
+            selected: item.selected,
+            label: item.label,
+            child: PressScale(
+              onTap: item.onTap,
+              onLongPress: item.onLongPress,
+              child: SizedBox(
+                height: AppSize.touch,
+                child: Center(child: chip),
+              ),
+            ),
+          )
         : chip;
 
     if (!item.selected || item.onDelete == null) return body;
@@ -439,7 +517,17 @@ class EventChip extends StatelessWidget {
       children: [
         body,
         const SizedBox(width: AppSpace.s2),
-        _DeletePill(onTap: item.onDelete!),
+        // The pill fades in rather than appearing: it arrives in response to
+        // the tap that selected the chip, and a hard cut reads as the layout
+        // jumping rather than as an answer to what you just did.
+        TweenAnimationBuilder<double>(
+          key: ValueKey(item.label),
+          tween: Tween(begin: 0, end: 1),
+          duration: motion.deletePillIn,
+          curve: AppCurves.control,
+          builder: (context, t, child) => Opacity(opacity: t, child: child),
+          child: _DeletePill(onTap: item.onDelete!),
+        ),
       ],
     );
   }
@@ -544,26 +632,35 @@ class _DeletePill extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Semantics(
-        button: true,
-        label: 'Delete break',
-        child: Container(
-          height: AppSize.chipHeight,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpace.s3),
-          decoration: BoxDecoration(
-            color: colors.selected,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(AppIcons.x, size: AppIconSize.xs, color: colors.onSelected),
-              const SizedBox(width: AppSpace.s1),
-              Text('Delete',
-                  style: AppTextStyles.captionStrong.copyWith(color: colors.onSelected)),
-            ],
+    return Semantics(
+      button: true,
+      label: 'Delete break',
+      child: PressScale(
+        onTap: onTap,
+        // Deleting is irreversible and there is no dialog behind it, so this
+        // gets the full tap target and the same press feedback as every other
+        // control — a destructive action should not be the one widget in the
+        // app that stays silent under the finger.
+        child: SizedBox(
+          height: AppSize.touch,
+          child: Center(
+            child: Container(
+              height: AppSize.chipHeight,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.s3),
+              decoration: BoxDecoration(
+                color: colors.selected,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(AppIcons.x, size: AppIconSize.xs, color: colors.onSelected),
+                  const SizedBox(width: AppSpace.s1),
+                  Text('Delete',
+                      style: AppTextStyles.captionStrong.copyWith(color: colors.onSelected)),
+                ],
+              ),
+            ),
           ),
         ),
       ),

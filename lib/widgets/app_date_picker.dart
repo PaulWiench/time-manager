@@ -22,23 +22,36 @@ Future<DateTime?> showAppDatePicker({
   required BuildContext context,
   required DateTime initial,
   DateTime? last,
+  DateTime? now,
 }) {
   final colors = context.colors;
+  final today = now ?? DateTime.now();
 
   return showDialog<DateTime>(
     context: context,
     barrierColor: colors.scrim,
-    builder: (context) => AppDatePicker(initial: initial, last: last ?? DateTime.now()),
+    builder: (context) =>
+        AppDatePicker(initial: initial, last: last ?? today, now: today),
   );
 }
 
 class AppDatePicker extends StatefulWidget {
-  const AppDatePicker({super.key, required this.initial, required this.last});
+  const AppDatePicker({
+    super.key,
+    required this.initial,
+    required this.last,
+    this.now,
+  });
 
   final DateTime initial;
 
   /// Days after this are shown but muted — there is nothing logged there yet.
   final DateTime last;
+
+  /// Which day gets the "today" outline. Injectable because a widget that
+  /// reads the clock itself cannot be rendered to a stable golden — this one
+  /// used to, and its render drifted by a day every day.
+  final DateTime? now;
 
   @override
   State<AppDatePicker> createState() => _AppDatePickerState();
@@ -94,6 +107,7 @@ class _AppDatePickerState extends State<AppDatePicker> {
                 month: _month,
                 selected: _selected,
                 last: dateOnly(widget.last),
+                today: dateOnly(widget.now ?? DateTime.now()),
                 onSelect: (date) => setState(() => _selected = date),
               ),
               const SizedBox(height: AppSpace.s3),
@@ -127,12 +141,14 @@ class _MonthGrid extends StatelessWidget {
     required this.month,
     required this.selected,
     required this.last,
+    required this.today,
     required this.onSelect,
   });
 
   final DateTime month;
   final DateTime selected;
   final DateTime last;
+  final DateTime today;
   final ValueChanged<DateTime> onSelect;
 
   static const _letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -155,6 +171,7 @@ class _MonthGrid extends StatelessWidget {
       cells.add(_DayCell(
         date: date,
         isSelected: date == selected,
+        isToday: date == today,
         isFuture: date.isAfter(last),
         onTap: () => onSelect(date),
       ));
@@ -182,13 +199,11 @@ class _MonthGrid extends StatelessWidget {
           for (var row = 0; row < cells.length / 7; row++)
             Row(
               children: [
+                // The 2 dp gutter between cells belongs to the cell, not to
+                // this grid: it is what lets a 40 dp square fill a 44 dp tap
+                // target without growing.
                 for (var col = 0; col < 7; col++)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(2),
-                      child: cells[row * 7 + col],
-                    ),
-                  ),
+                  Expanded(child: cells[row * 7 + col]),
               ],
             ),
         ],
@@ -201,38 +216,52 @@ class _DayCell extends StatelessWidget {
   const _DayCell({
     required this.date,
     required this.isSelected,
+    required this.isToday,
     required this.isFuture,
     required this.onTap,
   });
 
   final DateTime date;
   final bool isSelected;
+
+  /// Decided by the grid from an injectable `now`, never read from the clock
+  /// here — see [AppDatePicker.now].
+  final bool isToday;
+
   final bool isFuture;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final isToday = date == dateOnly(DateTime.now());
 
+    // The tap target is the full 44 dp slot; the 40 dp square inside it is
+    // only what gets painted. A day cell you can miss is worse than a day
+    // cell that looks slightly loose.
     return PressScale(
       onTap: onTap,
-      child: Container(
-        height: 40,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected ? colors.selected : null,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          border: isToday && !isSelected
-              ? Border.all(color: colors.focus, width: AppStroke.focus)
-              : null,
-        ),
-        child: Text(
-          '${date.day}',
-          style: (isSelected ? AppTextStyles.bodyStrong : AppTextStyles.body).copyWith(
-            color: isSelected
-                ? colors.onSelected
-                : (isFuture ? colors.textMuted : colors.text),
+      child: SizedBox(
+        height: AppSize.touch,
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Container(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isSelected ? colors.selected : null,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              border: isToday && !isSelected
+                  ? Border.all(color: colors.focus, width: AppStroke.focus)
+                  : null,
+            ),
+            child: Text(
+              '${date.day}',
+              style: (isSelected ? AppTextStyles.bodyStrong : AppTextStyles.body)
+                  .copyWith(
+                color: isSelected
+                    ? colors.onSelected
+                    : (isFuture ? colors.textMuted : colors.text),
+              ),
+            ),
           ),
         ),
       ),

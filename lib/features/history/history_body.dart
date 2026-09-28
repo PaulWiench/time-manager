@@ -166,7 +166,7 @@ class _Expansion extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        EventTimeline(items: expansion.timeline, ground: colors.surface),
+        EventTimeline(items: expansion.timeline, ground: colors.surface, stagger: true),
         if (expansion.consequence != null) ...[
           const SizedBox(height: AppSpace.s2),
           Padding(

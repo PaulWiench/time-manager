@@ -48,9 +48,13 @@ void main() {
       rows: fixtures.septemberDays(expanded: monday, selectedBreakId: 'mon-break'),
       expandedDay: monday,
     ),
+    // `now` is pinned, not defaulted: the "today" outline used to come from
+    // the wall clock, so this render drifted by one cell every day and the
+    // golden failed a little more each morning.
     'history-date-picker': AppDatePicker(
       initial: DateTime(2026, 9, 14),
       last: DateTime(2026, 9, 22),
+      now: DateTime(2026, 9, 22),
     ),
   };
 
