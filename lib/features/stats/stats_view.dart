@@ -173,7 +173,11 @@ class PatternsData {
     return CardHeader(
       value: AppFormat.hm(average),
       unit: 'h / day',
-      caption: 'Average on workdays',
+      caption: switch (hoursBucket) {
+        HoursBucket.day => 'Average on workdays',
+        HoursBucket.week => 'Average per worked day · one bar per week',
+        HoursBucket.month => 'Average per worked day · one bar per month',
+      },
     );
   }
 

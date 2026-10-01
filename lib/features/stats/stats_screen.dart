@@ -155,7 +155,17 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
             holiday.date,
       },
       days: _dayStats(entries),
-      dailyBars: bucketDailyHours(_dayStats(entries), hoursBucketFor(range)),
+      dailyBars: bucketDailyHours(
+        // A year of months is twelve bars, this month included: the trailing
+        // 365 days would also catch a sliver of the same month a year ago.
+        _dayStats([
+          for (final e in entries)
+            if (hoursBucketFor(range) != HoursBucket.month ||
+                !e.date.isBefore(DateTime(today.year, today.month - 11)))
+              e,
+        ]),
+        hoursBucketFor(range),
+      ),
       hoursBucket: hoursBucketFor(range),
       // A vacation booked for next month is not a short day yet.
       weekdayAverages: averageHoursByWeekday(

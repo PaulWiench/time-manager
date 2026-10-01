@@ -102,7 +102,15 @@ PatternsData patterns({int days = 30, HoursBucket bucket = HoursBucket.day}) {
     monthDays: monthDays,
     leaveDays: {DateTime(2026, 9, 4)},
     days: history,
-    dailyBars: bucketDailyHours(history, bucket),
+    dailyBars: bucketDailyHours(
+      [
+        for (final d in history)
+          if (bucket != HoursBucket.month ||
+              !d.date.isBefore(DateTime(today.year, today.month - 11)))
+            d,
+      ],
+      bucket,
+    ),
     hoursBucket: bucket,
     weekdayAverages: averageHoursByWeekday(history),
     checkinHistogram: checkinHourHistogram(checkIns),

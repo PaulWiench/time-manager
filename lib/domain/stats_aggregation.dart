@@ -102,14 +102,16 @@ List<double> averageHoursByWeekday(List<DayStat> days) {
 enum HoursBucket { day, week, month }
 
 /// One bar per day stops fitting on a phone somewhere past a month, so
-/// longer ranges are grouped: weeks up to about half a year, months beyond.
+/// longer ranges are grouped: weeks up to about nine months, months beyond.
 HoursBucket hoursBucketFor(DateRange range) {
   var days = 0;
   for (var d = range.start; d.isBefore(range.endExclusive); d = shiftDays(d, 1)) {
     days++;
   }
-  if (days <= 31) return HoursBucket.day;
-  if (days <= 200) return HoursBucket.week;
+  // Additions handoff §6.1: 1W/1M daily, 6M weekly, 1Y monthly; a custom
+  // range by its length.
+  if (days <= 45) return HoursBucket.day;
+  if (days <= 270) return HoursBucket.week;
   return HoursBucket.month;
 }
 

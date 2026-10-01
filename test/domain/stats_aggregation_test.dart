@@ -75,6 +75,13 @@ void main() {
       expect(hoursBucketFor(days(30)), HoursBucket.day);
     });
 
+    test('a custom range is daily to 45 days, weekly to 270', () {
+      expect(hoursBucketFor(days(45)), HoursBucket.day);
+      expect(hoursBucketFor(days(46)), HoursBucket.week);
+      expect(hoursBucketFor(days(270)), HoursBucket.week);
+      expect(hoursBucketFor(days(271)), HoursBucket.month);
+    });
+
     test('six months goes weekly, a year monthly', () {
       expect(hoursBucketFor(days(182)), HoursBucket.week);
       expect(hoursBucketFor(days(365)), HoursBucket.month);
