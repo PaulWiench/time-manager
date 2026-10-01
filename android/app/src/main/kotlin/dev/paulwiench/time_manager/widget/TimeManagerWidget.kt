@@ -78,11 +78,18 @@ class TimeManagerWidget : GlanceAppWidget() {
 
         provideContent {
             val size = LocalSize.current
-            // Widget v2 §2.1: under 100 dp tall is one row; twice as wide as
-            // tall is the 4x2; anything else is the tall layout, 1x1 included.
+            // Widget v2 §2.1 assumed a one-row cell is 74 dp tall. On the
+            // Pixel launcher it measures about 107 (2026-10-01, on Paul's
+            // phone), so "under 100 dp is one row" never fired and a 2x1 got
+            // the tall layout. The split is by row count and shape instead:
+            // one row (under 160 dp) that is clearly wider than tall is the
+            // one-line layout; two rows and room for ring + text column is
+            // the 4x2; anything else — 1x1, 2x2, 3x3 — is the tall layout.
+            val w = size.width.value
+            val h = size.height.value
             when {
-                size.height < 100.dp -> WideWidget(context, state, compact = size.width < 260.dp)
-                size.width >= size.height * 2 -> ExpandedWidget(context, state)
+                h < 160f && w >= 1.4f * h -> WideWidget(context, state, compact = w < 260f)
+                h >= 160f && w >= 300f && w >= 1.2f * h -> ExpandedWidget(context, state)
                 else -> TallWidget(context, state)
             }
         }
@@ -174,13 +181,16 @@ private fun TallWidget(context: Context, state: WidgetState) {
 @Composable
 private fun WideWidget(context: Context, state: WidgetState, compact: Boolean) {
     val h = LocalSize.current.height.value
-    val ring = (h - 24f).toInt().coerceIn(24, 64)
+    // Compact keeps the ring small: at ~214 dp wide (a 2x1 on the Pixel
+    // launcher) a 64 dp ring left the today column too narrow for "5:54".
+    val ring = (h - 24f).toInt().coerceIn(24, if (compact) 44 else 64)
+    val gap = if (compact) 10 else 12
 
     Row(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(ImageProvider(R.drawable.tm_slab_card_small))
-            .padding(start = 12.dp, end = 16.dp),
+            .padding(start = 12.dp, end = if (compact) 14.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -193,7 +203,7 @@ private fun WideWidget(context: Context, state: WidgetState, compact: Boolean) {
             modifier = GlanceModifier
                 .defaultWeight()
                 .fillMaxHeight()
-                .padding(start = 12.dp)
+                .padding(start = gap.dp)
                 .clickable(actionStartActivity(Intent(context, MainActivity::class.java))),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -247,7 +257,7 @@ private fun WideWidget(context: Context, state: WidgetState, compact: Boolean) {
                 },
             )
             Column(
-                modifier = GlanceModifier.padding(start = 12.dp),
+                modifier = GlanceModifier.padding(start = gap.dp),
                 horizontalAlignment = Alignment.End,
             ) {
                 Text(
