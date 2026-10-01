@@ -16,6 +16,7 @@ class SettingsView {
     required this.annualResetLabel,
     required this.leaveCount,
     required this.vacationQuota,
+    this.vacationQuotaSub,
     required this.rolloverPolicy,
     required this.holidayRegion,
     required this.holidayCount,
@@ -38,6 +39,9 @@ class SettingsView {
   final String leaveCount;
 
   final String vacationQuota;
+
+  /// This year's figure when it differs from the yearly one: "23 in 2026".
+  final String? vacationQuotaSub;
   final String rolloverPolicy;
   final String holidayRegion;
   final String holidayCount;
@@ -67,4 +71,22 @@ String balanceBoundsLabel(double? floor, double? cap) {
     if (floor != null) AppFormat.hm(floor),
     if (cap != null) AppFormat.hm(cap, signed: true),
   ].join(' / ');
+}
+
+/// Every setting whose icon opens an "about" sheet.
+enum SettingKey {
+  weeklyHours,
+  workDays,
+  workHours,
+  startingBalance,
+  autoBreak,
+  minSession,
+  restrictCheckin,
+  balanceBounds,
+  leave,
+  vacationQuota,
+  rollover,
+  holidays,
+  notifications,
+  exportBackup,
 }

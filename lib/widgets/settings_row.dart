@@ -74,6 +74,7 @@ class SettingsRow extends StatelessWidget {
     this.chevron = false,
     this.trailing,
     this.onTap,
+    this.onInfo,
   });
 
   factory SettingsRow.navigate({
@@ -82,6 +83,7 @@ class SettingsRow extends StatelessWidget {
     String? sub,
     String? value,
     VoidCallback? onTap,
+    VoidCallback? onInfo,
   }) =>
       SettingsRow(
         icon: icon,
@@ -90,6 +92,7 @@ class SettingsRow extends StatelessWidget {
         value: value,
         chevron: true,
         onTap: onTap,
+        onInfo: onInfo,
       );
 
   /// A value with no chevron: shown, not editable here.
@@ -98,8 +101,9 @@ class SettingsRow extends StatelessWidget {
     required String label,
     String? sub,
     required String value,
+    VoidCallback? onInfo,
   }) =>
-      SettingsRow(icon: icon, label: label, sub: sub, value: value);
+      SettingsRow(icon: icon, label: label, sub: sub, value: value, onInfo: onInfo);
 
   factory SettingsRow.toggle({
     required IconData icon,
@@ -107,12 +111,14 @@ class SettingsRow extends StatelessWidget {
     String? sub,
     required bool value,
     required ValueChanged<bool> onChanged,
+    VoidCallback? onInfo,
   }) =>
       SettingsRow(
         icon: icon,
         label: label,
         sub: sub,
         trailing: Switch(value: value, onChanged: onChanged),
+        onInfo: onInfo,
       );
 
   final IconData icon;
@@ -123,6 +129,11 @@ class SettingsRow extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onTap;
 
+  /// The icon tile is its own button (additions handoff §1.1): it opens the
+  /// setting's "about" sheet, while the rest of the row keeps doing what it
+  /// did. Its hit area is 44 around the 36 tile without moving anything.
+  final VoidCallback? onInfo;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -131,23 +142,16 @@ class SettingsRow extends StatelessWidget {
       onTap: onTap,
       child: Container(
         constraints: const BoxConstraints(minHeight: 60),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpace.s4,
-          vertical: AppSpace.s2,
+        padding: EdgeInsets.only(
+          left: AppSpace.s4 - (onInfo == null ? 0 : _infoSlack),
+          right: AppSpace.s4,
+          top: AppSpace.s2,
+          bottom: AppSpace.s2,
         ),
         child: Row(
           children: [
-            Container(
-              width: AppSize.iconTile,
-              height: AppSize.iconTile,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: colors.surface2,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Icon(icon, size: AppIconSize.lg, color: colors.text),
-            ),
-            const SizedBox(width: AppSpace.s3),
+            _InfoTile(icon: icon, label: label, onInfo: onInfo),
+            SizedBox(width: AppSpace.s3 - (onInfo == null ? 0 : _infoSlack)),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,6 +183,45 @@ class SettingsRow extends StatelessWidget {
     );
   }
 }
+
+/// The row's icon tile. With [onInfo] it is a button with a real 44 dp hit
+/// box around the 36 dp tile; the row gives back the 4 dp each side in its
+/// padding and gap (see [_infoSlack]), so nothing moves.
+class _InfoTile extends StatelessWidget {
+  const _InfoTile({required this.icon, required this.label, required this.onInfo});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onInfo;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final tile = Container(
+      width: AppSize.iconTile,
+      height: AppSize.iconTile,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: colors.surface2,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Icon(icon, size: AppIconSize.lg, color: colors.text),
+    );
+    if (onInfo == null) return tile;
+
+    return Semantics(
+      button: true,
+      label: 'About $label',
+      excludeSemantics: true,
+      child: PressScale(
+        onTap: onInfo,
+        child: SizedBox.square(dimension: AppSize.touch, child: Center(child: tile)),
+      ),
+    );
+  }
+}
+
+const double _infoSlack = (AppSize.touch - AppSize.iconTile) / 2;
 
 /// The audit log's row: outside every group, dashed, and muted throughout.
 /// Dashed is the design's word for "raw / rarely needed", and this is the only
