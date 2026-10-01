@@ -33,6 +33,9 @@ class ExportService {
   /// backup should keep working even when the schema gains columns, and should
   /// never be silently filtered by application-level query logic.
   static const _tables = [
+    'jobs',
+    'vacations',
+    'app_preferences',
     'work_sessions',
     'break_entries',
     'leave_entries',

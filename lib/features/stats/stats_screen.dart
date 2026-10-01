@@ -17,9 +17,9 @@ import '../../providers/day_providers.dart';
 import '../../providers/holiday_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../providers/stats_providers.dart';
-import '../../providers/vacation_quota_providers.dart';
 import 'stats_body.dart';
 import 'stats_view.dart';
+import '../../providers/job_providers.dart';
 
 class StatsScreen extends ConsumerStatefulWidget {
   const StatsScreen({super.key});
@@ -165,7 +165,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
   }
 
   LeaveData _leave(DateTime today) {
-    final quota = ref.watch(vacationQuotaForYearProvider(_leaveYear)).valueOrNull;
+    final entitlement = ref.watch(vacationEntitlementProvider(_leaveYear));
     final entries = ref.watch(leaveForYearProvider(_leaveYear)).valueOrNull ?? const [];
 
     // Each entry against its own date's target, not against a flat 8 hours: a
@@ -217,7 +217,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
 
     return LeaveData(
       year: _leaveYear,
-      totalDays: (quota?.totalDays ?? 30) + (quota?.rolloverDays ?? 0),
+      totalDays: entitlement?.totalDays ?? 30,
       usedDays: used,
       plannedDays: planned,
       sickDays: sick,

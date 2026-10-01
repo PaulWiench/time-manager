@@ -23,6 +23,7 @@ import '../../widgets/edit_session_sheet.dart';
 import '../../widgets/leave_sheet.dart';
 import 'history_body.dart';
 import 'history_view.dart';
+import '../../providers/job_providers.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -227,7 +228,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         () => _selectedBreakId = _selectedBreakId == id ? null : id,
       ),
       onDeleteBreak: () {
-        ref.read(workSessionRepositoryProvider).deleteSyntheticBreak(date);
+        final jobId = ref.read(selectedJobIdProvider);
+        if (jobId != null) {
+          ref.read(workSessionRepositoryProvider).deleteSyntheticBreak(jobId, date);
+        }
         setState(() => _selectedBreakId = null);
       },
     );
@@ -295,12 +299,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     // leaving the old row behind would double it against the quota and against
     // the day's balance.
     final repo = ref.read(leaveRepositoryProvider);
+    final jobId = ref.read(selectedJobIdProvider);
+    if (jobId == null) return;
     if (edit.cleared) {
-      await repo.clearLeaveForDates([date]);
+      await repo.clearLeaveForDates(jobId, [date]);
     } else {
       await repo.setLeaveForDates(
+        jobId: jobId,
         hoursByDate: {date: edit.hoursFor(targetHours)},
         type: edit.type!,
+        vacationName: edit.name,
       );
     }
   }

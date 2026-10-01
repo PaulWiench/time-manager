@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/database/database.dart';
+import 'job_providers.dart';
 import 'repository_providers.dart';
 
 /// Note: `stats_providers.dart` declares a one-shot `Future` provider under
@@ -8,5 +9,7 @@ import 'repository_providers.dart';
 /// stream, Stats wants a snapshot for a chart — and no file imports both.
 final vacationQuotaForYearProvider =
     StreamProvider.autoDispose.family<VacationQuota?, int>((ref, year) {
-  return ref.watch(vacationQuotaRepositoryProvider).watchForYear(year);
+  final jobId = ref.watch(selectedJobIdProvider);
+  if (jobId == null) return Stream.value(null);
+  return ref.watch(vacationQuotaRepositoryProvider).watchStandingFor(jobId, year);
 });

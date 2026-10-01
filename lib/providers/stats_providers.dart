@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/database/database.dart';
 import 'database_providers.dart';
+import 'job_providers.dart';
 import 'repository_providers.dart';
 
 /// See `day_providers.dart` for why ranges are keyed by a record.
@@ -9,7 +10,9 @@ typedef _Range = ({DateTime start, DateTime endExclusive});
 
 final _balanceSnapshotsInRange =
     FutureProvider.autoDispose.family<List<BalanceSnapshot>, _Range>((ref, r) {
-  return ref.watch(appDatabaseProvider).balanceSnapshotDao.forRange(r.start, r.endExclusive);
+  final jobId = ref.watch(selectedJobIdProvider);
+  if (jobId == null) return Future.value(const []);
+  return ref.watch(appDatabaseProvider).balanceSnapshotDao.forRange(jobId, r.start, r.endExclusive);
 });
 
 AutoDisposeFutureProvider<List<BalanceSnapshot>> balanceSnapshotsInRangeProvider(
@@ -20,7 +23,9 @@ AutoDisposeFutureProvider<List<BalanceSnapshot>> balanceSnapshotsInRangeProvider
 
 final _workSessionsInRange =
     FutureProvider.autoDispose.family<List<WorkSession>, _Range>((ref, r) {
-  return ref.watch(appDatabaseProvider).workSessionDao.forRange(r.start, r.endExclusive);
+  final jobId = ref.watch(selectedJobIdProvider);
+  if (jobId == null) return Future.value(const []);
+  return ref.watch(appDatabaseProvider).workSessionDao.forRange(jobId, r.start, r.endExclusive);
 });
 
 AutoDisposeFutureProvider<List<WorkSession>> workSessionsInRangeProvider(
@@ -31,7 +36,9 @@ AutoDisposeFutureProvider<List<WorkSession>> workSessionsInRangeProvider(
 
 final leaveForYearProvider =
     StreamProvider.autoDispose.family<List<LeaveEntry>, int>((ref, year) {
-  return ref.watch(leaveRepositoryProvider).watchForYear(year);
+  final jobId = ref.watch(selectedJobIdProvider);
+  if (jobId == null) return Stream.value(const []);
+  return ref.watch(leaveRepositoryProvider).watchForYear(jobId, year);
 });
 
 // The vacation quota lives in `vacation_quota_providers.dart` and is watched,

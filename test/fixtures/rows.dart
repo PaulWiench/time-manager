@@ -24,6 +24,7 @@ AppSetting settingsRow({
   bool balanceAnnualReset = false,
 }) =>
     AppSetting(
+      jobId: 1,
       id: 'settings',
       effectiveFrom: _epoch,
       weeklyHours: weeklyHours,
@@ -49,6 +50,7 @@ DayEntry dayEntryRow({
   String? notes,
 }) =>
     DayEntry(
+      jobId: 1,
       date: date,
       netWorkedHours: netWorkedHours,
       leaveHours: leaveHours,
@@ -67,6 +69,7 @@ WorkSession sessionRow({
   String? notes,
 }) =>
     WorkSession(
+      jobId: 1,
       id: id,
       date: DateTime(start.year, start.month, start.day),
       startTime: start,
@@ -84,6 +87,7 @@ BreakEntry breakRow({
   BreakType type = BreakType.synthetic,
 }) =>
     BreakEntry(
+      jobId: 1,
       id: id,
       date: DateTime(start.year, start.month, start.day),
       startTime: start,
@@ -101,6 +105,7 @@ LeaveEntry leaveRow({
   String? notes,
 }) =>
     LeaveEntry(
+      jobId: 1,
       id: id,
       date: date,
       type: type,
@@ -111,7 +116,7 @@ LeaveEntry leaveRow({
     );
 
 BalanceSnapshot balanceRow({required DateTime date, required double balance}) =>
-    BalanceSnapshot(date: date, balance: balance, updatedAt: date);
+    BalanceSnapshot(jobId: 1, date: date, balance: balance, updatedAt: date);
 
 PublicHoliday holidayRow({
   required DateTime date,

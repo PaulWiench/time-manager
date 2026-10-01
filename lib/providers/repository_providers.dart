@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/repositories/job_repository.dart';
 import '../data/repositories/leave_repository.dart';
 import '../data/repositories/public_holiday_repository.dart';
 import '../data/repositories/recalculation_service.dart';
@@ -37,6 +38,14 @@ final publicHolidayRepositoryProvider = Provider<PublicHolidayRepository>((ref) 
   return PublicHolidayRepository(
     ref.watch(appDatabaseProvider),
     ref.watch(recalculationServiceProvider),
+  );
+});
+
+final jobRepositoryProvider = Provider<JobRepository>((ref) {
+  return JobRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(recalculationServiceProvider),
+    ref.watch(workSessionRepositoryProvider),
   );
 });
 

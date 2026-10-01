@@ -59,10 +59,21 @@ Future<void> migrateToV4(AppDatabase db, Migrator m) async {
         .getSingle();
     final now = DateTime.now();
     final start = firstEffective ?? DateTime(now.year, now.month, now.day);
+    // The starting balance onboarding seeded is the snapshot the day before
+    // the start; it moves onto the job, where the cascade now looks for it.
+    final startDay = DateTime(start.year, start.month, start.day);
+    final seeded = await db
+        .customSelect(
+          'SELECT balance FROM balance_snapshots WHERE date < ? ORDER BY date DESC LIMIT 1',
+          variables: [Variable<DateTime>(startDay)],
+        )
+        .map((row) => row.read<double>('balance'))
+        .getSingleOrNull();
     await db.into(db.jobs).insert(JobsCompanion.insert(
           id: const Value(kFirstJobId),
           name: kFirstJobName,
-          startDate: DateTime(start.year, start.month, start.day),
+          startDate: startDay,
+          startingBalanceHours: Value(seeded ?? 0),
         ));
 
     // Parents before children, so every rebuilt child is created against the

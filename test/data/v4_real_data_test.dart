@@ -15,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as raw;
 import 'package:time_manager/data/database/database.dart';
 import 'package:time_manager/data/database/v4_migration.dart';
+import 'package:time_manager/data/repositories/recalculation_service.dart';
 
 final _home = Platform.environment['HOME'];
 final _backup = File(
@@ -45,7 +46,7 @@ Map<String, List<Map<String, Object?>>> _dump(String path) {
         ],
     };
   } finally {
-    db.dispose();
+    db.close();
   }
 }
 
@@ -82,13 +83,13 @@ void main() {
     migrated = raw.sqlite3.open(file.path, mode: raw.OpenMode.readOnly);
   });
 
-  tearDownAll(() => migrated.dispose());
+  tearDownAll(() => migrated.close());
 
   test('the backup is the v3 file it should be', () {
     final db = raw.sqlite3.open(_backup.path, mode: raw.OpenMode.readOnly);
     expect(db.userVersion, 3);
     expect(db.select('SELECT COUNT(*) AS n FROM work_sessions').first['n'], 329);
-    db.dispose();
+    db.close();
   });
 
   test('ends at v4, intact, with every reference resolving', () {
@@ -136,6 +137,8 @@ void main() {
     expect(jobs.first['id'], kFirstJobId);
     expect(jobs.first['name'], 'Hochschule Karlsruhe');
     expect(jobs.first['end_date'], isNull);
+    // Onboarding seeded 0:00 the day before tracking began.
+    expect(jobs.first['starting_balance_hours'], 0.0);
     final start = DateTime.fromMillisecondsSinceEpoch((jobs.first['start_date'] as int) * 1000);
     expect(start, DateTime(2026, 3, 15));
   });
@@ -162,6 +165,39 @@ void main() {
     );
   });
 
+  test('recalculating every day since the start reproduces every stored number', () async {
+    // The strongest check there is on the job-aware engine: re-derive all
+    // of it, from 15 March to the moment of the export, and compare with what
+    // the pre-jobs engine had stored. Same day entries, same balances.
+    final file = _copyOfBackup();
+    final db = AppDatabase(NativeDatabase(file));
+    final exportedAt = DateTime(2026, 10, 1, 18, 47, 31);
+    await RecalculationService(db, now: () => exportedAt)
+        .recalculateRangeFrom(kFirstJobId, DateTime(2026, 3, 15));
+    await db.close();
+    final recomputed = _dump(file.path);
+
+    String key(Map<String, Object?> row) => '${row['date']}';
+    final days = {for (final row in recomputed['day_entries']!) key(row): row};
+    for (final old in before['day_entries']!) {
+      final now = days[key(old)];
+      expect(now, isNotNull, reason: 'day ${old['date']} vanished');
+      for (final column in ['net_worked_hours', 'leave_hours', 'target_hours', 'balance_delta']) {
+        expect(now![column] as double, closeTo(old[column] as double, 1e-9),
+            reason: '$column on ${DateTime.fromMillisecondsSinceEpoch((old['date'] as int) * 1000)}');
+      }
+    }
+    expect(days.length, before['day_entries']!.length, reason: 'no day entries invented');
+
+    final balances = {for (final row in recomputed['balance_snapshots']!) key(row): row};
+    for (final old in before['balance_snapshots']!) {
+      final now = balances[key(old)];
+      expect(now, isNotNull, reason: 'snapshot ${old['date']} vanished');
+      expect(now!['balance'] as double, closeTo(old['balance'] as double, 1e-9),
+          reason: 'balance on ${DateTime.fromMillisecondsSinceEpoch((old['date'] as int) * 1000)}');
+    }
+  });
+
   test('a migration that fails leaves the v3 file exactly as it was', () async {
     final file = _copyOfBackup();
     // An orphaned session — a date with no day entry — is what a broken
@@ -169,7 +205,7 @@ void main() {
     final db = raw.sqlite3.open(file.path);
     db.execute("INSERT INTO work_sessions (id, date, start_time, status) "
         "VALUES ('orphan', 1, 1, 'completed')");
-    db.dispose();
+    db.close();
     final planted = _dump(file.path);
 
     await expectLater(
@@ -180,7 +216,7 @@ void main() {
     final check = raw.sqlite3.open(file.path, mode: raw.OpenMode.readOnly);
     expect(check.userVersion, 3);
     expect(check.select("SELECT name FROM sqlite_master WHERE name = 'jobs'"), isEmpty);
-    check.dispose();
+    check.close();
     expect(_dump(file.path), planted);
   });
 }

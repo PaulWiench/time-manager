@@ -14,6 +14,9 @@ void main() {
 
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
+    await db.jobDao.insertJob(
+      JobsCompanion.insert(id: const Value(1), name: 'Test', startDate: DateTime(2026)),
+    );
     dir = await Directory.systemTemp.createTemp('tm-export-test');
   });
 

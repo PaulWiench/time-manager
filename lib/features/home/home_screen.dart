@@ -18,6 +18,7 @@ import '../../providers/settings_providers.dart';
 import '../../widgets/edit_session_sheet.dart';
 import 'home_body.dart';
 import 'home_view.dart';
+import '../../providers/job_providers.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, required this.onOpenSettings});
@@ -79,8 +80,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       leave: leave,
       balance: balance,
       onEditSession: (session) => EditSessionSheet.show(context, session),
-      onDeleteSyntheticBreak: () =>
-          ref.read(workSessionRepositoryProvider).deleteSyntheticBreak(today),
+      onDeleteSyntheticBreak: () {
+        final jobId = ref.read(selectedJobIdProvider);
+        if (jobId != null) {
+          ref.read(workSessionRepositoryProvider).deleteSyntheticBreak(jobId, today);
+        }
+      },
     );
 
     // A break ticks too — the ring shows how long it has been running.
@@ -105,10 +110,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _toggleTracking(String? activeSessionId) async {
     final repo = ref.read(workSessionRepositoryProvider);
+    final job = ref.read(selectedJobProvider);
     if (activeSessionId != null) {
       await repo.checkOut(sessionId: activeSessionId, at: DateTime.now());
-    } else {
-      await repo.checkIn(DateTime.now());
+    } else if (job != null && job.endDate == null) {
+      await repo.checkIn(job.id, DateTime.now());
     }
   }
 }

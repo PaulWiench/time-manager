@@ -11,8 +11,8 @@ import 'features/settings/settings_screen.dart';
 import 'features/stats/stats_screen.dart';
 import 'providers/repository_providers.dart';
 import 'providers/rollover_providers.dart';
-import 'providers/settings_providers.dart';
 import 'widgets/pill_nav.dart';
+import 'providers/job_providers.dart';
 
 class TimeManagerApp extends StatelessWidget {
   const TimeManagerApp({super.key});
@@ -30,23 +30,26 @@ class TimeManagerApp extends StatelessWidget {
   }
 }
 
-/// Routes to Onboarding until the first Settings row exists, then to the
-/// bottom-nav shell — the app's single top-level fork. `latestSettingsProvider`
-/// is a DB watch stream, so once onboarding writes its Settings row this
-/// rebuilds into the shell on its own; Onboarding's `onDone` needs no
-/// explicit navigation.
+/// Routes to Onboarding until the first job exists, then to the bottom-nav
+/// shell — the app's single top-level fork. `jobsProvider` is a DB watch
+/// stream, so once onboarding creates the job this rebuilds into the shell on
+/// its own; Onboarding's `onDone` needs no explicit navigation.
+///
+/// It waits on the jobs list itself rather than on the selected job's
+/// settings: those read as null while the list is still loading, which would
+/// flash onboarding at every launch.
 class _RootGate extends ConsumerWidget {
   const _RootGate();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(latestSettingsProvider);
+    final jobs = ref.watch(jobsProvider);
 
-    return settings.when(
+    return jobs.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (err, st) => Scaffold(body: Center(child: Text('Something went wrong: $err'))),
-      data: (setting) {
-        if (setting == null) {
+      data: (all) {
+        if (all.isEmpty) {
           return OnboardingScreen(onDone: () {});
         }
         // Fire-and-forget: idempotent, and the shell doesn't need to block on

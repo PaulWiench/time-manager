@@ -11,6 +11,10 @@ import '../database/enums.dart';
 /// forward. This is the single place every mutation (session/leave/holiday/
 /// settings change) routes through, per Data Model § Recalculation Trigger
 /// Rules.
+///
+/// Every day and every balance belongs to a job, so every entry point takes
+/// one. A change that is not one job's — a public holiday — goes through
+/// [recalculateAllJobsFrom].
 class RecalculationService {
   final AppDatabase db;
   final DateTime Function() _now;
@@ -25,12 +29,29 @@ class RecalculationService {
   /// recalculated (e.g. a newly-added upcoming holiday), but no balance
   /// snapshot is written for it — see [_cascadeBalanceFrom]. Use for a
   /// single-day change (a session/leave/holiday edit).
-  Future<void> recalculateFrom(DateTime date) async {
+  Future<void> recalculateFrom(int jobId, DateTime date) async {
     final day = dateOnly(date);
     await db.transaction(() async {
-      await _recalculateDay(day);
-      await _cascadeBalanceFrom(day);
+      final job = await db.jobDao.byId(jobId);
+      if (job == null) return;
+      await _recalculateDay(job, day);
+      await _cascadeBalanceFrom(job, day);
     });
+  }
+
+  /// [recalculateFrom] for every job — a holiday or another change that is
+  /// not specific to one job.
+  Future<void> recalculateAllJobsFrom(DateTime date) async {
+    for (final job in await db.jobDao.all()) {
+      await recalculateFrom(job.id, date);
+    }
+  }
+
+  /// [recalculateRangeFrom] for every job.
+  Future<void> recalculateAllJobsRangeFrom(DateTime date) async {
+    for (final job in await db.jobDao.all()) {
+      await recalculateRangeFrom(job.id, date);
+    }
   }
 
   /// Recalculates every day from [date] through today, then cascades the
@@ -40,16 +61,18 @@ class RecalculationService {
   /// from that point forward, not just one. Data Model § Recalculation
   /// Trigger Rules: "Settings change with past effective_from -> All
   /// DayEntries and BalanceSnapshots from effective_from forward."
-  Future<void> recalculateRangeFrom(DateTime date) async {
+  Future<void> recalculateRangeFrom(int jobId, DateTime date) async {
     final start = dateOnly(date);
     final today = dateOnly(_now());
     final end = start.isAfter(today) ? start : today;
 
     await db.transaction(() async {
+      final job = await db.jobDao.byId(jobId);
+      if (job == null) return;
       for (var d = start; !d.isAfter(end); d = shiftDays(d, 1)) {
-        await _recalculateDay(d);
+        await _recalculateDay(job, d);
       }
-      await _cascadeBalanceFrom(start);
+      await _cascadeBalanceFrom(job, start);
     });
   }
 
@@ -58,20 +81,20 @@ class RecalculationService {
   /// touches this date (a completed session, leave, or holiday) — DayEntry
   /// rows are created lazily, never speculatively, per Data Model §
   /// Design Principles.
-  Future<void> _recalculateDay(DateTime day) async {
-    final settings = await db.settingsDao.effectiveFor(day);
+  Future<void> _recalculateDay(Job job, DateTime day) async {
+    final settings = await db.settingsDao.effectiveFor(job.id, day);
     // No settings yet means onboarding hasn't completed — nothing to
     // compute against.
     if (settings == null) return;
 
-    final existing = await db.dayEntryDao.forDate(day);
+    final existing = await db.dayEntryDao.forDate(job.id, day);
     final holiday = await db.publicHolidayDao.forDate(day);
-    final sessions = await db.workSessionDao.forDate(day);
+    final sessions = await db.workSessionDao.forDate(job.id, day);
     final completed = sessions
         .where((s) => s.status == SessionStatus.completed && s.endTime != null)
         .map((s) => WorkPeriod(start: s.startTime, end: s.endTime!))
         .toList();
-    final leave = await db.leaveEntryDao.forDate(day);
+    final leave = await db.leaveEntryDao.forDate(job.id, day);
 
     final hasActivity = completed.isNotEmpty || leave.isNotEmpty || holiday != null;
     if (existing == null && !hasActivity) return;
@@ -81,12 +104,16 @@ class RecalculationService {
       leaveHours += l.hours;
     }
 
-    final targetHours = computeTargetHours(
-      date: day,
-      workDays: settings.workDays,
-      weeklyHours: settings.weeklyHours,
-      holidayFraction: holiday?.fraction,
-    );
+    // Outside the job's own span a day owes nothing: before it started, or
+    // after its last working day.
+    final targetHours = _withinJob(job, day)
+        ? computeTargetHours(
+            date: day,
+            workDays: settings.workDays,
+            weeklyHours: settings.weeklyHours,
+            holidayFraction: holiday?.fraction,
+          )
+        : 0.0;
 
     final autoBreakOverridden = existing?.autoBreakOverridden ?? false;
 
@@ -99,6 +126,7 @@ class RecalculationService {
     );
 
     await db.dayEntryDao.upsert(DayEntriesCompanion(
+      jobId: Value(job.id),
       date: Value(day),
       netWorkedHours: Value(computation.netWorkedHours),
       leaveHours: Value(computation.leaveHours),
@@ -109,7 +137,7 @@ class RecalculationService {
 
     // Synthetic breaks are fully re-derived every time — clear the old one
     // (if any) before writing the new plan, rather than trying to diff it.
-    final existingBreaks = await db.breakEntryDao.forDate(day);
+    final existingBreaks = await db.breakEntryDao.forDate(job.id, day);
     for (final b in existingBreaks) {
       if (b.type == BreakType.synthetic) {
         await db.breakEntryDao.deleteBreak(b.id);
@@ -118,6 +146,7 @@ class RecalculationService {
     final plan = computation.syntheticBreak;
     if (plan != null) {
       await db.breakEntryDao.insertBreak(BreakEntriesCompanion.insert(
+        jobId: Value(job.id),
         date: day,
         startTime: plan.start,
         endTime: plan.end,
@@ -134,22 +163,36 @@ class RecalculationService {
   /// happening to also touch that same future date (e.g. a newly-seeded
   /// holiday only recalculates from its own date forward, not any
   /// already-existing future snapshots beyond it).
-  Future<void> _cascadeBalanceFrom(DateTime day) async {
+  ///
+  /// The job's own starting balance is the floor every cascade rests on: a
+  /// cascade that reaches back to the job's start (or finds no snapshot of
+  /// the job's since) starts from [Job.startingBalanceHours] on the start
+  /// date, never from a snapshot dated before the job existed.
+  Future<void> _cascadeBalanceFrom(Job job, DateTime day) async {
     final today = dateOnly(_now());
-    if (day.isAfter(today)) return;
+    final jobStart = dateOnly(job.startDate);
+    var from = day.isBefore(jobStart) ? jobStart : day;
+    if (from.isAfter(today)) return;
 
-    final previous = await db.balanceSnapshotDao.latestBefore(day);
-    final startingBalance = previous?.balance ?? 0.0;
+    final previous = await db.balanceSnapshotDao.latestBefore(job.id, from);
+    final double startingBalance;
+    if (previous == null || previous.date.isBefore(jobStart) || from == jobStart) {
+      from = jobStart;
+      startingBalance = job.startingBalanceHours;
+    } else {
+      startingBalance = previous.balance;
+    }
 
     final deltas = <MapEntry<DateTime, double>>[];
-    for (var d = day; !d.isAfter(today); d = shiftDays(d, 1)) {
-      deltas.add(MapEntry(d, await _deltaFor(d)));
+    for (var d = from; !d.isAfter(today); d = shiftDays(d, 1)) {
+      deltas.add(MapEntry(d, await _deltaFor(job, d)));
     }
 
     final snapshots =
         cascadeBalance(startingBalance: startingBalance, dailyDeltas: deltas);
     for (final s in snapshots) {
       await db.balanceSnapshotDao.upsert(BalanceSnapshotsCompanion.insert(
+        jobId: Value(job.id),
         date: s.date,
         balance: s.balance,
       ));
@@ -169,11 +212,12 @@ class RecalculationService {
   /// A date's balance_delta: its DayEntry's, if one exists; otherwise
   /// [missedWorkdayDelta] for a scheduled workday with no entry, or 0 for a
   /// non-work day. Data Model § Design Principles.
-  Future<double> _deltaFor(DateTime date) async {
-    final entry = await db.dayEntryDao.forDate(date);
+  Future<double> _deltaFor(Job job, DateTime date) async {
+    final entry = await db.dayEntryDao.forDate(job.id, date);
     if (entry != null) return entry.balanceDelta;
+    if (!_withinJob(job, date)) return 0;
 
-    final settings = await db.settingsDao.effectiveFor(date);
+    final settings = await db.settingsDao.effectiveFor(job.id, date);
     if (settings == null) return 0;
     if (!settings.workDays.contains(date.weekday)) return 0;
 
@@ -186,4 +230,8 @@ class RecalculationService {
     );
     return missedWorkdayDelta(target);
   }
+
+  static bool _withinJob(Job job, DateTime day) =>
+      !day.isBefore(dateOnly(job.startDate)) &&
+      (job.endDate == null || !day.isAfter(dateOnly(job.endDate!)));
 }

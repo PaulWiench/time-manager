@@ -44,7 +44,7 @@ class DayRollover {
     for (final session in await db.workSessionDao.activeSessions()) {
       if (!dateOnly(session.startTime).isBefore(today)) continue;
 
-      final settings = await db.settingsDao.effectiveFor(dateOnly(session.date));
+      final settings = await db.settingsDao.effectiveFor(session.jobId, dateOnly(session.date));
       final cutoff = evaluateMidnightCutoff(
         sessionStart: session.startTime,
         now: now,
@@ -66,20 +66,20 @@ class DayRollover {
     }
   }
 
-  /// Settles every day between the last snapshot and yesterday.
+  /// Settles every job's days between its last snapshot and yesterday.
   ///
   /// A missed workday has no `day_entries` row at all, so only the cascade can
   /// find it — `_deltaFor` recomputes the target and charges the shortfall.
   Future<void> _settleMissedDays(DateTime today) async {
-    final latest = await db.balanceSnapshotDao.latestBefore(today);
-    // No snapshot at all means nothing has ever been tracked, or onboarding
-    // has not run. There is no floor to cascade from and nothing to settle.
-    if (latest == null) return;
+    for (final job in await db.jobDao.all()) {
+      final latest = await db.balanceSnapshotDao.latestBefore(job.id, today);
+      // No snapshot yet: a job created today, or onboarding has not run.
+      // The job's start is where its cascade begins.
+      final from = latest == null ? dateOnly(job.startDate) : shiftDays(latest.date, 1);
+      if (!from.isBefore(today)) continue;
 
-    final from = shiftDays(latest.date, 1);
-    if (!from.isBefore(today)) return;
-
-    // One pass, one cascade — recalculateFrom would cascade once per day.
-    await recalc.recalculateRangeFrom(from);
+      // One pass, one cascade — recalculateFrom would cascade once per day.
+      await recalc.recalculateRangeFrom(job.id, from);
+    }
   }
 }

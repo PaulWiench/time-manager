@@ -102,16 +102,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final autoBreak = cancelled ? (_committedAutoBreak ?? _defaultAutoBreak) : _autoBreak;
 
     final today = dateOnly(DateTime.now());
-    final settings = ref.read(settingsRepositoryProvider);
-    await settings.seedStartingBalance(balance: startingBalance, effectiveFrom: today);
-    await settings.save(
-      effectiveFrom: today,
-      weeklyHours: weeklyHours,
-      workDays: workDays.toList()..sort(),
-      minSessionMinutes: 5,
-      autoBreakEnabled: autoBreak,
-      restrictCheckin: false,
-    );
+    // Onboarding sets up the first job; more can be added in Settings → Jobs.
+    final jobId = await ref.read(jobRepositoryProvider).createJob(
+          name: 'My job',
+          startDate: today,
+          weeklyHours: weeklyHours,
+          workDays: workDays.toList()..sort(),
+          workWindowStartMinutes: 8 * 60,
+          workWindowEndMinutes: 18 * 60,
+          startingBalanceHours: startingBalance,
+          vacationDaysPerYear: 30,
+          autoBreakEnabled: autoBreak,
+        );
+    await ref.read(jobRepositoryProvider).select(jobId);
 
     widget.onDone();
   }

@@ -13,10 +13,10 @@ library;
 
 import 'package:time_manager/data/database/database.dart';
 import 'package:time_manager/data/database/enums.dart';
+import 'package:time_manager/data/repositories/job_repository.dart';
 import 'package:time_manager/data/repositories/leave_repository.dart';
 import 'package:time_manager/data/repositories/public_holiday_repository.dart';
 import 'package:time_manager/data/repositories/recalculation_service.dart';
-import 'package:time_manager/data/repositories/settings_repository.dart';
 import 'package:time_manager/data/repositories/vacation_quota_repository.dart';
 import 'package:time_manager/data/repositories/work_session_repository.dart';
 import 'package:time_manager/domain/date_only.dart';
@@ -60,7 +60,6 @@ Future<void> seed(
   int days = 190,
 }) async {
   final recalc = RecalculationService(db);
-  final settings = SettingsRepository(db, recalc);
   final sessions = WorkSessionRepository(db, recalc);
   final leave = LeaveRepository(db, recalc);
   final holidays = PublicHolidayRepository(db, recalc);
@@ -69,23 +68,26 @@ Future<void> seed(
   final today = dateOnly(now);
   final start = shiftDays(today, -days);
 
-  await settings.seedStartingBalance(balance: 4.75, effectiveFrom: start);
-  await settings.save(
-    effectiveFrom: start,
+  final jobs = JobRepository(db, recalc, sessions);
+  final j = await jobs.createJob(
+    name: 'Research assistant',
+    startDate: start,
     weeklyHours: 39.5,
     workDays: const [1, 2, 3, 4, 5],
-    minSessionMinutes: 5,
-    autoBreakEnabled: true,
-    restrictCheckin: false,
+    workWindowStartMinutes: 8 * 60,
+    workWindowEndMinutes: 18 * 60,
+    startingBalanceHours: 4.75,
     // Set, and set where the seeded balance will cross it — otherwise the
     // warning treatment has no way to appear on a device.
     balanceFloorHours: -20,
     balanceCapHours: 40,
+    vacationDaysPerYear: 30,
   );
+  assert(j == _seedJob, 'seeding expects an empty database');
 
   await holidays.seedYear(today.year - 1);
   await holidays.seedYear(today.year);
-  await quotas.setQuota(year: today.year, totalDays: 30);
+  await quotas.setQuota(jobId: j, year: today.year, totalDays: 30);
 
   final wobble = _Wobble();
 
@@ -97,6 +99,7 @@ Future<void> seed(
     if (roll < 0.05) continue; // a missed workday
     if (roll < 0.11) {
       await leave.addLeave(
+        jobId: j,
         date: date,
         type: roll < 0.09 ? LeaveType.vacation : LeaveType.sick,
         hours: 7.9,
@@ -128,6 +131,9 @@ Future<void> seed(
   await _today(sessions, now: now, state: state);
 }
 
+/// The job a seeded (empty) database gets: the first one created.
+const _seedJob = 1;
+
 Future<void> _today(
   WorkSessionRepository sessions, {
   required DateTime now,
@@ -142,7 +148,7 @@ Future<void> _today(
       return;
     case SeedState.tracking:
       await _session(sessions, at(9, 0), at(12, 52));
-      await sessions.checkIn(at(14, 51));
+      await sessions.checkIn(_seedJob, at(14, 51));
     case SeedState.onBreak:
       // Half a day's work and a recent check-out, so the break window and the
       // not-yet-met target both apply.
@@ -158,8 +164,8 @@ Future<void> _session(
   DateTime start,
   DateTime end,
 ) async {
-  await sessions.checkIn(start);
-  final active = await sessions.activeSession();
+  await sessions.checkIn(_seedJob, start);
+  final active = await sessions.activeSession(_seedJob);
   if (active == null) return;
   await sessions.checkOut(sessionId: active.id, at: end);
 }

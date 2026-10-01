@@ -20,10 +20,10 @@ import '../../providers/holiday_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../providers/stats_providers.dart';
-import '../../providers/vacation_quota_providers.dart';
 import '../../widgets/app_date_picker.dart';
 import '../../widgets/leave_sheet.dart';
 import 'leave_list_body.dart';
+import '../../providers/job_providers.dart';
 
 class LeaveListScreen extends ConsumerStatefulWidget {
   const LeaveListScreen({super.key});
@@ -39,7 +39,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
   Widget build(BuildContext context) {
     final today = dateOnly(DateTime.now());
     final entries = ref.watch(leaveForYearProvider(_year)).valueOrNull ?? const [];
-    final quota = ref.watch(vacationQuotaForYearProvider(_year)).valueOrNull;
+    final entitlement = ref.watch(vacationEntitlementProvider(_year));
     final targets = _targetResolver(_year);
 
     final sorted = [...entries]..sort((a, b) => a.date.compareTo(b.date));
@@ -61,15 +61,19 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
       items: _group(sorted, targets, today),
       usedDays: used,
       plannedDays: planned,
-      quotaDays: (quota?.totalDays ?? 30) + (quota?.rolloverDays ?? 0),
+      quotaDays: entitlement?.totalDays ?? 30,
       // A year ahead is useful — that is where next year's block gets booked —
       // but there is no point walking further into an empty calendar.
       canStepForward: _year < today.year + 1,
       onStepYear: (direction) => setState(() => _year += direction),
       onAdd: () => _book(targets),
       onEdit: (item) => _edit(item.date),
-      onRemove: (item) =>
-          ref.read(leaveRepositoryProvider).clearLeaveForDates(item.dates),
+      onRemove: (item) {
+        final jobId = ref.read(selectedJobIdProvider);
+        if (jobId != null) {
+          ref.read(leaveRepositoryProvider).clearLeaveForDates(jobId, item.dates);
+        }
+      },
     );
   }
 
@@ -209,12 +213,16 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     if (edit == null || !mounted) return;
 
     final repo = ref.read(leaveRepositoryProvider);
+    final jobId = ref.read(selectedJobIdProvider);
+    if (jobId == null) return;
     if (edit.cleared) {
-      await repo.clearLeaveForDates(dates);
+      await repo.clearLeaveForDates(jobId, dates);
     } else {
       await repo.setLeaveForDates(
+        jobId: jobId,
         hoursByDate: {for (final date in dates) date: edit.hoursFor(targets(date))},
         type: edit.type!,
+        vacationName: edit.name,
       );
     }
     if (mounted) setState(() => _year = dates.first.year);
@@ -255,12 +263,16 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     // the day would count twice against the quota and twice in its balance.
     // `setLeaveForDates` does that clearing itself.
     final repo = ref.read(leaveRepositoryProvider);
+    final jobId = ref.read(selectedJobIdProvider);
+    if (jobId == null) return;
     if (edit.cleared) {
-      await repo.clearLeaveForDates([day]);
+      await repo.clearLeaveForDates(jobId, [day]);
     } else {
       await repo.setLeaveForDates(
+        jobId: jobId,
         hoursByDate: {day: edit.hoursFor(targetHours)},
         type: edit.type!,
+        vacationName: edit.name,
       );
     }
   }

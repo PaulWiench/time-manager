@@ -8,10 +8,13 @@ import '../domain/midnight_cutoff.dart';
 import '../domain/recalculation_engine.dart';
 import 'database_providers.dart';
 import 'day_providers.dart';
+import 'job_providers.dart';
 import 'settings_providers.dart';
 
 final latestBalanceProvider = StreamProvider<BalanceSnapshot?>((ref) {
-  return ref.watch(appDatabaseProvider).balanceSnapshotDao.watchLatest();
+  final jobId = ref.watch(selectedJobIdProvider);
+  if (jobId == null) return Stream.value(null);
+  return ref.watch(appDatabaseProvider).balanceSnapshotDao.watchLatest(jobId);
 });
 
 /// The balance carried into [date] — i.e. everything already settled.
@@ -22,7 +25,9 @@ final latestBalanceProvider = StreamProvider<BalanceSnapshot?>((ref) {
 /// `lib/domain/day_settlement.dart` for why.
 final settledBalanceProvider =
     StreamProvider.autoDispose.family<BalanceSnapshot?, DateTime>((ref, date) {
-  return ref.watch(appDatabaseProvider).balanceSnapshotDao.watchLatestBefore(date);
+  final jobId = ref.watch(selectedJobIdProvider);
+  if (jobId == null) return Stream.value(null);
+  return ref.watch(appDatabaseProvider).balanceSnapshotDao.watchLatestBefore(jobId, date);
 });
 
 /// The balance as every screen should print it, and whether today is still

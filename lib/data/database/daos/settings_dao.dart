@@ -14,8 +14,8 @@ class SettingsDao extends DatabaseAccessor<AppDatabase>
   /// `effectiveFrom` that is <= [date]. Ties (two rows saved with the same
   /// `effectiveFrom`) break in favor of whichever was saved most recently —
   /// "last write wins" for same-day changes. See Data Model § Settings.
-  Future<AppSetting?> effectiveFor(DateTime date) => (select(appSettings)
-        ..where((t) => t.effectiveFrom.isSmallerOrEqualValue(date))
+  Future<AppSetting?> effectiveFor(int jobId, DateTime date) => (select(appSettings)
+        ..where((t) => t.jobId.equals(jobId) & t.effectiveFrom.isSmallerOrEqualValue(date))
         ..orderBy([
           (t) => OrderingTerm.desc(t.effectiveFrom),
           (t) => OrderingTerm.desc(t.createdAt),
@@ -25,8 +25,8 @@ class SettingsDao extends DatabaseAccessor<AppDatabase>
 
   /// [effectiveFor] as a stream, so a screen showing settings-derived numbers
   /// updates when they change rather than at the next app launch.
-  Stream<AppSetting?> watchEffectiveFor(DateTime date) => (select(appSettings)
-        ..where((t) => t.effectiveFrom.isSmallerOrEqualValue(date))
+  Stream<AppSetting?> watchEffectiveFor(int jobId, DateTime date) => (select(appSettings)
+        ..where((t) => t.jobId.equals(jobId) & t.effectiveFrom.isSmallerOrEqualValue(date))
         ..orderBy([
           (t) => OrderingTerm.desc(t.effectiveFrom),
           (t) => OrderingTerm.desc(t.createdAt),
@@ -34,13 +34,27 @@ class SettingsDao extends DatabaseAccessor<AppDatabase>
         ..limit(1))
       .watchSingleOrNull();
 
-  Stream<AppSetting?> watchLatest() => (select(appSettings)
+  Stream<AppSetting?> watchLatest(int jobId) => (select(appSettings)
+        ..where((t) => t.jobId.equals(jobId))
         ..orderBy([
           (t) => OrderingTerm.desc(t.effectiveFrom),
           (t) => OrderingTerm.desc(t.createdAt),
         ])
         ..limit(1))
       .watchSingleOrNull();
+
+  Future<AppSetting?> latest(int jobId) => (select(appSettings)
+        ..where((t) => t.jobId.equals(jobId))
+        ..orderBy([
+          (t) => OrderingTerm.desc(t.effectiveFrom),
+          (t) => OrderingTerm.desc(t.createdAt),
+        ])
+        ..limit(1))
+      .getSingleOrNull();
+
+  /// Whether any job has settings yet — i.e. onboarding has run.
+  Future<bool> any() async =>
+      (await (select(appSettings)..limit(1)).getSingleOrNull()) != null;
 
   Future<int> insertSettings(AppSettingsCompanion entry) =>
       into(appSettings).insert(entry);

@@ -13,14 +13,26 @@ class VacationQuotaRepository {
 
   VacationQuotaRepository(this.db);
 
-  Future<VacationQuota?> forYear(int year) => db.vacationQuotaDao.forYear(year);
+  Future<VacationQuota?> forYear(int jobId, int year) => db.vacationQuotaDao.forYear(jobId, year);
 
-  Stream<VacationQuota?> watchForYear(int year) => db.vacationQuotaDao.watchForYear(year);
+  Stream<VacationQuota?> watchForYear(int jobId, int year) =>
+      db.vacationQuotaDao.watchForYear(jobId, year);
 
-  Future<void> setQuota({required int year, required double totalDays}) {
-    return db.vacationQuotaDao.upsert(VacationQuotasCompanion(
+  /// The quota standing in [year] — the most recent year's row at or before
+  /// it, since a quota is set once and holds until changed.
+  Stream<VacationQuota?> watchStandingFor(int jobId, int year) =>
+      db.vacationQuotaDao.watchStandingFor(jobId, year);
+
+  /// Sets the full-year quota from [year] on. Rollover already recorded for
+  /// that year is kept.
+  Future<void> setQuota({required int jobId, required int year, required double totalDays}) async {
+    final existing = await db.vacationQuotaDao.forYear(jobId, year);
+    await db.vacationQuotaDao.upsert(VacationQuotasCompanion(
+      jobId: Value(jobId),
       year: Value(year),
       totalDays: Value(totalDays),
+      rolloverDays: Value(existing?.rolloverDays ?? 0),
+      rolloverDeadline: Value(existing?.rolloverDeadline),
     ));
   }
 
@@ -32,9 +44,9 @@ class VacationQuotaRepository {
   /// `weeklyHours / workDays.length` — 7.9 for a 39.5 h week — so sixteen whole
   /// vacation days came out as 15.8, and on a half-day public holiday it was
   /// wrong in the other direction.
-  Future<double> usedDaysForYear(int year) async {
-    final leave = await db.leaveEntryDao.forYear(year);
-    final days = await db.dayEntryDao.forRange(DateTime(year), DateTime(year + 1));
+  Future<double> usedDaysForYear(int jobId, int year) async {
+    final leave = await db.leaveEntryDao.forYear(jobId, year);
+    final days = await db.dayEntryDao.forRange(jobId, DateTime(year), DateTime(year + 1));
     final targets = {for (final day in days) day.date: day.targetHours};
 
     var total = 0.0;
@@ -49,17 +61,18 @@ class VacationQuotaRepository {
   }
 
   Future<void> rollIntoNextYear({
+    required int jobId,
     required int fromYear,
     required RolloverPolicy policy,
     required double nextYearTotalDays,
     DateTime? useByDeadline,
   }) async {
-    final current = await db.vacationQuotaDao.forYear(fromYear);
+    final current = await db.vacationQuotaDao.forYear(jobId, fromYear);
     final currentValues = VacationQuotaValues(
       totalDays: current?.totalDays ?? 30,
       rolloverDays: current?.rolloverDays ?? 0,
     );
-    final used = await usedDaysForYear(fromYear);
+    final used = await usedDaysForYear(jobId, fromYear);
 
     final next = computeNextYearRollover(
       currentYear: currentValues,
@@ -70,7 +83,8 @@ class VacationQuotaRepository {
     );
 
     await db.vacationQuotaDao.upsert(VacationQuotasCompanion.insert(
-      year: Value(fromYear + 1),
+      jobId: Value(jobId),
+      year: fromYear + 1,
       totalDays: Value(next.totalDays),
       rolloverDays: Value(next.rolloverDays),
       rolloverDeadline: Value(next.rolloverDeadline),

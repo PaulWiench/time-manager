@@ -20,6 +20,10 @@ class Jobs extends Table {
 
   /// Date-only, inclusive — the last working day. Null while the job runs.
   DateTimeColumn get endDate => dateTime().nullable()();
+
+  /// Hours ahead (+) or behind (−) when tracking this job began. The balance
+  /// cascade starts every job from here on its start date.
+  RealColumn get startingBalanceHours => real().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }

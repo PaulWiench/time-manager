@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/database/database.dart';
 import 'database_providers.dart';
+import 'job_providers.dart';
 
 /// The currently active session, if any.
 ///
@@ -17,5 +18,7 @@ import 'database_providers.dart';
 /// A session still running from a previous day is closed at launch — see
 /// `providers/rollover_providers.dart`.
 final activeSessionProvider = StreamProvider.autoDispose<WorkSession?>((ref) {
-  return ref.watch(appDatabaseProvider).workSessionDao.watchActive();
+  final jobId = ref.watch(selectedJobIdProvider);
+  if (jobId == null) return Stream.value(null);
+  return ref.watch(appDatabaseProvider).workSessionDao.watchActive(jobId);
 });

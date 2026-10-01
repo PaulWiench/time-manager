@@ -63,15 +63,20 @@ class LeaveEdit {
   const LeaveEdit.set({
     required LeaveType this.type,
     required LeaveFraction this.fraction,
+    this.name,
   }) : cleared = false;
 
   const LeaveEdit.cleared()
       : type = null,
         fraction = null,
+        name = null,
         cleared = true;
 
   final LeaveType? type;
   final LeaveFraction? fraction;
+
+  /// The vacation's name, as typed; vacation only, empty means unnamed.
+  final String? name;
 
   /// Remove whatever leave those days already had, and add nothing.
   final bool cleared;

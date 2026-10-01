@@ -44,7 +44,7 @@ class PublicHolidayRepository {
         name: seed.name,
         source: HolidaySource.auto,
       ));
-      await recalc.recalculateFrom(seed.date);
+      await recalc.recalculateAllJobsFrom(seed.date);
     }
   }
 
@@ -60,7 +60,7 @@ class PublicHolidayRepository {
       fraction: Value(fraction),
       source: HolidaySource.manual,
     ));
-    await recalc.recalculateFrom(day);
+    await recalc.recalculateAllJobsFrom(day);
   }
 
   /// Auto-seeded holidays are tombstoned rather than deleted, so seeding
@@ -74,6 +74,6 @@ class PublicHolidayRepository {
     } else {
       await db.publicHolidayDao.tombstone(day);
     }
-    await recalc.recalculateFrom(day);
+    await recalc.recalculateAllJobsFrom(day);
   }
 }

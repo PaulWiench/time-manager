@@ -24,6 +24,7 @@ import 'leave_list_screen.dart';
 import 'settings_body.dart';
 import 'settings_editors.dart';
 import 'settings_view.dart';
+import '../../providers/job_providers.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -31,7 +32,10 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(latestSettingsProvider).valueOrNull;
-    if (settings == null) return const Center(child: CircularProgressIndicator());
+    final jobId = ref.watch(selectedJobIdProvider);
+    if (settings == null || jobId == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     final year = DateTime.now().year;
     final quota = ref.watch(vacationQuotaForYearProvider(year)).valueOrNull;
@@ -66,22 +70,21 @@ class SettingsScreen extends ConsumerWidget {
       notifications: 'All off',
     );
 
+    // The schedule, window and balance bounds are the selected job's own.
     Future<void> patch({
       double? weeklyHours,
       List<int>? workDays,
-      int? minSessionMinutes,
-      bool? autoBreakEnabled,
-      bool? restrictCheckin,
       WorkWindow? workWindow,
       BalanceBounds? bounds,
     }) {
       return ref.read(settingsRepositoryProvider).save(
+            jobId: jobId,
             effectiveFrom: dateOnly(DateTime.now()),
             weeklyHours: weeklyHours ?? settings.weeklyHours,
             workDays: workDays ?? settings.workDays,
-            minSessionMinutes: minSessionMinutes ?? settings.minSessionMinutes,
-            autoBreakEnabled: autoBreakEnabled ?? settings.autoBreakEnabled,
-            restrictCheckin: restrictCheckin ?? settings.restrictCheckin,
+            minSessionMinutes: settings.minSessionMinutes,
+            autoBreakEnabled: settings.autoBreakEnabled,
+            restrictCheckin: settings.restrictCheckin,
             workWindowStartMinutes:
                 workWindow?.startMinutes ?? settings.workWindowStartMinutes,
             workWindowEndMinutes:
@@ -94,6 +97,20 @@ class SettingsScreen extends ConsumerWidget {
             balanceCapHours: bounds != null ? bounds.capHours : settings.balanceCapHours,
             balanceAnnualReset:
                 bounds != null ? bounds.annualReset : settings.balanceAnnualReset,
+          );
+    }
+
+    // Breaks apply to every job, so a change writes every job's next row.
+    Future<void> patchAllJobs({
+      int? minSessionMinutes,
+      bool? autoBreakEnabled,
+      bool? restrictCheckin,
+    }) {
+      return ref.read(settingsRepositoryProvider).saveForAllJobs(
+            effectiveFrom: dateOnly(DateTime.now()),
+            minSessionMinutes: minSessionMinutes,
+            autoBreakEnabled: autoBreakEnabled,
+            restrictCheckin: restrictCheckin,
           );
     }
 
@@ -124,7 +141,7 @@ class SettingsScreen extends ConsumerWidget {
         );
         if (window != null) await patch(workWindow: window);
       },
-      onToggleAutoBreak: (on) => patch(autoBreakEnabled: on),
+      onToggleAutoBreak: (on) => patchAllJobs(autoBreakEnabled: on),
       onEditMinSession: () async {
         final value = await editNumber(
           context,
@@ -136,9 +153,9 @@ class SettingsScreen extends ConsumerWidget {
           format: (v) => '${v.round()}',
           unit: 'min',
         );
-        if (value != null) await patch(minSessionMinutes: value.round());
+        if (value != null) await patchAllJobs(minSessionMinutes: value.round());
       },
-      onToggleRestrictCheckin: (on) => patch(restrictCheckin: on),
+      onToggleRestrictCheckin: (on) => patchAllJobs(restrictCheckin: on),
       onEditBalanceBounds: () async {
         final bounds = await editBalanceBounds(
           context,
@@ -162,7 +179,7 @@ class SettingsScreen extends ConsumerWidget {
         if (value != null) {
           await ref
               .read(vacationQuotaRepositoryProvider)
-              .setQuota(year: year, totalDays: value);
+              .setQuota(jobId: jobId, year: year, totalDays: value);
         }
       },
       onOpenLeave: () => Navigator.of(context)

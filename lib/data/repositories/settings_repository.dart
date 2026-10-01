@@ -14,22 +14,22 @@ class SettingsRepository {
 
   SettingsRepository(this.db, this.recalc);
 
-  Future<AppSetting?> effectiveFor(DateTime date) =>
-      db.settingsDao.effectiveFor(date);
+  Future<AppSetting?> effectiveFor(int jobId, DateTime date) =>
+      db.settingsDao.effectiveFor(jobId, date);
 
-  Stream<AppSetting?> watchLatest() => db.settingsDao.watchLatest();
+  Stream<AppSetting?> watchLatest(int jobId) => db.settingsDao.watchLatest(jobId);
 
-  Stream<AppSetting?> watchEffectiveFor(DateTime date) =>
-      db.settingsDao.watchEffectiveFor(date);
+  Stream<AppSetting?> watchEffectiveFor(int jobId, DateTime date) =>
+      db.settingsDao.watchEffectiveFor(jobId, date);
 
   /// True once onboarding has written the first Settings row.
-  Future<bool> hasCompletedOnboarding() async =>
-      (await db.settingsDao.effectiveFor(DateTime.now())) != null;
+  Future<bool> hasCompletedOnboarding() => db.settingsDao.any();
 
   /// Settings are versioned — every change writes a new row — so every field
   /// has to be passed on every save. A field left out here would silently
   /// reset itself the next time any unrelated setting changed.
   Future<void> save({
+    required int jobId,
     required DateTime effectiveFrom,
     required double weeklyHours,
     required List<int> workDays,
@@ -46,6 +46,7 @@ class SettingsRepository {
 
     await db.transaction(() async {
       await db.settingsDao.insertSettings(AppSettingsCompanion.insert(
+        jobId: Value(jobId),
         effectiveFrom: Value(day),
         weeklyHours: Value(weeklyHours),
         workDays: Value(workDays),
@@ -62,6 +63,7 @@ class SettingsRepository {
         action: 'update',
         entityType: 'AppSettings',
         newValue: Value(jsonEncode({
+          'jobId': jobId,
           'effectiveFrom': day.toIso8601String(),
           'weeklyHours': weeklyHours,
           'workDays': workDays,
@@ -79,20 +81,35 @@ class SettingsRepository {
 
     // A settings change can shift target_hours (and so balance_delta) for
     // every day already on record from effectiveFrom forward, not just one.
-    await recalc.recalculateRangeFrom(day);
+    await recalc.recalculateRangeFrom(jobId, day);
   }
 
-  /// Onboarding's "starting balance" isn't a Settings field — it's the
-  /// carried-over balance from before tracking began, so it's seeded as a
-  /// BalanceSnapshot dated the day before [effectiveFrom]. The balance
-  /// cascade (`RecalculationService._cascadeBalanceFrom`) always looks up
-  /// the latest snapshot strictly before the date it's cascading from, so
-  /// this becomes every later day's base without needing its own column.
-  Future<void> seedStartingBalance({required double balance, required DateTime effectiveFrom}) async {
-    final seedDate = shiftDays(dateOnly(effectiveFrom), -1);
-    await db.balanceSnapshotDao.upsert(BalanceSnapshotsCompanion.insert(
-      date: seedDate,
-      balance: balance,
-    ));
+  /// The settings that apply to every job — auto-break, minimum session
+  /// length, restrict check-in. Each job's history gets its own next row
+  /// carrying the change, so every job's settings stay complete on their own.
+  Future<void> saveForAllJobs({
+    required DateTime effectiveFrom,
+    int? minSessionMinutes,
+    bool? autoBreakEnabled,
+    bool? restrictCheckin,
+  }) async {
+    for (final job in await db.jobDao.all()) {
+      final current = await db.settingsDao.latest(job.id);
+      if (current == null) continue;
+      await save(
+        jobId: job.id,
+        effectiveFrom: effectiveFrom,
+        weeklyHours: current.weeklyHours,
+        workDays: current.workDays,
+        minSessionMinutes: minSessionMinutes ?? current.minSessionMinutes,
+        autoBreakEnabled: autoBreakEnabled ?? current.autoBreakEnabled,
+        restrictCheckin: restrictCheckin ?? current.restrictCheckin,
+        workWindowStartMinutes: current.workWindowStartMinutes,
+        workWindowEndMinutes: current.workWindowEndMinutes,
+        balanceFloorHours: current.balanceFloorHours,
+        balanceCapHours: current.balanceCapHours,
+        balanceAnnualReset: current.balanceAnnualReset,
+      );
+    }
   }
 }

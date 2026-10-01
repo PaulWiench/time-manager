@@ -1,10 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/database/database.dart';
+import 'job_providers.dart';
 import 'repository_providers.dart';
 
 final latestSettingsProvider = StreamProvider<AppSetting?>((ref) {
-  return ref.watch(settingsRepositoryProvider).watchLatest();
+  final jobId = ref.watch(selectedJobIdProvider);
+  if (jobId == null) return Stream.value(null);
+  return ref.watch(settingsRepositoryProvider).watchLatest(jobId);
 });
 
 /// [date] should be normalized via `domain/date_only.dart`'s `dateOnly`.
@@ -16,5 +19,7 @@ final latestSettingsProvider = StreamProvider<AppSetting?>((ref) {
 /// the phone and watching Home not move until the app was restarted.
 final effectiveSettingsForProvider =
     StreamProvider.autoDispose.family<AppSetting?, DateTime>((ref, date) {
-  return ref.watch(settingsRepositoryProvider).watchEffectiveFor(date);
+  final jobId = ref.watch(selectedJobIdProvider);
+  if (jobId == null) return Stream.value(null);
+  return ref.watch(settingsRepositoryProvider).watchEffectiveFor(jobId, date);
 });

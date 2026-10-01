@@ -5,10 +5,16 @@ import 'package:time_manager/data/database/database.dart';
 import 'package:time_manager/data/database/enums.dart';
 
 void main() {
+  /// The one job every test row belongs to.
+  const j = 1;
+
   late AppDatabase db;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
+    await db.jobDao.insertJob(
+      JobsCompanion.insert(id: const Value(j), name: 'Test', startDate: DateTime(2026)),
+    );
   });
 
   tearDown(() => db.close());
@@ -39,7 +45,7 @@ void main() {
     );
     expect(sessionId, isNonZero);
 
-    final sessions = await db.workSessionDao.forDate(date);
+    final sessions = await db.workSessionDao.forDate(j, date);
     expect(sessions, hasLength(1));
     expect(sessions.single.status, SessionStatus.active);
     expect(sessions.single.id, isNotEmpty); // clientDefault UUID populated
@@ -55,7 +61,7 @@ void main() {
       endTime: DateTime(2026, 8, 10, 12, 30),
       type: BreakType.synthetic,
     ));
-    final breaks = await db.breakEntryDao.forDate(date);
+    final breaks = await db.breakEntryDao.forDate(j, date);
     expect(breaks.single.type, BreakType.synthetic);
 
     await db.leaveEntryDao.insertLeave(LeaveEntriesCompanion.insert(
@@ -63,7 +69,7 @@ void main() {
       type: LeaveType.vacation,
       hours: 8.0,
     ));
-    final leave = await db.leaveEntryDao.forDate(date);
+    final leave = await db.leaveEntryDao.forDate(j, date);
     expect(leave.single.type, LeaveType.vacation);
 
     await db.publicHolidayDao.upsertHoliday(PublicHolidaysCompanion.insert(
@@ -77,7 +83,7 @@ void main() {
 
   test('AppSettings work-days converter defaults to Mon-Fri', () async {
     await db.settingsDao.insertSettings(AppSettingsCompanion.insert());
-    final settings = await db.settingsDao.effectiveFor(DateTime.now());
+    final settings = await db.settingsDao.effectiveFor(j, DateTime.now());
     expect(settings?.workDays, [1, 2, 3, 4, 5]);
     expect(settings?.weeklyHours, 40.0);
   });
@@ -92,7 +98,7 @@ void main() {
       balance: 1.5,
     ));
 
-    final latest = await db.balanceSnapshotDao.latestBefore(DateTime(2026, 8, 10));
+    final latest = await db.balanceSnapshotDao.latestBefore(j, DateTime(2026, 8, 10));
     expect(latest?.balance, 1.5);
   });
 

@@ -42,6 +42,16 @@ class Jobs extends Table with TableInfo {
     requiredDuringInsert: false,
     $customConstraints: 'NULL',
   );
+  late final GeneratedColumn<double> startingBalanceHours =
+      GeneratedColumn<double>(
+        'starting_balance_hours',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        $customConstraints: 'NOT NULL DEFAULT 0.0',
+        defaultValue: const CustomExpression('0.0'),
+      );
   late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
     'created_at',
     aliasedName,
@@ -72,6 +82,7 @@ class Jobs extends Table with TableInfo {
     name,
     startDate,
     endDate,
+    startingBalanceHours,
     createdAt,
     updatedAt,
   ];

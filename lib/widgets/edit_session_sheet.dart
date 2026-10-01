@@ -191,6 +191,7 @@ class _EditSessionSheetState extends ConsumerState<EditSessionSheet> {
                       !breakEnd.isAfter(_end)
                   ? () {
                       ref.read(workSessionRepositoryProvider).addManualBreak(
+                            jobId: widget.session.jobId,
                             date: widget.session.date,
                             start: breakStart,
                             end: breakEnd,

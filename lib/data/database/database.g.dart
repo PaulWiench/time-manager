@@ -52,6 +52,18 @@ class $JobsTable extends Jobs with TableInfo<$JobsTable, Job> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _startingBalanceHoursMeta =
+      const VerificationMeta('startingBalanceHours');
+  @override
+  late final GeneratedColumn<double> startingBalanceHours =
+      GeneratedColumn<double>(
+        'starting_balance_hours',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -82,6 +94,7 @@ class $JobsTable extends Jobs with TableInfo<$JobsTable, Job> {
     name,
     startDate,
     endDate,
+    startingBalanceHours,
     createdAt,
     updatedAt,
   ];
@@ -122,6 +135,15 @@ class $JobsTable extends Jobs with TableInfo<$JobsTable, Job> {
         endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
       );
     }
+    if (data.containsKey('starting_balance_hours')) {
+      context.handle(
+        _startingBalanceHoursMeta,
+        startingBalanceHours.isAcceptableOrUnknown(
+          data['starting_balance_hours']!,
+          _startingBalanceHoursMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -159,6 +181,10 @@ class $JobsTable extends Jobs with TableInfo<$JobsTable, Job> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}end_date'],
       ),
+      startingBalanceHours: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}starting_balance_hours'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -185,6 +211,10 @@ class Job extends DataClass implements Insertable<Job> {
 
   /// Date-only, inclusive — the last working day. Null while the job runs.
   final DateTime? endDate;
+
+  /// Hours ahead (+) or behind (−) when tracking this job began. The balance
+  /// cascade starts every job from here on its start date.
+  final double startingBalanceHours;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Job({
@@ -192,6 +222,7 @@ class Job extends DataClass implements Insertable<Job> {
     required this.name,
     required this.startDate,
     this.endDate,
+    required this.startingBalanceHours,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -204,6 +235,7 @@ class Job extends DataClass implements Insertable<Job> {
     if (!nullToAbsent || endDate != null) {
       map['end_date'] = Variable<DateTime>(endDate);
     }
+    map['starting_balance_hours'] = Variable<double>(startingBalanceHours);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -217,6 +249,7 @@ class Job extends DataClass implements Insertable<Job> {
       endDate: endDate == null && nullToAbsent
           ? const Value.absent()
           : Value(endDate),
+      startingBalanceHours: Value(startingBalanceHours),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -232,6 +265,9 @@ class Job extends DataClass implements Insertable<Job> {
       name: serializer.fromJson<String>(json['name']),
       startDate: serializer.fromJson<DateTime>(json['startDate']),
       endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      startingBalanceHours: serializer.fromJson<double>(
+        json['startingBalanceHours'],
+      ),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -244,6 +280,7 @@ class Job extends DataClass implements Insertable<Job> {
       'name': serializer.toJson<String>(name),
       'startDate': serializer.toJson<DateTime>(startDate),
       'endDate': serializer.toJson<DateTime?>(endDate),
+      'startingBalanceHours': serializer.toJson<double>(startingBalanceHours),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -254,6 +291,7 @@ class Job extends DataClass implements Insertable<Job> {
     String? name,
     DateTime? startDate,
     Value<DateTime?> endDate = const Value.absent(),
+    double? startingBalanceHours,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Job(
@@ -261,6 +299,7 @@ class Job extends DataClass implements Insertable<Job> {
     name: name ?? this.name,
     startDate: startDate ?? this.startDate,
     endDate: endDate.present ? endDate.value : this.endDate,
+    startingBalanceHours: startingBalanceHours ?? this.startingBalanceHours,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -270,6 +309,9 @@ class Job extends DataClass implements Insertable<Job> {
       name: data.name.present ? data.name.value : this.name,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
       endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      startingBalanceHours: data.startingBalanceHours.present
+          ? data.startingBalanceHours.value
+          : this.startingBalanceHours,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -282,6 +324,7 @@ class Job extends DataClass implements Insertable<Job> {
           ..write('name: $name, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
+          ..write('startingBalanceHours: $startingBalanceHours, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -289,8 +332,15 @@ class Job extends DataClass implements Insertable<Job> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, startDate, endDate, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    startDate,
+    endDate,
+    startingBalanceHours,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -299,6 +349,7 @@ class Job extends DataClass implements Insertable<Job> {
           other.name == this.name &&
           other.startDate == this.startDate &&
           other.endDate == this.endDate &&
+          other.startingBalanceHours == this.startingBalanceHours &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -308,6 +359,7 @@ class JobsCompanion extends UpdateCompanion<Job> {
   final Value<String> name;
   final Value<DateTime> startDate;
   final Value<DateTime?> endDate;
+  final Value<double> startingBalanceHours;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const JobsCompanion({
@@ -315,6 +367,7 @@ class JobsCompanion extends UpdateCompanion<Job> {
     this.name = const Value.absent(),
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
+    this.startingBalanceHours = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -323,6 +376,7 @@ class JobsCompanion extends UpdateCompanion<Job> {
     required String name,
     required DateTime startDate,
     this.endDate = const Value.absent(),
+    this.startingBalanceHours = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   }) : name = Value(name),
@@ -332,6 +386,7 @@ class JobsCompanion extends UpdateCompanion<Job> {
     Expression<String>? name,
     Expression<DateTime>? startDate,
     Expression<DateTime>? endDate,
+    Expression<double>? startingBalanceHours,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -340,6 +395,8 @@ class JobsCompanion extends UpdateCompanion<Job> {
       if (name != null) 'name': name,
       if (startDate != null) 'start_date': startDate,
       if (endDate != null) 'end_date': endDate,
+      if (startingBalanceHours != null)
+        'starting_balance_hours': startingBalanceHours,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -350,6 +407,7 @@ class JobsCompanion extends UpdateCompanion<Job> {
     Value<String>? name,
     Value<DateTime>? startDate,
     Value<DateTime?>? endDate,
+    Value<double>? startingBalanceHours,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -358,6 +416,7 @@ class JobsCompanion extends UpdateCompanion<Job> {
       name: name ?? this.name,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
+      startingBalanceHours: startingBalanceHours ?? this.startingBalanceHours,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -378,6 +437,11 @@ class JobsCompanion extends UpdateCompanion<Job> {
     if (endDate.present) {
       map['end_date'] = Variable<DateTime>(endDate.value);
     }
+    if (startingBalanceHours.present) {
+      map['starting_balance_hours'] = Variable<double>(
+        startingBalanceHours.value,
+      );
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -394,6 +458,7 @@ class JobsCompanion extends UpdateCompanion<Job> {
           ..write('name: $name, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
+          ..write('startingBalanceHours: $startingBalanceHours, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -5669,6 +5734,7 @@ typedef $$JobsTableCreateCompanionBuilder =
       required String name,
       required DateTime startDate,
       Value<DateTime?> endDate,
+      Value<double> startingBalanceHours,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -5678,6 +5744,7 @@ typedef $$JobsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<DateTime> startDate,
       Value<DateTime?> endDate,
+      Value<double> startingBalanceHours,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -5858,6 +5925,11 @@ class $$JobsTableFilterComposer extends Composer<_$AppDatabase, $JobsTable> {
 
   ColumnFilters<DateTime> get endDate => $composableBuilder(
     column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get startingBalanceHours => $composableBuilder(
+    column: $table.startingBalanceHours,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6100,6 +6172,11 @@ class $$JobsTableOrderingComposer extends Composer<_$AppDatabase, $JobsTable> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get startingBalanceHours => $composableBuilder(
+    column: $table.startingBalanceHours,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -6131,6 +6208,11 @@ class $$JobsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get endDate =>
       $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<double> get startingBalanceHours => $composableBuilder(
+    column: $table.startingBalanceHours,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -6380,6 +6462,7 @@ class $$JobsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<DateTime> startDate = const Value.absent(),
                 Value<DateTime?> endDate = const Value.absent(),
+                Value<double> startingBalanceHours = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => JobsCompanion(
@@ -6387,6 +6470,7 @@ class $$JobsTableTableManager
                 name: name,
                 startDate: startDate,
                 endDate: endDate,
+                startingBalanceHours: startingBalanceHours,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -6396,6 +6480,7 @@ class $$JobsTableTableManager
                 required String name,
                 required DateTime startDate,
                 Value<DateTime?> endDate = const Value.absent(),
+                Value<double> startingBalanceHours = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => JobsCompanion.insert(
@@ -6403,6 +6488,7 @@ class $$JobsTableTableManager
                 name: name,
                 startDate: startDate,
                 endDate: endDate,
+                startingBalanceHours: startingBalanceHours,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
