@@ -87,3 +87,56 @@ final _standingQuota = StreamProvider.autoDispose
     .family<VacationQuota?, ({int jobId, int year})>((ref, key) {
   return ref.watch(vacationQuotaRepositoryProvider).watchStandingFor(key.jobId, key.year);
 });
+
+/// What the switcher and the jobs list say about one job: its schedule, the
+/// session running on it, and its balance.
+class JobSummary {
+  const JobSummary({
+    required this.job,
+    required this.settings,
+    required this.active,
+    required this.balance,
+  });
+
+  final Job job;
+  final AppSetting? settings;
+  final WorkSession? active;
+
+  /// The settled balance — through yesterday, or through the last working
+  /// day for an ended job.
+  final double balance;
+
+  bool get ended => job.endDate != null;
+}
+
+final _jobSettings = StreamProvider.autoDispose.family<AppSetting?, int>((ref, jobId) {
+  return ref.watch(appDatabaseProvider).settingsDao.watchLatest(jobId);
+});
+
+final _jobActive = StreamProvider.autoDispose.family<WorkSession?, int>((ref, jobId) {
+  return ref.watch(appDatabaseProvider).workSessionDao.watchActive(jobId);
+});
+
+final _jobBalance =
+    StreamProvider.autoDispose.family<BalanceSnapshot?, ({int jobId, DateTime before})>(
+        (ref, key) {
+  return ref.watch(appDatabaseProvider).balanceSnapshotDao.watchLatestBefore(key.jobId, key.before);
+});
+
+final jobSummaryProvider = Provider.autoDispose.family<JobSummary?, int>((ref, jobId) {
+  final jobs = ref.watch(jobsProvider).valueOrNull ?? const <Job>[];
+  Job? job;
+  for (final j in jobs) {
+    if (j.id == jobId) job = j;
+  }
+  if (job == null) return null;
+  final today = dateOnly(DateTime.now());
+  final before = job.endDate == null ? today : shiftDays(dateOnly(job.endDate!), 1);
+  final settled = ref.watch(_jobBalance((jobId: jobId, before: before))).valueOrNull;
+  return JobSummary(
+    job: job,
+    settings: ref.watch(_jobSettings(jobId)).valueOrNull,
+    active: ref.watch(_jobActive(jobId)).valueOrNull,
+    balance: settled?.balance ?? job.startingBalanceHours,
+  );
+});

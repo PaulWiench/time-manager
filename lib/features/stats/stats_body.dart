@@ -27,6 +27,7 @@ import 'stats_view.dart';
 class StatsBody extends StatelessWidget {
   const StatsBody({
     super.key,
+    this.jobPill,
     required this.tab,
     required this.range,
     this.customRangeLabel,
@@ -39,6 +40,10 @@ class StatsBody extends StatelessWidget {
     this.onStepMonth,
     this.onStepYear,
   });
+
+  /// The job switcher pill, shown under the title when there are several
+  /// jobs. Passed in so this body stays free of providers.
+  final Widget? jobPill;
 
   final StatsTab tab;
   final StatsRange range;
@@ -64,6 +69,7 @@ class StatsBody extends StatelessWidget {
 
     return TabScreen(
       title: 'Stats',
+      header: jobPill,
       gutter: AppSpace.gutterDense,
       children: [
         const SizedBox(height: AppSpace.s4),

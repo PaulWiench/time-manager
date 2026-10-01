@@ -26,6 +26,7 @@ class TabScreen extends StatelessWidget {
     this.action,
     this.gutter = AppSpace.gutterSparse,
     this.controller,
+    this.header,
   });
 
   final String title;
@@ -42,6 +43,10 @@ class TabScreen extends StatelessWidget {
   final double gutter;
 
   final ScrollController? controller;
+
+  /// Under the title row — the job pill, when there is more than one job.
+  /// Its spacing comes with it, so a hidden pill leaves no gap.
+  final Widget? header;
 
   @override
   Widget build(BuildContext context) {
@@ -67,11 +72,18 @@ class TabScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: AppTextStyles.title.copyWith(color: colors.text)),
+                    Text(
+                      title,
+                      style: AppTextStyles.title.copyWith(color: colors.text),
+                    ),
                     if (subtitle != null) ...[
                       const SizedBox(height: 2),
-                      Text(subtitle!,
-                          style: AppTextStyles.body.copyWith(color: colors.textMuted)),
+                      Text(
+                        subtitle!,
+                        style: AppTextStyles.body.copyWith(
+                          color: colors.textMuted,
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -79,6 +91,11 @@ class TabScreen extends StatelessWidget {
               if (action != null) action!,
             ],
           ),
+          if (header != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpace.s3),
+              child: header!,
+            ),
           ...children,
         ],
       ),
@@ -120,7 +137,12 @@ class SubScreen extends StatelessWidget {
             Padding(
               // The back button's own 44 dp box already carries padding, so it
               // bleeds 8 into the gutter to sit optically on the margin.
-              padding: EdgeInsets.fromLTRB(gutter - AppSpace.s2, AppSpace.s1, gutter, 0),
+              padding: EdgeInsets.fromLTRB(
+                gutter - AppSpace.s2,
+                AppSpace.s1,
+                gutter,
+                0,
+              ),
               child: Row(
                 children: [
                   AppIconButton(
@@ -138,11 +160,18 @@ class SubScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppTextStyles.title.copyWith(color: colors.text)),
+                  Text(
+                    title,
+                    style: AppTextStyles.title.copyWith(color: colors.text),
+                  ),
                   if (subtitle != null) ...[
                     const SizedBox(height: AppSpace.s2),
-                    Text(subtitle!,
-                        style: AppTextStyles.body.copyWith(color: colors.textMuted)),
+                    Text(
+                      subtitle!,
+                      style: AppTextStyles.body.copyWith(
+                        color: colors.textMuted,
+                      ),
+                    ),
                   ],
                 ],
               ),

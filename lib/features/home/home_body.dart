@@ -26,11 +26,18 @@ import 'home_view.dart';
 class HomeBody extends StatelessWidget {
   const HomeBody({
     super.key,
+    this.jobPill,
     required this.view,
     this.onOpenSettings,
     this.onToggleTracking,
     this.onRemoveLeave,
+    this.endedJob,
+    this.onSwitchJob,
   });
+
+  /// The job switcher pill, shown under the title when there are several
+  /// jobs. Passed in so this body stays free of providers.
+  final Widget? jobPill;
 
   final HomeView view;
   final VoidCallback? onOpenSettings;
@@ -42,12 +49,19 @@ class HomeBody extends StatelessWidget {
   /// both leave and real work.
   final VoidCallback? onRemoveLeave;
 
+  /// The selected job has ended (additions handoff §3.3): the slab shows its
+  /// final balance and end date, the ring is not a button, and the page says
+  /// how to get back to tracking.
+  final EndedJob? endedJob;
+  final VoidCallback? onSwitchJob;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
 
     return TabScreen(
       title: 'TimeManager',
+      header: jobPill,
       subtitle: view.dateLabel,
       action: AppIconButton(
         icon: AppIcons.gearSix,
@@ -55,19 +69,32 @@ class HomeBody extends StatelessWidget {
         color: colors.textMuted,
         onPressed: onOpenSettings,
       ),
-      children: [
-        const SizedBox(height: AppSpace.s4),
-        _DuskSlab(
-          view: view,
-          onToggleTracking: onToggleTracking,
-          onRemoveLeave: onRemoveLeave,
-        ),
-        const SizedBox(height: AppSpace.s8),
-        if (view.hasActivity)
-          _TodaySection(view: view)
-        else
-          _EmptyToday(onCheckIn: onToggleTracking),
-      ],
+      children: endedJob != null
+          ? [
+              const SizedBox(height: AppSpace.s4),
+              _EndedSlab(job: endedJob!),
+              const SizedBox(height: AppSpace.s6),
+              Text(
+                'This job ended on ${endedJob!.endLabel}. Its history and stats stay '
+                'available. To track time, switch to an active job.',
+                style: AppTextStyles.body.copyWith(color: colors.textMuted),
+              ),
+              const SizedBox(height: AppSpace.s4),
+              SecondaryPill(label: 'Switch job', onPressed: onSwitchJob),
+            ]
+          : [
+              const SizedBox(height: AppSpace.s4),
+              _DuskSlab(
+                view: view,
+                onToggleTracking: onToggleTracking,
+                onRemoveLeave: onRemoveLeave,
+              ),
+              const SizedBox(height: AppSpace.s8),
+              if (view.hasActivity)
+                _TodaySection(view: view)
+              else
+                _EmptyToday(onCheckIn: onToggleTracking),
+            ],
     );
   }
 }
@@ -97,7 +124,9 @@ class _DuskSlab extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.slab,
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: colors.slabRim == null ? null : Border.all(color: colors.slabRim!),
+        border: colors.slabRim == null
+            ? null
+            : Border.all(color: colors.slabRim!),
         boxShadow: colors.shadowSlab,
       ),
       child: Column(
@@ -105,13 +134,17 @@ class _DuskSlab extends StatelessWidget {
         children: [
           _Balance(view: view),
           const SizedBox(height: AppSpace.s4),
-          Center(child: _Ring(view: view, onToggleTracking: onToggleTracking)),
+          Center(
+            child: _Ring(view: view, onToggleTracking: onToggleTracking),
+          ),
           const SizedBox(height: AppSpace.s4),
           _TodayBar(view: view),
           if (view.leaveConflict != null) ...[
             const SizedBox(height: AppSpace.s4),
             _LeaveConflictNotice(
-                conflict: view.leaveConflict!, onRemove: onRemoveLeave),
+              conflict: view.leaveConflict!,
+              onRemove: onRemoveLeave,
+            ),
           ],
         ],
       ),
@@ -150,8 +183,11 @@ class _LeaveConflictNotice extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(top: 2),
-                child: Icon(AppIcons.airplaneTilt,
-                    size: AppIconSize.sm, color: colors.accentFill),
+                child: Icon(
+                  AppIcons.airplaneTilt,
+                  size: AppIconSize.sm,
+                  color: colors.accentFill,
+                ),
               ),
               const SizedBox(width: AppSpace.s2),
               Expanded(
@@ -159,12 +195,19 @@ class _LeaveConflictNotice extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(conflict.headline,
-                        style: AppTextStyles.bodyStrong.copyWith(color: colors.onSlab)),
+                    Text(
+                      conflict.headline,
+                      style: AppTextStyles.bodyStrong.copyWith(
+                        color: colors.onSlab,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(conflict.detail,
-                        style:
-                            AppTextStyles.caption.copyWith(color: colors.onSlabMuted)),
+                    Text(
+                      conflict.detail,
+                      style: AppTextStyles.caption.copyWith(
+                        color: colors.onSlabMuted,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -181,8 +224,12 @@ class _LeaveConflictNotice extends StatelessWidget {
                   height: AppSize.touch,
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(left: AppSpace.s4),
-                  child: Text('Remove',
-                      style: AppTextStyles.label.copyWith(color: colors.accentFill)),
+                  child: Text(
+                    'Remove',
+                    style: AppTextStyles.label.copyWith(
+                      color: colors.accentFill,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -205,7 +252,10 @@ class _Balance extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('BALANCE', style: AppTextStyles.kicker.copyWith(color: colors.onSlabMuted)),
+        Text(
+          'BALANCE',
+          style: AppTextStyles.kicker.copyWith(color: colors.onSlabMuted),
+        ),
         const SizedBox(height: AppSpace.s1),
         Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -223,7 +273,10 @@ class _Balance extends StatelessWidget {
               bandOpacity: 0.28,
             ),
             const SizedBox(width: AppSpace.s1),
-            Text('h', style: AppTextStyles.statSm.copyWith(color: colors.onSlabMuted)),
+            Text(
+              'h',
+              style: AppTextStyles.statSm.copyWith(color: colors.onSlabMuted),
+            ),
           ],
         ),
         // A number that declines to move needs to say so. Without this the
@@ -248,7 +301,8 @@ class _Ring extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final running =
-        view.state == TrackingState.tracking || view.state == TrackingState.onBreak;
+        view.state == TrackingState.tracking ||
+        view.state == TrackingState.onBreak;
 
     return PressScale(
       onTap: onToggleTracking,
@@ -273,15 +327,24 @@ class _Ring extends StatelessWidget {
                   const SizedBox(width: AppSpace.s1),
                   Text(
                     stateKicker(view.state),
-                    style: AppTextStyles.kicker.copyWith(color: colors.stateLabel(view.state)),
+                    style: AppTextStyles.kicker.copyWith(
+                      color: colors.stateLabel(view.state),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: AppSpace.s1),
-              Text(view.timerText, style: AppTextStyles.timer.copyWith(color: colors.onSlab)),
+              Text(
+                view.timerText,
+                style: AppTextStyles.timer.copyWith(color: colors.onSlab),
+              ),
               const SizedBox(height: AppSpace.s1),
-              Text(view.sinceText,
-                  style: AppTextStyles.caption.copyWith(color: colors.onSlabMuted)),
+              Text(
+                view.sinceText,
+                style: AppTextStyles.caption.copyWith(
+                  color: colors.onSlabMuted,
+                ),
+              ),
             ],
           ),
         ),
@@ -311,10 +374,18 @@ class _TodayBar extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text(AppFormat.hm(view.netHours),
-                      style: AppTextStyles.bodyStrong.copyWith(color: colors.onSlab)),
-                  Text(' of ${AppFormat.hm(view.targetHours)}',
-                      style: AppTextStyles.body.copyWith(color: colors.onSlabMuted)),
+                  Text(
+                    AppFormat.hm(view.netHours),
+                    style: AppTextStyles.bodyStrong.copyWith(
+                      color: colors.onSlab,
+                    ),
+                  ),
+                  Text(
+                    ' of ${AppFormat.hm(view.targetHours)}',
+                    style: AppTextStyles.body.copyWith(
+                      color: colors.onSlabMuted,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -322,8 +393,9 @@ class _TodayBar extends StatelessWidget {
               over
                   ? '${AppFormat.hm(-view.remainingHours, signed: true)} over'
                   : '${AppFormat.hm(view.remainingHours)} left',
-              style: AppTextStyles.bodyStrong
-                  .copyWith(color: over ? colors.accentFill : colors.onSlabMuted),
+              style: AppTextStyles.bodyStrong.copyWith(
+                color: over ? colors.accentFill : colors.onSlabMuted,
+              ),
             ),
           ],
         ),
@@ -350,7 +422,10 @@ class _TodaySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('TODAY', style: AppTextStyles.kicker.copyWith(color: colors.textMuted)),
+        Text(
+          'TODAY',
+          style: AppTextStyles.kicker.copyWith(color: colors.textMuted),
+        ),
         const SizedBox(height: AppSpace.s3),
         EventTimeline(items: view.timeline, ground: colors.background),
       ],
@@ -372,14 +447,162 @@ class _EmptyToday extends StatelessWidget {
 
     return Column(
       children: [
-        Text('Nothing logged yet today',
-            style: AppTextStyles.bodyLg.copyWith(color: colors.text)),
+        Text(
+          'Nothing logged yet today',
+          style: AppTextStyles.bodyLg.copyWith(color: colors.text),
+        ),
         const SizedBox(height: AppSpace.s1),
-        Text('Tap the ring or check in below',
-            style: AppTextStyles.caption.copyWith(color: colors.textMuted)),
+        Text(
+          'Tap the ring or check in below',
+          style: AppTextStyles.caption.copyWith(color: colors.textMuted),
+        ),
         const SizedBox(height: AppSpace.s4),
-        PrimaryPill(label: 'Check in', icon: AppIcons.sun, onPressed: onCheckIn),
+        PrimaryPill(
+          label: 'Check in',
+          icon: AppIcons.sun,
+          onPressed: onCheckIn,
+        ),
       ],
+    );
+  }
+}
+
+/// What Home shows for a job that has ended.
+class EndedJob {
+  const EndedJob({
+    required this.finalBalance,
+    required this.endLabel,
+    required this.spanLabel,
+    this.warning = false,
+  });
+
+  final double finalBalance;
+
+  /// "31 Dec 2025".
+  final String endLabel;
+
+  /// "Oct 2023 – Dec 2025".
+  final String spanLabel;
+
+  /// Past the job's floor or cap — the warning treatment still applies.
+  final bool warning;
+}
+
+class _EndedSlab extends StatelessWidget {
+  const _EndedSlab({required this.job});
+
+  final EndedJob job;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpace.s6,
+        horizontal: AppSpace.s5,
+      ),
+      decoration: BoxDecoration(
+        color: colors.slab,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: colors.slabRim == null
+            ? null
+            : Border.all(color: colors.slabRim!),
+        boxShadow: colors.shadowSlab,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'FINAL BALANCE',
+            style: AppTextStyles.kicker.copyWith(color: colors.onSlabMuted),
+          ),
+          const SizedBox(height: AppSpace.s1),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              BandedNumber(
+                text: AppFormat.hm(job.finalBalance, signed: true),
+                style: AppTextStyles.hero,
+                warning: job.warning,
+                plainColor: colors.onSlab,
+                warningColor: colors.warningFill,
+                bandColor: colors.warningFill,
+                bandOpacity: 0.28,
+              ),
+              const SizedBox(width: AppSpace.s1),
+              Text(
+                'h',
+                style: AppTextStyles.statSm.copyWith(color: colors.onSlabMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpace.s4),
+          Center(
+            // Track only, and not a button: there is nothing to check in to.
+            child: ExcludeSemantics(
+              child: SunDial(
+                progress: 0,
+                state: TrackingState.checkedOut,
+                showKnob: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          AppIcons.power,
+                          size: AppIconSize.xs,
+                          color: colors.onSlabMuted,
+                        ),
+                        const SizedBox(width: AppSpace.s1),
+                        Text(
+                          'JOB ENDED',
+                          style: AppTextStyles.kicker.copyWith(
+                            color: colors.onSlabMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpace.s1),
+                    Text(
+                      job.endLabel,
+                      style: AppTextStyles.headline.copyWith(
+                        color: colors.onSlab,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.s1),
+                    Text(
+                      'Check-in is off',
+                      style: AppTextStyles.caption.copyWith(
+                        color: colors.onSlabMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpace.s4),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  job.spanLabel,
+                  style: AppTextStyles.body.copyWith(color: colors.onSlabMuted),
+                ),
+              ),
+              Text(
+                'Ended',
+                style: AppTextStyles.bodyStrong.copyWith(
+                  color: colors.onSlabMuted,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

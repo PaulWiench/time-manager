@@ -28,6 +28,10 @@ class SettingsBody extends StatelessWidget {
     this.onExportBackup,
     this.onOpenAuditLog,
     this.onInfo,
+    this.jobs = const [],
+    this.endedJobs = 0,
+    this.onOpenJob,
+    this.onOpenJobs,
   });
 
   final SettingsView view;
@@ -50,7 +54,18 @@ class SettingsBody extends StatelessWidget {
   /// A row's icon was tapped: open that setting's "about" sheet.
   final ValueChanged<SettingKey>? onInfo;
 
-  VoidCallback? _info(SettingKey key) => onInfo == null ? null : () => onInfo!(key);
+  /// Active jobs, for the JOBS group. With more than one job (active or
+  /// ended) the per-job settings move into each job's edit screen
+  /// (additions handoff §3.4).
+  final List<({int id, String name, String sub})> jobs;
+  final int endedJobs;
+  final ValueChanged<int>? onOpenJob;
+  final VoidCallback? onOpenJobs;
+
+  bool get _severalJobs => jobs.length + endedJobs > 1;
+
+  VoidCallback? _info(SettingKey key) =>
+      onInfo == null ? null : () => onInfo!(key);
 
   @override
   Widget build(BuildContext context) {
@@ -60,42 +75,67 @@ class SettingsBody extends StatelessWidget {
       children: [
         const SizedBox(height: AppSpace.s6),
         SettingsGroup(
-          title: 'SCHEDULE',
+          title: 'JOBS',
           rows: [
+            if (_severalJobs)
+              for (final job in jobs)
+                SettingsRow.navigate(
+                  icon: AppIcons.briefcase,
+                  label: job.name,
+                  sub: job.sub,
+                  onTap: onOpenJob == null ? null : () => onOpenJob!(job.id),
+                ),
             SettingsRow.navigate(
-              icon: AppIcons.hourglassMedium,
-              label: 'Weekly hours',
-              onInfo: _info(SettingKey.weeklyHours),
-              value: view.weeklyHours,
-              onTap: onEditWeeklyHours,
-            ),
-            SettingsRow.navigate(
-              icon: AppIcons.calendarDots,
-              label: 'Work days',
-              onInfo: _info(SettingKey.workDays),
-              value: view.workDays,
-              onTap: onEditWorkDays,
-            ),
-            SettingsRow.navigate(
-              icon: AppIcons.clock,
-              label: 'Work hours',
-              onInfo: _info(SettingKey.workHours),
-              sub: 'When the day is over',
-              value: view.workHours,
-              onTap: onEditWorkHours,
-            ),
-            SettingsRow.static(
-              icon: AppIcons.plusMinus,
-              label: 'Starting balance',
-              onInfo: _info(SettingKey.startingBalance),
-              sub: 'Set during onboarding',
-              value: view.startingBalance,
+              icon: AppIcons.briefcase,
+              label: _severalJobs ? 'All jobs' : 'Jobs',
+              sub: _severalJobs ? 'Add, edit or end a job' : 'Add a job',
+              value: _severalJobs
+                  ? (endedJobs == 0 ? null : '$endedJobs ended')
+                  : (jobs.isEmpty ? null : jobs.first.name),
+              onTap: onOpenJobs,
             ),
           ],
         ),
+        if (!_severalJobs) ...[
+          const SizedBox(height: AppSpace.s6),
+          SettingsGroup(
+            title: 'SCHEDULE',
+            rows: [
+              SettingsRow.navigate(
+                icon: AppIcons.hourglassMedium,
+                label: 'Weekly hours',
+                onInfo: _info(SettingKey.weeklyHours),
+                value: view.weeklyHours,
+                onTap: onEditWeeklyHours,
+              ),
+              SettingsRow.navigate(
+                icon: AppIcons.calendarDots,
+                label: 'Work days',
+                onInfo: _info(SettingKey.workDays),
+                value: view.workDays,
+                onTap: onEditWorkDays,
+              ),
+              SettingsRow.navigate(
+                icon: AppIcons.clock,
+                label: 'Work hours',
+                onInfo: _info(SettingKey.workHours),
+                sub: 'When the day is over',
+                value: view.workHours,
+                onTap: onEditWorkHours,
+              ),
+              SettingsRow.static(
+                icon: AppIcons.plusMinus,
+                label: 'Starting balance',
+                onInfo: _info(SettingKey.startingBalance),
+                sub: 'Set during onboarding',
+                value: view.startingBalance,
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: AppSpace.s6),
         SettingsGroup(
-          title: 'BREAKS',
+          title: _severalJobs ? 'BREAKS · ALL JOBS' : 'BREAKS',
           rows: [
             SettingsRow.toggle(
               icon: AppIcons.coffee,
@@ -120,26 +160,30 @@ class SettingsBody extends StatelessWidget {
               // nothing reads it. A setting that can refuse a check-in can
               // cost a day's tracking, so it stays unarmed until it is asked
               // for deliberately.
-              sub: "Check-in isn't refused yet",
+              sub: _severalJobs
+                  ? "Uses each job's work window"
+                  : "Check-in isn't refused yet",
               value: view.restrictCheckin,
               onChanged: onToggleRestrictCheckin ?? (_) {},
             ),
           ],
         ),
-        const SizedBox(height: AppSpace.s6),
-        SettingsGroup(
-          title: 'BALANCE',
-          rows: [
-            SettingsRow.navigate(
-              icon: AppIcons.scales,
-              label: 'Floor / cap',
-              onInfo: _info(SettingKey.balanceBounds),
-              sub: view.annualResetLabel,
-              value: view.balanceBounds,
-              onTap: onEditBalanceBounds,
-            ),
-          ],
-        ),
+        if (!_severalJobs) ...[
+          const SizedBox(height: AppSpace.s6),
+          SettingsGroup(
+            title: 'BALANCE',
+            rows: [
+              SettingsRow.navigate(
+                icon: AppIcons.scales,
+                label: 'Floor / cap',
+                onInfo: _info(SettingKey.balanceBounds),
+                sub: view.annualResetLabel,
+                value: view.balanceBounds,
+                onTap: onEditBalanceBounds,
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: AppSpace.s6),
         SettingsGroup(
           title: 'LEAVE',
@@ -152,26 +196,28 @@ class SettingsBody extends StatelessWidget {
               value: view.leaveCount,
               onTap: onOpenLeave,
             ),
-            SettingsRow.navigate(
-              icon: AppIcons.airplaneTilt,
-              label: 'Vacation quota',
-              onInfo: _info(SettingKey.vacationQuota),
-              sub: view.vacationQuotaSub,
-              value: view.vacationQuota,
-              onTap: onEditVacationQuota,
-            ),
-            SettingsRow.navigate(
-              icon: AppIcons.umbrellaSimple,
-              label: 'Rollover policy',
-              onInfo: _info(SettingKey.rollover),
-              value: view.rolloverPolicy,
-              onTap: onEditRollover,
-            ),
+            if (!_severalJobs) ...[
+              SettingsRow.navigate(
+                icon: AppIcons.airplaneTilt,
+                label: 'Vacation quota',
+                onInfo: _info(SettingKey.vacationQuota),
+                sub: view.vacationQuotaSub,
+                value: view.vacationQuota,
+                onTap: onEditVacationQuota,
+              ),
+              SettingsRow.navigate(
+                icon: AppIcons.umbrellaSimple,
+                label: 'Rollover policy',
+                onInfo: _info(SettingKey.rollover),
+                value: view.rolloverPolicy,
+                onTap: onEditRollover,
+              ),
+            ],
           ],
         ),
         const SizedBox(height: AppSpace.s6),
         SettingsGroup(
-          title: 'HOLIDAYS',
+          title: _severalJobs ? 'HOLIDAYS · ALL JOBS' : 'HOLIDAYS',
           rows: [
             SettingsRow.navigate(
               icon: AppIcons.confetti,

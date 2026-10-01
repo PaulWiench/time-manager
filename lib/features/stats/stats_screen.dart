@@ -22,6 +22,7 @@ import 'stats_view.dart';
 import '../../providers/job_providers.dart';
 import '../../providers/vacation_providers.dart';
 import '../../widgets/edit_vacation_sheet.dart';
+import '../jobs/job_pill.dart';
 
 class StatsScreen extends ConsumerStatefulWidget {
   const StatsScreen({super.key});
@@ -52,6 +53,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
     final range = _resolveRange(today);
 
     return StatsBody(
+      jobPill: ref.watch(hasSeveralJobsProvider) ? const JobPill() : null,
       tab: _tab,
       range: _range,
       customRangeLabel: _customRange == null ? null : _customLabel(_customRange!),

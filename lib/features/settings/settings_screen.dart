@@ -19,6 +19,9 @@ import '../../providers/repository_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../providers/stats_providers.dart';
 import '../../providers/vacation_quota_providers.dart';
+import '../../data/database/database.dart';
+import '../jobs/edit_job_screen.dart';
+import '../jobs/jobs_screen.dart';
 import 'audit_log_screen.dart';
 import 'export_service.dart';
 import 'holiday_list_screen.dart';
@@ -364,7 +367,29 @@ class SettingsScreen extends ConsumerWidget {
       ),
     };
 
+    final allJobs = ref.watch(jobsProvider).valueOrNull ?? const <Job>[];
+    final activeJobs = [
+      for (final job in allJobs)
+        if (job.endDate == null)
+          (
+            id: job.id,
+            name: job.name,
+            sub: () {
+              final s = ref.watch(jobSummaryProvider(job.id))?.settings;
+              return s == null
+                  ? ''
+                  : '${AppFormat.hoursLabel(s.weeklyHours)}/wk · ${workDaysLabel(s.workDays)}';
+            }(),
+          ),
+    ];
+
     return SettingsBody(
+      jobs: activeJobs,
+      endedJobs: allJobs.where((j) => j.endDate != null).length,
+      onOpenJob: (id) => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => EditJobScreen(jobId: id))),
+      onOpenJobs: () =>
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const JobsScreen())),
       view: view,
       onInfo: (key) => showSettingInfo(context, infoFor(key)),
       onEditWeeklyHours: () async {

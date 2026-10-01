@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../data/database/database.dart';
 import '../../domain/date_only.dart';
@@ -21,6 +22,7 @@ import '../../domain/session_fix.dart';
 import 'home_body.dart';
 import 'home_view.dart';
 import '../../providers/job_providers.dart';
+import '../jobs/job_pill.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, required this.onOpenSettings});
@@ -96,7 +98,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       live: view.state == TrackingState.tracking || view.state == TrackingState.onBreak,
     );
 
+    final job = ref.watch(selectedJobProvider);
+    final endedSummary = job?.endDate == null ? null : ref.watch(jobSummaryProvider(job!.id));
     return HomeBody(
+      jobPill: ref.watch(hasSeveralJobsProvider) ? const JobPill() : null,
+      endedJob: endedSummary == null
+          ? null
+          : EndedJob(
+              finalBalance: endedSummary.balance,
+              endLabel: DateFormat('d MMM yyyy').format(job!.endDate!),
+              spanLabel: '${DateFormat('MMM yyyy').format(job.startDate)} – '
+                  '${DateFormat('MMM yyyy').format(job.endDate!)}',
+              warning: balanceBeyondBounds(
+                endedSummary.balance,
+                floorHours: settings.balanceFloorHours,
+                capHours: settings.balanceCapHours,
+              ),
+            ),
+      onSwitchJob: () => showJobSwitcher(context),
       view: view,
       onOpenSettings: widget.onOpenSettings,
       onToggleTracking: () => _toggleTracking(active?.id),

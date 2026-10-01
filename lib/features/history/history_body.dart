@@ -18,6 +18,7 @@ import 'history_view.dart';
 class HistoryBody extends StatelessWidget {
   const HistoryBody({
     super.key,
+    this.jobPill,
     required this.mode,
     required this.stepperLabel,
     required this.rows,
@@ -29,6 +30,10 @@ class HistoryBody extends StatelessWidget {
     this.onTapRow,
     this.onLongPressRow,
   });
+
+  /// The job switcher pill, shown under the title when there are several
+  /// jobs. Passed in so this body stays free of providers.
+  final Widget? jobPill;
 
   final HistoryMode mode;
 
@@ -61,6 +66,7 @@ class HistoryBody extends StatelessWidget {
 
     return TabScreen(
       title: 'History',
+      header: jobPill,
       // Long-press is invisible otherwise, and it is now the fastest way to
       // fix a day the import got wrong.
       subtitle: mode == HistoryMode.day ? 'Long-press a day to mark it as leave' : null,

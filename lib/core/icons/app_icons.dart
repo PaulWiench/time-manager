@@ -57,6 +57,7 @@ class AppIcons {
   static const IconData pencilSimpleLine = IconData(0xebc6, fontFamily: _bold);
   static const IconData note = IconData(0xe348, fontFamily: _bold);
   static const IconData trash = IconData(0xe4a6, fontFamily: _bold);
+  static const IconData briefcase = IconData(0xe0ee, fontFamily: _bold);
 }
 
 /// Fill weight — the active bottom-nav item only.

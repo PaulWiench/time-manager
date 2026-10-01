@@ -26,6 +26,7 @@ import 'history_body.dart';
 import 'history_view.dart';
 import '../../providers/job_providers.dart';
 import '../../providers/vacation_providers.dart';
+import '../jobs/job_pill.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -103,6 +104,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             : const <HistoryRow>[];
 
     return HistoryBody(
+      jobPill: ref.watch(hasSeveralJobsProvider) ? const JobPill() : null,
       mode: _mode,
       stepperLabel: switch (_mode) {
         HistoryMode.month => '${_anchor.year}',
