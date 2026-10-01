@@ -81,8 +81,8 @@ OverviewData sparseOverview() {
   );
 }
 
-PatternsData patterns() {
-  final history = _history(30, end: today);
+PatternsData patterns({int days = 30, HoursBucket bucket = HoursBucket.day}) {
+  final history = _history(days, end: today);
   final month = DateTime(2026, 9);
   final monthDays = [
     for (final day in history)
@@ -101,6 +101,8 @@ PatternsData patterns() {
     monthDays: monthDays,
     leaveDays: {DateTime(2026, 9, 4)},
     days: history,
+    dailyBars: bucketDailyHours(history, bucket),
+    hoursBucket: bucket,
     weekdayAverages: averageHoursByWeekday(history),
     checkinHistogram: checkinHourHistogram(checkIns),
     checkins: summariseCheckins(checkIns),

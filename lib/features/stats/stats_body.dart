@@ -189,7 +189,8 @@ class StatsBody extends StatelessWidget {
         child: data.dailyHoursHeader.value == null
             ? null
             : DailyHoursChart(
-                days: data.days,
+                days: data.dailyBars,
+                bucket: data.hoursBucket,
                 today: data.today,
                 targetHours: _typicalTarget(data),
               ),

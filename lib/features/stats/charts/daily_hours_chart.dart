@@ -1,4 +1,5 @@
-/// One bar per day against the target line (handoff §5.6.5).
+/// One bar per day against the target line (handoff §5.6.5). Long ranges
+/// pass one bar per week or month instead, each the average worked day in it.
 ///
 /// Weekends get a stub rather than nothing, so the week's rhythm is visible in
 /// the gaps — a run of five bars and two stubs reads as a working week without
@@ -22,11 +23,15 @@ class DailyHoursChart extends StatelessWidget {
   const DailyHoursChart({
     super.key,
     required this.days,
+    this.bucket = HoursBucket.day,
     required this.today,
     required this.targetHours,
   });
 
   final List<DayStat> days;
+
+  /// What one entry of [days] stands for; each bar starts at its `date`.
+  final HoursBucket bucket;
   final DateTime today;
 
   /// The scheduled hours for a normal workday, drawn as the dashed line.
@@ -54,12 +59,14 @@ class DailyHoursChart extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 for (final (i, day) in days.indexed) ...[
-                  if (i > 0) const SizedBox(width: AppSpace.s1),
+                  // Fixed gaps alone outgrow the row once there are a few
+                  // dozen bars, so they thin out as the bars do.
+                  if (i > 0) SizedBox(width: days.length > 40 ? 1 : AppSpace.s1),
                   Expanded(
                     child: _Bar(
                       day: day,
                       maxY: maxY,
-                      isToday: dateOnly(day.date) == dateOnly(today),
+                      isToday: _contains(day.date, today),
                       palette: palette,
                     ),
                   ),
@@ -84,6 +91,11 @@ class DailyHoursChart extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  bool _contains(DateTime start, DateTime day) {
+    final date = dateOnly(day);
+    return !date.isBefore(start) && date.isBefore(bucketEnd(start, bucket));
   }
 }
 

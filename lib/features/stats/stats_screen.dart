@@ -152,7 +152,12 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
             holiday.date,
       },
       days: _dayStats(entries),
-      weekdayAverages: averageHoursByWeekday(_dayStats(entries)),
+      dailyBars: bucketDailyHours(_dayStats(entries), hoursBucketFor(range)),
+      hoursBucket: hoursBucketFor(range),
+      // A vacation booked for next month is not a short day yet.
+      weekdayAverages: averageHoursByWeekday(
+        _dayStats([for (final e in entries) if (!e.date.isAfter(today)) e]),
+      ),
       checkinHistogram: checkinHourHistogram(firstCheckIns),
       checkins: summariseCheckins(firstCheckIns),
       today: today,

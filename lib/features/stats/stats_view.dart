@@ -119,11 +119,13 @@ class PatternsData {
     required this.monthDays,
     required this.leaveDays,
     required this.days,
+    List<DayStat>? dailyBars,
+    this.hoursBucket = HoursBucket.day,
     required this.weekdayAverages,
     required this.checkinHistogram,
     required this.checkins,
     required this.today,
-  });
+  }) : _dailyBars = dailyBars;
 
   /// The heatmap steps through calendar months on its own, independent of the
   /// range chips: a flattened six-month window does not lay out as a calendar.
@@ -132,6 +134,13 @@ class PatternsData {
   final Set<DateTime> leaveDays;
 
   final List<DayStat> days;
+
+  /// What the Daily Hours chart draws: [days] itself for short ranges, one
+  /// bar per week or month (see [hoursBucket]) for long ones.
+  List<DayStat> get dailyBars => _dailyBars ?? days;
+  final List<DayStat>? _dailyBars;
+  final HoursBucket hoursBucket;
+
   final List<double> weekdayAverages;
 
   /// Length 24, counting each day's *first* check-in only.

@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:time_manager/features/stats/stats_body.dart';
+import 'package:time_manager/domain/stats_aggregation.dart';
 import 'package:time_manager/features/stats/stats_view.dart';
 
 import 'fixtures/stats_fixtures.dart' as fixtures;
@@ -22,6 +23,17 @@ void main() {
       tab: StatsTab.patterns,
       range: StatsRange.month,
       patterns: fixtures.patterns(),
+    ),
+    // Long ranges group the daily bars into weeks and months.
+    'stats-patterns-6m': StatsBody(
+      tab: StatsTab.patterns,
+      range: StatsRange.sixMonths,
+      patterns: fixtures.patterns(days: 182, bucket: HoursBucket.week),
+    ),
+    'stats-patterns-1y': StatsBody(
+      tab: StatsTab.patterns,
+      range: StatsRange.year,
+      patterns: fixtures.patterns(days: 365, bucket: HoursBucket.month),
     ),
     'stats-leave': StatsBody(
       tab: StatsTab.leave,

@@ -54,6 +54,73 @@ void main() {
       expect(avgs[0], 6); // Monday average
       expect(avgs[1], 0); // Tuesday untouched
     });
+
+    test('leave and other unworked days do not drag a weekday down', () {
+      final days = [
+        DayStat(date: DateTime(2026, 8, 3), netWorkedHours: 8, targetHours: 8, balanceDelta: 0), // Mon
+        // A full vacation Monday: 0 worked, the leave covers the target.
+        DayStat(date: DateTime(2026, 8, 10), netWorkedHours: 0, targetHours: 8, balanceDelta: 0),
+        // Half a day of leave, half worked: counts with what was worked.
+        DayStat(date: DateTime(2026, 8, 17), netWorkedHours: 4, targetHours: 8, balanceDelta: 0),
+      ];
+      expect(averageHoursByWeekday(days)[0], 6);
+    });
+  });
+
+  group('hoursBucketFor', () {
+    DateRange days(int n) => trailingRange(n, today: DateTime(2026, 10, 1));
+
+    test('week and month ranges stay daily', () {
+      expect(hoursBucketFor(days(7)), HoursBucket.day);
+      expect(hoursBucketFor(days(30)), HoursBucket.day);
+    });
+
+    test('six months goes weekly, a year monthly', () {
+      expect(hoursBucketFor(days(182)), HoursBucket.week);
+      expect(hoursBucketFor(days(365)), HoursBucket.month);
+    });
+  });
+
+  group('bucketDailyHours', () {
+    DayStat day(DateTime date, double worked, [double target = 8]) =>
+        DayStat(date: date, netWorkedHours: worked, targetHours: target, balanceDelta: worked - target);
+
+    test('averages worked days per ISO week across the spring DST change', () {
+      // Germany sprang forward on Sunday 29 March 2026; the week of 23 March
+      // must not leak into the next one, and buckets must stay at midnight.
+      final buckets = bucketDailyHours([
+        day(DateTime(2026, 3, 26), 8),
+        day(DateTime(2026, 3, 27), 6),
+        day(DateTime(2026, 3, 29), 0, 0), // Sunday, rest
+        day(DateTime(2026, 3, 30), 7),
+        day(DateTime(2026, 3, 31), 0), // vacation
+      ], HoursBucket.week);
+      expect(buckets.map((b) => b.date), [DateTime(2026, 3, 23), DateTime(2026, 3, 30)]);
+      expect(buckets[0].netWorkedHours, 7);
+      expect(buckets[1].netWorkedHours, 7);
+      expect(buckets[1].targetHours, 8);
+    });
+
+    test('groups by calendar month', () {
+      final buckets = bucketDailyHours([
+        day(DateTime(2026, 4, 30), 8),
+        day(DateTime(2026, 5, 1), 0, 0), // holiday
+        day(DateTime(2026, 5, 4), 6),
+      ], HoursBucket.month);
+      expect(buckets.map((b) => b.date), [DateTime(2026, 4), DateTime(2026, 5)]);
+      expect(buckets[1].netWorkedHours, 6);
+    });
+
+    test('a bucket with nothing worked or scheduled is a rest bucket', () {
+      final buckets = bucketDailyHours([day(DateTime(2026, 8, 8), 0, 0)], HoursBucket.week);
+      expect(buckets.single.netWorkedHours, 0);
+      expect(buckets.single.targetHours, 0);
+    });
+
+    test('bucketEnd steps months on the calendar', () {
+      expect(bucketEnd(DateTime(2026, 12), HoursBucket.month), DateTime(2027, 1));
+      expect(bucketEnd(DateTime(2026, 3, 23), HoursBucket.week), DateTime(2026, 3, 30));
+    });
   });
 
   group('checkinHourHistogram', () {

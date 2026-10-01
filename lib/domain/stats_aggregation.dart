@@ -82,16 +82,80 @@ List<WeekStat> weeklyAggregates(List<DayStat> days) {
 }
 
 /// Average net worked hours per ISO weekday (index 0 = Monday .. 6 =
-/// Sunday) across [days]. A weekday with no entries at all averages to 0.
+/// Sunday) across the days that were actually worked. A full leave day, a
+/// holiday or an untracked day is not a short Tuesday, so counting it as 0 h
+/// only dragged its weekday down; a half day of leave still counts with the
+/// hours that were worked. A weekday never worked averages to 0.
 List<double> averageHoursByWeekday(List<DayStat> days) {
   final sums = List<double>.filled(7, 0);
   final counts = List<int>.filled(7, 0);
   for (final d in days) {
+    if (d.netWorkedHours <= 0) continue;
     final idx = d.date.weekday - 1;
     sums[idx] += d.netWorkedHours;
     counts[idx] += 1;
   }
   return [for (var i = 0; i < 7; i++) counts[i] == 0 ? 0.0 : sums[i] / counts[i]];
+}
+
+/// How many days one bar of the Daily Hours chart stands for.
+enum HoursBucket { day, week, month }
+
+/// One bar per day stops fitting on a phone somewhere past a month, so
+/// longer ranges are grouped: weeks up to about half a year, months beyond.
+HoursBucket hoursBucketFor(DateRange range) {
+  var days = 0;
+  for (var d = range.start; d.isBefore(range.endExclusive); d = shiftDays(d, 1)) {
+    days++;
+  }
+  if (days <= 31) return HoursBucket.day;
+  if (days <= 200) return HoursBucket.week;
+  return HoursBucket.month;
+}
+
+/// The first day of the [bucket] containing [date].
+DateTime bucketStart(DateTime date, HoursBucket bucket) => switch (bucket) {
+      HoursBucket.day => dateOnly(date),
+      HoursBucket.week => mondayOfWeek(dateOnly(date)),
+      HoursBucket.month => DateTime(date.year, date.month),
+    };
+
+/// The first day after the [bucket] starting at [start].
+DateTime bucketEnd(DateTime start, HoursBucket bucket) => switch (bucket) {
+      HoursBucket.day => shiftDays(start, 1),
+      HoursBucket.week => shiftDays(start, 7),
+      HoursBucket.month => DateTime(start.year, start.month + 1),
+    };
+
+/// Groups [days] into one [DayStat] per [bucket], ordered ascending. Each
+/// bucket's hours are the average per *worked* day, so a week with a holiday
+/// reads the same as the days around it rather than a fifth shorter. The
+/// target is likewise the average over scheduled days; a bucket with no work
+/// and no schedule comes out as a rest bucket (both 0). Days are passed
+/// through unchanged for [HoursBucket.day].
+List<DayStat> bucketDailyHours(List<DayStat> days, HoursBucket bucket) {
+  if (bucket == HoursBucket.day) return days;
+  final byBucket = <DateTime, List<DayStat>>{};
+  for (final d in days) {
+    byBucket.putIfAbsent(bucketStart(d.date, bucket), () => []).add(d);
+  }
+  double averageOf(Iterable<double> values) {
+    final list = values.toList();
+    return list.isEmpty ? 0 : list.fold<double>(0, (s, v) => s + v) / list.length;
+  }
+
+  final starts = byBucket.keys.toList()..sort();
+  return [
+    for (final start in starts)
+      DayStat(
+        date: start,
+        netWorkedHours: averageOf(
+            byBucket[start]!.map((d) => d.netWorkedHours).where((h) => h > 0)),
+        targetHours: averageOf(
+            byBucket[start]!.map((d) => d.targetHours).where((h) => h > 0)),
+        balanceDelta: byBucket[start]!.fold(0.0, (s, d) => s + d.balanceDelta),
+      ),
+  ];
 }
 
 /// Count of check-ins per hour-of-day (index 0..23), for the "earliest /
