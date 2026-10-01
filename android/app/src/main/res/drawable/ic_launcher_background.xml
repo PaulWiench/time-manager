@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stamped launcher icon (Golden Hour). 108 dp adaptive canvas, safe zone r = 33 dp. Generated; edit the source, not this file. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- slab -->
+    <path android:pathData="M0,0 H108 V108 H0 Z" android:fillColor="#2E2447"/>
+</vector>

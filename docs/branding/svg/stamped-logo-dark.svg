@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="18 18 72 72">
+<title>Stamped logo, dark</title>
+  <defs><clipPath id="c"><circle cx="54" cy="54" r="36"/></clipPath></defs>
+  <g clip-path="url(#c)"><rect width="108" height="108" fill="#2E2447"/>
+  <circle cx="54" cy="54" r="21" fill="none" stroke="#4B4068" stroke-width="10"/>
+  <path d="M54.00 33.00 A21 21 0 1 1 33.32 50.35" fill="none" stroke="#F7B27A" stroke-width="10" stroke-linecap="round"/>
+  <line x1="54" y1="36" x2="54" y2="30" stroke="#2E2447" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="66.73" y1="41.27" x2="70.97" y2="37.03" stroke="#2E2447" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="72" y1="54" x2="78" y2="54" stroke="#2E2447" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="66.73" y1="66.73" x2="70.97" y2="70.97" stroke="#2E2447" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="54" y1="72" x2="54" y2="78" stroke="#2E2447" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="41.27" y1="66.73" x2="37.03" y2="70.97" stroke="#2E2447" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="36" y1="54" x2="30" y2="54" stroke="#2E2447" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="41.27" y1="41.27" x2="37.03" y2="37.03" stroke="#2E2447" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="33.32" cy="50.35" r="7.5" fill="#F7B27A" stroke="#2E2447" stroke-width="3"/></g>
+</svg>

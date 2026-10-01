@@ -141,7 +141,7 @@ class OnboardingBody extends StatelessWidget {
         1 => 'You can change this anytime in Settings.',
         2 => "Positive if you're owed hours, negative if you owe them.",
         _ => 'German labour law requires a break after 6 h and 9 h of work — '
-            'TimeManager can apply it for you.',
+            'Stamped can apply it for you.',
       };
 
   String get _defaultCaption => switch (step) {

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="0 0 108 108">
+<title>Stamped foreground, light</title>
+  <circle cx="54" cy="54" r="21" fill="none" stroke="#E4DACB" stroke-width="10"/>
+  <path d="M54.00 33.00 A21 21 0 1 1 33.32 50.35" fill="none" stroke="#D9691C" stroke-width="10" stroke-linecap="round"/>
+  <line x1="54" y1="36" x2="54" y2="30" stroke="#FAF5EE" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="66.73" y1="41.27" x2="70.97" y2="37.03" stroke="#FAF5EE" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="72" y1="54" x2="78" y2="54" stroke="#FAF5EE" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="66.73" y1="66.73" x2="70.97" y2="70.97" stroke="#FAF5EE" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="54" y1="72" x2="54" y2="78" stroke="#FAF5EE" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="41.27" y1="66.73" x2="37.03" y2="70.97" stroke="#FAF5EE" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="36" y1="54" x2="30" y2="54" stroke="#FAF5EE" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="41.27" y1="41.27" x2="37.03" y2="37.03" stroke="#FAF5EE" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="33.32" cy="50.35" r="7.5" fill="#D9691C" stroke="#FAF5EE" stroke-width="3"/>
+</svg>

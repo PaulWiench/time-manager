@@ -60,7 +60,7 @@ class HomeBody extends StatelessWidget {
     final colors = context.colors;
 
     return TabScreen(
-      title: 'TimeManager',
+      title: 'Stamped',
       header: jobPill,
       subtitle: view.dateLabel,
       action: AppIconButton(

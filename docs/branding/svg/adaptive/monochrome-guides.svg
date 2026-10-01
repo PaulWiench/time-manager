@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="0 0 108 108">
+<title>Stamped monochrome, with safe zone</title>
+  <circle cx="54" cy="54" r="21" fill="none" stroke="#000000" stroke-opacity="0.35" stroke-width="10"/>
+  <path d="M54.00 33.00 A21 21 0 1 1 33.32 50.35" fill="none" stroke="#000000" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="33.32" cy="50.35" r="9" fill="#000000"/>
+<g fill="none" stroke-width="0.4">
+  <rect x="0.2" y="0.2" width="107.6" height="107.6" stroke="#FF00FF" stroke-dasharray="2 1.5"/>
+  <circle cx="54" cy="54" r="36" stroke="#00A3FF" stroke-dasharray="2 1.5"/>
+  <circle cx="54" cy="54" r="33" stroke="#FF3B30"/>
+</g>
+<g font-family="sans-serif" font-size="3" fill="#FF3B30"><text x="54" y="25.6" text-anchor="middle">safe zone 66 dp</text></g>
+<g font-family="sans-serif" font-size="3" fill="#00A3FF"><text x="54" y="16.2" text-anchor="middle">visible 72 dp</text></g>
+<g font-family="sans-serif" font-size="3" fill="#FF00FF"><text x="2" y="5">108 dp canvas</text></g>
+</svg>

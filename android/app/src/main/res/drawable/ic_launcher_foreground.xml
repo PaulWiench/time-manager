@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stamped launcher icon (Golden Hour). 108 dp adaptive canvas, safe zone r = 33 dp. Generated; edit the source, not this file. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- track: slabTrack -->
+    <path android:pathData="M54,33 A21,21 0 1,1 54,75 A21,21 0 1,1 54,33 Z" android:fillColor="#00000000" android:strokeColor="#4B4068" android:strokeWidth="10"/>
+    <!-- lap: accentFill -->
+    <path android:pathData="M54.00,33.00 A21,21,0,1,1,33.32,50.35" android:fillColor="#00000000" android:strokeColor="#F7B27A" android:strokeWidth="10" android:strokeLineCap="round"/>
+    <!-- engraved hour ticks: slab -->
+    <path android:pathData="M54,36 L54,30 M66.73,41.27 L70.97,37.03 M72,54 L78,54 M66.73,66.73 L70.97,70.97 M54,72 L54,78 M41.27,66.73 L37.03,70.97 M36,54 L30,54 M41.27,41.27 L37.03,37.03" android:strokeColor="#2E2447" android:strokeWidth="1.6" android:strokeLineCap="round"/>
+    <!-- knob: accentFill with slab cut -->
+    <path android:pathData="M33.32,42.85 A7.5,7.5 0 1,1 33.32,57.85 A7.5,7.5 0 1,1 33.32,42.85 Z" android:fillColor="#F7B27A" android:strokeColor="#2E2447" android:strokeWidth="3"/>
+</vector>

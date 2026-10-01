@@ -1321,6 +1321,27 @@
         every tall size, one line of ring, today and balance when it is wide.
       </div>
     </div>
+    <div class="entry">
+      <div class="date">1 October 2026, evening</div>
+      <h3>TimeManager becomes Stamped</h3>
+      <span class="pill">Name &amp; icon</span>
+      <p>
+        Paul wanted a real name. He asked for something English that comes
+        from the German <em>Stempelkarte</em> (punch card) or
+        <em>Zeitstempel</em> (timestamp), and chose <strong>Stamped</strong>:
+        the day is stamped, recorded and settled. The icon came from a few
+        rounds in Claude Design, run so that each round needed only a letter
+        and at most one sentence. The winner was the first design shown,
+        "Sun Dial": the app's own ring, one apricot lap with the sun knob at
+        its end, on the dusk slab. The home screen, the widget and the app now
+        read as one thing.
+      </p>
+      <p>
+        Only the name you see changed. The app's internal ID, the database
+        file and the export file names stay as they were, because a new ID
+        would be a new app with none of his data.
+      </p>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -1869,6 +1890,10 @@
     <div class="log-entry">
       <span class="ts">2026-10-01</span><span class="tag">[feedback-batch/ship-0.7]</span>
       <p>0.7.0+11 on the phone. Before installing, the in-app export at 20:20 (330 sessions; checksum matched the phone's copy, integrity ok, FK check clean) was kept read-only in <code>~/time-manager-backups/pre-0.7/</code>. Signer SHA-256 matched, <code>adb install -r</code>, <code>firstInstallTime</code> still 2026-08-09. Home was identical before and after (−25:00, 5:54), with the new Edit on the last check-out. An export after install, compared row by row: all 12 tables identical, 0 missing, 0 changed. The quota row reads "23 in 2026, pro-rated". <b>Widget, found on device:</b> the design's frames assume a one-row cell is 74 dp tall, but the Pixel launcher at density 420 measures about 107 (Paul's 2x1 is 214×107 dp, measured from a screencap). So "height &lt; 100 = one row" never fired and the 2x1 got the tall layout. The selection is now by rows and shape: under 160 dp tall and ≥1.4× as wide as tall → one-line; at least 160 tall, 300 wide and 1.2× as wide as tall → 4x2; otherwise tall. Then the compact one-line layout truncated to "TOD…/5:…" because a 64 dp ring left the today column about 35 dp; the compact ring is now capped at 44 with 10 dp gaps. A screencap on the phone shows the compact layout as designed. Reinstalled in place twice more, same signer, <code>firstInstallTime</code> unchanged.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-10-01</span><span class="tag">[stamped/rename-icon]</span>
+      <p>0.7.1+12. Rename to Stamped: <code>android:label</code> on the application and on the widget receiver (widget picker), <code>MaterialApp.title</code>, the Home header and one line in onboarding. Unchanged on purpose: <code>applicationId</code> <code>dev.paulwiench.time_manager</code>, the Dart package, the class names, the database file <code>time_manager.sqlite</code>, the export file names <code>timemanager-*.sqlite/json</code> and the export's <code>"app"</code> field. Icon from the Claude Design handoff (<code>docs/branding/</code>: README, SVG sources, 1024 px PNGs, preview): an adaptive icon in <code>mipmap-anydpi-v26</code> with vector background, foreground and <code>&lt;monochrome&gt;</code> layers (Android 13 themed icons), circle PNG fallbacks from mdpi to xxxhdpi, and <code>android:roundIcon</code> added. <code>flutter_launcher_icons</code> deliberately not used, since it would overwrite these. The splash is left at the system default (the adaptive icon on the window background). Only the Home goldens changed (the title). Installed in place: signer <code>ef720d52…efff</code> on both APKs, <code>firstInstallTime</code> unchanged. The pre-install export (20:47:04, 330 sessions, checksum matched, integrity ok) is kept read-only in <code>~/time-manager-backups/pre-0.7.1/</code>; the post-install export matched it row for row in all 13 tables. The launcher shows the Sun Dial labelled "Stamped".</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
