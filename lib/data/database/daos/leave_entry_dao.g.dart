@@ -4,7 +4,8 @@ part of 'leave_entry_dao.dart';
 
 // ignore_for_file: type=lint
 mixin _$LeaveEntryDaoMixin on DatabaseAccessor<AppDatabase> {
-  $DayEntriesTable get dayEntries => attachedDatabase.dayEntries;
+  $JobsTable get jobs => attachedDatabase.jobs;
+  $VacationsTable get vacations => attachedDatabase.vacations;
   $LeaveEntriesTable get leaveEntries => attachedDatabase.leaveEntries;
   LeaveEntryDaoManager get managers => LeaveEntryDaoManager(this);
 }
@@ -12,8 +13,10 @@ mixin _$LeaveEntryDaoMixin on DatabaseAccessor<AppDatabase> {
 class LeaveEntryDaoManager {
   final _$LeaveEntryDaoMixin _db;
   LeaveEntryDaoManager(this._db);
-  $$DayEntriesTableTableManager get dayEntries =>
-      $$DayEntriesTableTableManager(_db.attachedDatabase, _db.dayEntries);
+  $$JobsTableTableManager get jobs =>
+      $$JobsTableTableManager(_db.attachedDatabase, _db.jobs);
+  $$VacationsTableTableManager get vacations =>
+      $$VacationsTableTableManager(_db.attachedDatabase, _db.vacations);
   $$LeaveEntriesTableTableManager get leaveEntries =>
       $$LeaveEntriesTableTableManager(_db.attachedDatabase, _db.leaveEntries);
 }

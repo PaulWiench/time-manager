@@ -3,12 +3,11 @@
 /// the schema matches afterwards, no row is touched, and the real backup file
 /// opens.
 ///
-/// The phone is at v2, so `v2 -> v3` is the path that will actually execute
-/// there. `v1 -> v3` is tested too because `onUpgrade`'s `if`s are
-/// non-exclusive by design and a two-step jump has to run both bodies.
+/// The phone is at v3, so `v3 -> v4` is the path that will actually execute
+/// there; `test/data/v4_real_data_test.dart` runs it over the phone's own data
+/// row by row. The older jumps are tested too because `onUpgrade`'s `if`s are
+/// non-exclusive by design and a multi-step jump has to run every body.
 library;
-
-import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
@@ -27,26 +26,61 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('migrates a v1 database to v3', () async {
-    final connection = await verifier.startAt(1);
-    final db = AppDatabase(connection);
-    await verifier.migrateAndValidate(db, 3);
+  // `migrateAndValidate` cannot be used from v4 on: its comparison counts the
+  // composite foreign key `FOREIGN KEY (job_id, date) REFERENCES day_entries`
+  // differently on its two sides and reports a difference where the SQL is
+  // identical. So this compares what the schema *is* rather than how it is
+  // spelled: per table, every column (type, NOT NULL, default, key position)
+  // and every foreign key, from SQLite's own pragmas. The spelling does
+  // differ, harmlessly — an added column sits last in `app_settings`, and
+  // tables created by older versions quote their constraints differently.
+  Future<List<String>> schemaOf(AppDatabase db) async {
+    final tables = await db
+        .customSelect("SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name NOT LIKE 'sqlite_%' AND name != 'android_metadata' ORDER BY name")
+        .map((row) => row.read<String>('name'))
+        .get();
+    return [
+      for (final table in tables) ...[
+        for (final column in (await db.customSelect('PRAGMA table_info("$table")').get())
+            .map((r) => '$table.${r.data['name']} ${r.data['type']} '
+                'notnull=${r.data['notnull']} default=${r.data['dflt_value']} pk=${r.data['pk']}')
+            .toList()
+          ..sort())
+          column,
+        for (final fk in (await db.customSelect('PRAGMA foreign_key_list("$table")').get())
+            .map((r) => '$table fk ${r.data['from']} -> ${r.data['table']}.${r.data['to']}')
+            .toList()
+          ..sort())
+          fk,
+      ],
+    ];
+  }
+
+  late List<String> fresh;
+  setUpAll(() async {
+    final db = AppDatabase(DatabaseConnection(NativeDatabase.memory()));
+    fresh = await schemaOf(db);
     await db.close();
   });
 
-  test('migrates a v2 database to v3 — the path the phone will take', () async {
-    final connection = await verifier.startAt(2);
-    final db = AppDatabase(connection);
-    await verifier.migrateAndValidate(db, 3);
-    await db.close();
-  });
+  for (final from in [1, 2, 3]) {
+    test('a v$from database upgrades to exactly the v4 schema', () async {
+      final connection = await verifier.startAt(from);
+      final db = AppDatabase(connection);
+      expect(await schemaOf(db), fresh);
+      expect(await db.customSelect('PRAGMA user_version').map((r) => r.data.values.first).getSingle(), 4);
+      await db.close();
+    });
+  }
 
   test('keeps every row, and the new columns arrive unset', () async {
     final date = DateTime(2026, 3, 16);
 
-    await verifier.testWithDataIntegrity(
+    await _withDataIntegrity(
+      verifier,
       oldVersion: 1,
-      newVersion: 3,
+      newVersion: 4,
       createOld: v1.DatabaseAtV1.new,
       createNew: AppDatabase.new,
       openTestedDatabase: AppDatabase.new,
@@ -102,9 +136,10 @@ void main() {
   test('v2 -> v3 leaves the settings row intact and defaults the window', () async {
     final date = DateTime(2026, 3, 16);
 
-    await verifier.testWithDataIntegrity(
+    await _withDataIntegrity(
+      verifier,
       oldVersion: 2,
-      newVersion: 3,
+      newVersion: 4,
       createOld: v2.DatabaseAtV2.new,
       createNew: AppDatabase.new,
       openTestedDatabase: AppDatabase.new,
@@ -137,49 +172,33 @@ void main() {
       },
     );
   });
+}
 
-  test('opens the phone\'s own backup and migrates it', () async {
-    // The emulator's database is v2-native from here on, so it never
-    // exercises the path that matters. This is the file pulled off the phone.
-    final dir = Directory('${Platform.environment['HOME']}/time-manager-backups/db');
-    if (!dir.existsSync()) {
-      markTestSkipped('no backup directory on this machine');
-      return;
-    }
+/// `SchemaVerifier.testWithDataIntegrity` without its schema comparison, which
+/// misreads the v4 composite foreign key (see `schemaOf` above; the structure
+/// is checked there instead). Rows go in at [oldVersion], the app database
+/// opens the same file — which migrates it — and [validateItems] reads back.
+Future<void> _withDataIntegrity<Old extends GeneratedDatabase>(
+  SchemaVerifier verifier, {
+  required int oldVersion,
+  required int newVersion,
+  required Old Function(QueryExecutor) createOld,
+  required AppDatabase Function(QueryExecutor) createNew,
+  required AppDatabase Function(QueryExecutor) openTestedDatabase,
+  required void Function(Batch, Old) createItems,
+  required Future<void> Function(AppDatabase) validateItems,
+}) async {
+  final schema = await verifier.schemaAt(oldVersion);
 
-    // Sorted by modification time, not by name. Two naming schemes have been
-    // through this directory — `time_manager_<stamp>` and `timemanager-<stamp>`
-    // — and they sort against each other by prefix rather than by date, so a
-    // lexicographic "last" could quietly pick a months-old file and still pass.
-    final backups = dir
-        .listSync()
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.sqlite'))
-        .toList()
-      ..sort((a, b) => a.statSync().modified.compareTo(b.statSync().modified));
+  final oldDb = createOld(schema.newConnection());
+  await oldDb.batch((batch) => createItems(batch, oldDb));
+  await oldDb.close();
 
-    if (backups.isEmpty) {
-      markTestSkipped('no backup on this machine');
-      return;
-    }
-    printOnFailure('migrating ${backups.last.path}');
-
-    final copy = File('${Directory.systemTemp.createTempSync('tm-migrate').path}/db.sqlite');
-    await backups.last.copy(copy.path);
-
-    final db = AppDatabase(NativeDatabase(copy));
-    // Opening is what runs the migration; reading proves it survived it.
-    final sessions = await db.select(db.workSessions).get();
-    final snapshots = await db.select(db.balanceSnapshots).get();
-    final settings = await db.select(db.appSettings).get();
-    await db.close();
-
-    expect(sessions, isNotEmpty, reason: 'the backup should hold real sessions');
-    expect(snapshots, isNotEmpty);
-    expect(settings.every((s) => s.balanceFloorHours == null), isTrue);
-    // Every pre-v3 row must come out of the upgrade with a usable window,
-    // because the balance now asks it whether the working day is over.
-    expect(settings.every((s) => s.workWindowStartMinutes == 8 * 60), isTrue);
-    expect(settings.every((s) => s.workWindowEndMinutes == 18 * 60), isTrue);
-  });
+  final db = openTestedDatabase(schema.newConnection());
+  expect(
+    await db.customSelect('PRAGMA user_version').map((r) => r.data.values.first).getSingle(),
+    newVersion,
+  );
+  await validateItems(db);
+  await db.close();
 }

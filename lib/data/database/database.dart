@@ -12,17 +12,22 @@ import 'daos/audit_log_dao.dart';
 import 'daos/balance_snapshot_dao.dart';
 import 'daos/break_entry_dao.dart';
 import 'daos/day_entry_dao.dart';
+import 'daos/job_dao.dart';
 import 'daos/leave_entry_dao.dart';
 import 'daos/public_holiday_dao.dart';
 import 'daos/settings_dao.dart';
 import 'daos/vacation_quota_dao.dart';
 import 'daos/work_session_dao.dart';
 import 'tables.dart';
+import 'v4_migration.dart';
 
 part 'database.g.dart';
 
 @DriftDatabase(
   tables: [
+    Jobs,
+    Vacations,
+    AppPreferences,
     WorkSessions,
     BreakEntries,
     LeaveEntries,
@@ -34,6 +39,7 @@ part 'database.g.dart';
     AuditLogEntries,
   ],
   daos: [
+    JobDao,
     WorkSessionDao,
     BreakEntryDao,
     LeaveEntryDao,
@@ -49,7 +55,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   /// SQLite doesn't enforce FK constraints unless told to per-connection —
   /// without this, the WorkSession/BreakEntry/LeaveEntry -> DayEntry FKs in
@@ -77,6 +83,11 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(appSettings, appSettings.workWindowStartMinutes);
             await m.addColumn(appSettings, appSettings.workWindowEndMinutes);
           }
+          // v4 adds jobs, and is the first migration that rebuilds tables: a
+          // day is now (job, date), so day_entries, balance_snapshots and
+          // vacation_quotas change their primary key, and the tables pointing
+          // at day_entries change their foreign key. See v4_migration.dart.
+          if (from < 4) await migrateToV4(this, m);
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');

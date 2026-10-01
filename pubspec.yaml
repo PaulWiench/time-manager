@@ -37,6 +37,9 @@ dev_dependencies:
   # Codegen (drift only — see lib/providers/database_providers.dart)
   build_runner: ^2.16.0
   drift_dev: ^2.35.0
+  # Raw reads of the phone's backup in the v4 migration test, independent of
+  # the generated schema it is checking.
+  sqlite3: ^3.6.0
 
 flutter:
   uses-material-design: true

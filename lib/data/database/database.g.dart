@@ -3,91 +3,66 @@
 part of 'database.dart';
 
 // ignore_for_file: type=lint
-class $DayEntriesTable extends DayEntries
-    with TableInfo<$DayEntriesTable, DayEntry> {
+class $JobsTable extends Jobs with TableInfo<$JobsTable, Job> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $DayEntriesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  $JobsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
-  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
-    'date',
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startDateMeta = const VerificationMeta(
+    'startDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+    'start_date',
     aliasedName,
     false,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _netWorkedHoursMeta = const VerificationMeta(
-    'netWorkedHours',
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
   );
   @override
-  late final GeneratedColumn<double> netWorkedHours = GeneratedColumn<double>(
-    'net_worked_hours',
-    aliasedName,
-    false,
-    type: DriftSqlType.double,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  static const VerificationMeta _leaveHoursMeta = const VerificationMeta(
-    'leaveHours',
-  );
-  @override
-  late final GeneratedColumn<double> leaveHours = GeneratedColumn<double>(
-    'leave_hours',
-    aliasedName,
-    false,
-    type: DriftSqlType.double,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  static const VerificationMeta _targetHoursMeta = const VerificationMeta(
-    'targetHours',
-  );
-  @override
-  late final GeneratedColumn<double> targetHours = GeneratedColumn<double>(
-    'target_hours',
-    aliasedName,
-    false,
-    type: DriftSqlType.double,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  static const VerificationMeta _balanceDeltaMeta = const VerificationMeta(
-    'balanceDelta',
-  );
-  @override
-  late final GeneratedColumn<double> balanceDelta = GeneratedColumn<double>(
-    'balance_delta',
-    aliasedName,
-    false,
-    type: DriftSqlType.double,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  static const VerificationMeta _autoBreakOverriddenMeta =
-      const VerificationMeta('autoBreakOverridden');
-  @override
-  late final GeneratedColumn<bool> autoBreakOverridden = GeneratedColumn<bool>(
-    'auto_break_overridden',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("auto_break_overridden" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
-  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
-  @override
-  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
-    'notes',
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+    'end_date',
     aliasedName,
     true,
-    type: DriftSqlType.string,
+    type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
   );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
@@ -103,81 +78,54 @@ class $DayEntriesTable extends DayEntries
   );
   @override
   List<GeneratedColumn> get $columns => [
-    date,
-    netWorkedHours,
-    leaveHours,
-    targetHours,
-    balanceDelta,
-    autoBreakOverridden,
-    notes,
+    id,
+    name,
+    startDate,
+    endDate,
+    createdAt,
     updatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'day_entries';
+  static const String $name = 'jobs';
   @override
   VerificationContext validateIntegrity(
-    Insertable<DayEntry> instance, {
+    Insertable<Job> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('date')) {
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
       context.handle(
-        _dateMeta,
-        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
       );
     } else if (isInserting) {
-      context.missing(_dateMeta);
+      context.missing(_nameMeta);
     }
-    if (data.containsKey('net_worked_hours')) {
+    if (data.containsKey('start_date')) {
       context.handle(
-        _netWorkedHoursMeta,
-        netWorkedHours.isAcceptableOrUnknown(
-          data['net_worked_hours']!,
-          _netWorkedHoursMeta,
-        ),
+        _startDateMeta,
+        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startDateMeta);
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
       );
     }
-    if (data.containsKey('leave_hours')) {
+    if (data.containsKey('created_at')) {
       context.handle(
-        _leaveHoursMeta,
-        leaveHours.isAcceptableOrUnknown(data['leave_hours']!, _leaveHoursMeta),
-      );
-    }
-    if (data.containsKey('target_hours')) {
-      context.handle(
-        _targetHoursMeta,
-        targetHours.isAcceptableOrUnknown(
-          data['target_hours']!,
-          _targetHoursMeta,
-        ),
-      );
-    }
-    if (data.containsKey('balance_delta')) {
-      context.handle(
-        _balanceDeltaMeta,
-        balanceDelta.isAcceptableOrUnknown(
-          data['balance_delta']!,
-          _balanceDeltaMeta,
-        ),
-      );
-    }
-    if (data.containsKey('auto_break_overridden')) {
-      context.handle(
-        _autoBreakOverriddenMeta,
-        autoBreakOverridden.isAcceptableOrUnknown(
-          data['auto_break_overridden']!,
-          _autoBreakOverriddenMeta,
-        ),
-      );
-    }
-    if (data.containsKey('notes')) {
-      context.handle(
-        _notesMeta,
-        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
     if (data.containsKey('updated_at')) {
@@ -190,39 +138,31 @@ class $DayEntriesTable extends DayEntries
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {date};
+  Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  DayEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+  Job map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return DayEntry(
-      date: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}date'],
+    return Job(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
       )!,
-      netWorkedHours: attachedDatabase.typeMapping.read(
-        DriftSqlType.double,
-        data['${effectivePrefix}net_worked_hours'],
-      )!,
-      leaveHours: attachedDatabase.typeMapping.read(
-        DriftSqlType.double,
-        data['${effectivePrefix}leave_hours'],
-      )!,
-      targetHours: attachedDatabase.typeMapping.read(
-        DriftSqlType.double,
-        data['${effectivePrefix}target_hours'],
-      )!,
-      balanceDelta: attachedDatabase.typeMapping.read(
-        DriftSqlType.double,
-        data['${effectivePrefix}balance_delta'],
-      )!,
-      autoBreakOverridden: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}auto_break_overridden'],
-      )!,
-      notes: attachedDatabase.typeMapping.read(
+      name: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}notes'],
+        data['${effectivePrefix}name'],
+      )!,
+      startDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start_date'],
+      )!,
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_date'],
       ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
@@ -231,76 +171,68 @@ class $DayEntriesTable extends DayEntries
   }
 
   @override
-  $DayEntriesTable createAlias(String alias) {
-    return $DayEntriesTable(attachedDatabase, alias);
+  $JobsTable createAlias(String alias) {
+    return $JobsTable(attachedDatabase, alias);
   }
 }
 
-class DayEntry extends DataClass implements Insertable<DayEntry> {
-  final DateTime date;
-  final double netWorkedHours;
-  final double leaveHours;
-  final double targetHours;
-  final double balanceDelta;
-  final bool autoBreakOverridden;
-  final String? notes;
+class Job extends DataClass implements Insertable<Job> {
+  final int id;
+  final String name;
+
+  /// Date-only. Days before it are not this job's: no target, no shortfall.
+  final DateTime startDate;
+
+  /// Date-only, inclusive — the last working day. Null while the job runs.
+  final DateTime? endDate;
+  final DateTime createdAt;
   final DateTime updatedAt;
-  const DayEntry({
-    required this.date,
-    required this.netWorkedHours,
-    required this.leaveHours,
-    required this.targetHours,
-    required this.balanceDelta,
-    required this.autoBreakOverridden,
-    this.notes,
+  const Job({
+    required this.id,
+    required this.name,
+    required this.startDate,
+    this.endDate,
+    required this.createdAt,
     required this.updatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['date'] = Variable<DateTime>(date);
-    map['net_worked_hours'] = Variable<double>(netWorkedHours);
-    map['leave_hours'] = Variable<double>(leaveHours);
-    map['target_hours'] = Variable<double>(targetHours);
-    map['balance_delta'] = Variable<double>(balanceDelta);
-    map['auto_break_overridden'] = Variable<bool>(autoBreakOverridden);
-    if (!nullToAbsent || notes != null) {
-      map['notes'] = Variable<String>(notes);
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['start_date'] = Variable<DateTime>(startDate);
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
     }
+    map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
   }
 
-  DayEntriesCompanion toCompanion(bool nullToAbsent) {
-    return DayEntriesCompanion(
-      date: Value(date),
-      netWorkedHours: Value(netWorkedHours),
-      leaveHours: Value(leaveHours),
-      targetHours: Value(targetHours),
-      balanceDelta: Value(balanceDelta),
-      autoBreakOverridden: Value(autoBreakOverridden),
-      notes: notes == null && nullToAbsent
+  JobsCompanion toCompanion(bool nullToAbsent) {
+    return JobsCompanion(
+      id: Value(id),
+      name: Value(name),
+      startDate: Value(startDate),
+      endDate: endDate == null && nullToAbsent
           ? const Value.absent()
-          : Value(notes),
+          : Value(endDate),
+      createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
   }
 
-  factory DayEntry.fromJson(
+  factory Job.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return DayEntry(
-      date: serializer.fromJson<DateTime>(json['date']),
-      netWorkedHours: serializer.fromJson<double>(json['netWorkedHours']),
-      leaveHours: serializer.fromJson<double>(json['leaveHours']),
-      targetHours: serializer.fromJson<double>(json['targetHours']),
-      balanceDelta: serializer.fromJson<double>(json['balanceDelta']),
-      autoBreakOverridden: serializer.fromJson<bool>(
-        json['autoBreakOverridden'],
-      ),
-      notes: serializer.fromJson<String?>(json['notes']),
+    return Job(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      startDate: serializer.fromJson<DateTime>(json['startDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
   }
@@ -308,175 +240,472 @@ class DayEntry extends DataClass implements Insertable<DayEntry> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'date': serializer.toJson<DateTime>(date),
-      'netWorkedHours': serializer.toJson<double>(netWorkedHours),
-      'leaveHours': serializer.toJson<double>(leaveHours),
-      'targetHours': serializer.toJson<double>(targetHours),
-      'balanceDelta': serializer.toJson<double>(balanceDelta),
-      'autoBreakOverridden': serializer.toJson<bool>(autoBreakOverridden),
-      'notes': serializer.toJson<String?>(notes),
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'startDate': serializer.toJson<DateTime>(startDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
   }
 
-  DayEntry copyWith({
-    DateTime? date,
-    double? netWorkedHours,
-    double? leaveHours,
-    double? targetHours,
-    double? balanceDelta,
-    bool? autoBreakOverridden,
-    Value<String?> notes = const Value.absent(),
+  Job copyWith({
+    int? id,
+    String? name,
+    DateTime? startDate,
+    Value<DateTime?> endDate = const Value.absent(),
+    DateTime? createdAt,
     DateTime? updatedAt,
-  }) => DayEntry(
-    date: date ?? this.date,
-    netWorkedHours: netWorkedHours ?? this.netWorkedHours,
-    leaveHours: leaveHours ?? this.leaveHours,
-    targetHours: targetHours ?? this.targetHours,
-    balanceDelta: balanceDelta ?? this.balanceDelta,
-    autoBreakOverridden: autoBreakOverridden ?? this.autoBreakOverridden,
-    notes: notes.present ? notes.value : this.notes,
+  }) => Job(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    startDate: startDate ?? this.startDate,
+    endDate: endDate.present ? endDate.value : this.endDate,
+    createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  DayEntry copyWithCompanion(DayEntriesCompanion data) {
-    return DayEntry(
-      date: data.date.present ? data.date.value : this.date,
-      netWorkedHours: data.netWorkedHours.present
-          ? data.netWorkedHours.value
-          : this.netWorkedHours,
-      leaveHours: data.leaveHours.present
-          ? data.leaveHours.value
-          : this.leaveHours,
-      targetHours: data.targetHours.present
-          ? data.targetHours.value
-          : this.targetHours,
-      balanceDelta: data.balanceDelta.present
-          ? data.balanceDelta.value
-          : this.balanceDelta,
-      autoBreakOverridden: data.autoBreakOverridden.present
-          ? data.autoBreakOverridden.value
-          : this.autoBreakOverridden,
-      notes: data.notes.present ? data.notes.value : this.notes,
+  Job copyWithCompanion(JobsCompanion data) {
+    return Job(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
 
   @override
   String toString() {
-    return (StringBuffer('DayEntry(')
-          ..write('date: $date, ')
-          ..write('netWorkedHours: $netWorkedHours, ')
-          ..write('leaveHours: $leaveHours, ')
-          ..write('targetHours: $targetHours, ')
-          ..write('balanceDelta: $balanceDelta, ')
-          ..write('autoBreakOverridden: $autoBreakOverridden, ')
-          ..write('notes: $notes, ')
+    return (StringBuffer('Job(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-    date,
-    netWorkedHours,
-    leaveHours,
-    targetHours,
-    balanceDelta,
-    autoBreakOverridden,
-    notes,
-    updatedAt,
-  );
+  int get hashCode =>
+      Object.hash(id, name, startDate, endDate, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is DayEntry &&
-          other.date == this.date &&
-          other.netWorkedHours == this.netWorkedHours &&
-          other.leaveHours == this.leaveHours &&
-          other.targetHours == this.targetHours &&
-          other.balanceDelta == this.balanceDelta &&
-          other.autoBreakOverridden == this.autoBreakOverridden &&
-          other.notes == this.notes &&
+      (other is Job &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.startDate == this.startDate &&
+          other.endDate == this.endDate &&
+          other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
 
-class DayEntriesCompanion extends UpdateCompanion<DayEntry> {
-  final Value<DateTime> date;
-  final Value<double> netWorkedHours;
-  final Value<double> leaveHours;
-  final Value<double> targetHours;
-  final Value<double> balanceDelta;
-  final Value<bool> autoBreakOverridden;
-  final Value<String?> notes;
+class JobsCompanion extends UpdateCompanion<Job> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<DateTime> startDate;
+  final Value<DateTime?> endDate;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const JobsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  JobsCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    required DateTime startDate,
+    this.endDate = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : name = Value(name),
+       startDate = Value(startDate);
+  static Insertable<Job> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<DateTime>? startDate,
+    Expression<DateTime>? endDate,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  JobsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<DateTime>? startDate,
+    Value<DateTime?>? endDate,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return JobsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('JobsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $VacationsTable extends Vacations
+    with TableInfo<$VacationsTable, Vacation> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VacationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    clientDefault: () => const Uuid().v4(),
+  );
+  static const VerificationMeta _jobIdMeta = const VerificationMeta('jobId');
+  @override
+  late final GeneratedColumn<int> jobId = GeneratedColumn<int>(
+    'job_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES jobs (id)',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, jobId, name, createdAt, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'vacations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Vacation> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('job_id')) {
+      context.handle(
+        _jobIdMeta,
+        jobId.isAcceptableOrUnknown(data['job_id']!, _jobIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_jobIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Vacation map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Vacation(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      jobId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}job_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $VacationsTable createAlias(String alias) {
+    return $VacationsTable(attachedDatabase, alias);
+  }
+}
+
+class Vacation extends DataClass implements Insertable<Vacation> {
+  final String id;
+  final int jobId;
+  final String? name;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const Vacation({
+    required this.id,
+    required this.jobId,
+    this.name,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['job_id'] = Variable<int>(jobId);
+    if (!nullToAbsent || name != null) {
+      map['name'] = Variable<String>(name);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  VacationsCompanion toCompanion(bool nullToAbsent) {
+    return VacationsCompanion(
+      id: Value(id),
+      jobId: Value(jobId),
+      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Vacation.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Vacation(
+      id: serializer.fromJson<String>(json['id']),
+      jobId: serializer.fromJson<int>(json['jobId']),
+      name: serializer.fromJson<String?>(json['name']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'jobId': serializer.toJson<int>(jobId),
+      'name': serializer.toJson<String?>(name),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Vacation copyWith({
+    String? id,
+    int? jobId,
+    Value<String?> name = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => Vacation(
+    id: id ?? this.id,
+    jobId: jobId ?? this.jobId,
+    name: name.present ? name.value : this.name,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  Vacation copyWithCompanion(VacationsCompanion data) {
+    return Vacation(
+      id: data.id.present ? data.id.value : this.id,
+      jobId: data.jobId.present ? data.jobId.value : this.jobId,
+      name: data.name.present ? data.name.value : this.name,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Vacation(')
+          ..write('id: $id, ')
+          ..write('jobId: $jobId, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, jobId, name, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Vacation &&
+          other.id == this.id &&
+          other.jobId == this.jobId &&
+          other.name == this.name &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class VacationsCompanion extends UpdateCompanion<Vacation> {
+  final Value<String> id;
+  final Value<int> jobId;
+  final Value<String?> name;
+  final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
-  const DayEntriesCompanion({
-    this.date = const Value.absent(),
-    this.netWorkedHours = const Value.absent(),
-    this.leaveHours = const Value.absent(),
-    this.targetHours = const Value.absent(),
-    this.balanceDelta = const Value.absent(),
-    this.autoBreakOverridden = const Value.absent(),
-    this.notes = const Value.absent(),
+  const VacationsCompanion({
+    this.id = const Value.absent(),
+    this.jobId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
-  DayEntriesCompanion.insert({
-    required DateTime date,
-    this.netWorkedHours = const Value.absent(),
-    this.leaveHours = const Value.absent(),
-    this.targetHours = const Value.absent(),
-    this.balanceDelta = const Value.absent(),
-    this.autoBreakOverridden = const Value.absent(),
-    this.notes = const Value.absent(),
+  VacationsCompanion.insert({
+    this.id = const Value.absent(),
+    required int jobId,
+    this.name = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
-  }) : date = Value(date);
-  static Insertable<DayEntry> custom({
-    Expression<DateTime>? date,
-    Expression<double>? netWorkedHours,
-    Expression<double>? leaveHours,
-    Expression<double>? targetHours,
-    Expression<double>? balanceDelta,
-    Expression<bool>? autoBreakOverridden,
-    Expression<String>? notes,
+  }) : jobId = Value(jobId);
+  static Insertable<Vacation> custom({
+    Expression<String>? id,
+    Expression<int>? jobId,
+    Expression<String>? name,
+    Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
-      if (date != null) 'date': date,
-      if (netWorkedHours != null) 'net_worked_hours': netWorkedHours,
-      if (leaveHours != null) 'leave_hours': leaveHours,
-      if (targetHours != null) 'target_hours': targetHours,
-      if (balanceDelta != null) 'balance_delta': balanceDelta,
-      if (autoBreakOverridden != null)
-        'auto_break_overridden': autoBreakOverridden,
-      if (notes != null) 'notes': notes,
+      if (id != null) 'id': id,
+      if (jobId != null) 'job_id': jobId,
+      if (name != null) 'name': name,
+      if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
 
-  DayEntriesCompanion copyWith({
-    Value<DateTime>? date,
-    Value<double>? netWorkedHours,
-    Value<double>? leaveHours,
-    Value<double>? targetHours,
-    Value<double>? balanceDelta,
-    Value<bool>? autoBreakOverridden,
-    Value<String?>? notes,
+  VacationsCompanion copyWith({
+    Value<String>? id,
+    Value<int>? jobId,
+    Value<String?>? name,
+    Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
   }) {
-    return DayEntriesCompanion(
-      date: date ?? this.date,
-      netWorkedHours: netWorkedHours ?? this.netWorkedHours,
-      leaveHours: leaveHours ?? this.leaveHours,
-      targetHours: targetHours ?? this.targetHours,
-      balanceDelta: balanceDelta ?? this.balanceDelta,
-      autoBreakOverridden: autoBreakOverridden ?? this.autoBreakOverridden,
-      notes: notes ?? this.notes,
+    return VacationsCompanion(
+      id: id ?? this.id,
+      jobId: jobId ?? this.jobId,
+      name: name ?? this.name,
+      createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -485,26 +714,17 @@ class DayEntriesCompanion extends UpdateCompanion<DayEntry> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (date.present) {
-      map['date'] = Variable<DateTime>(date.value);
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
     }
-    if (netWorkedHours.present) {
-      map['net_worked_hours'] = Variable<double>(netWorkedHours.value);
+    if (jobId.present) {
+      map['job_id'] = Variable<int>(jobId.value);
     }
-    if (leaveHours.present) {
-      map['leave_hours'] = Variable<double>(leaveHours.value);
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
     }
-    if (targetHours.present) {
-      map['target_hours'] = Variable<double>(targetHours.value);
-    }
-    if (balanceDelta.present) {
-      map['balance_delta'] = Variable<double>(balanceDelta.value);
-    }
-    if (autoBreakOverridden.present) {
-      map['auto_break_overridden'] = Variable<bool>(autoBreakOverridden.value);
-    }
-    if (notes.present) {
-      map['notes'] = Variable<String>(notes.value);
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
     }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
@@ -517,15 +737,220 @@ class DayEntriesCompanion extends UpdateCompanion<DayEntry> {
 
   @override
   String toString() {
-    return (StringBuffer('DayEntriesCompanion(')
-          ..write('date: $date, ')
-          ..write('netWorkedHours: $netWorkedHours, ')
-          ..write('leaveHours: $leaveHours, ')
-          ..write('targetHours: $targetHours, ')
-          ..write('balanceDelta: $balanceDelta, ')
-          ..write('autoBreakOverridden: $autoBreakOverridden, ')
-          ..write('notes: $notes, ')
+    return (StringBuffer('VacationsCompanion(')
+          ..write('id: $id, ')
+          ..write('jobId: $jobId, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AppPreferencesTable extends AppPreferences
+    with TableInfo<$AppPreferencesTable, AppPreference> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AppPreferencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+    'value',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [key, value];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'app_preferences';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppPreference> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  AppPreference map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppPreference(
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value'],
+      )!,
+    );
+  }
+
+  @override
+  $AppPreferencesTable createAlias(String alias) {
+    return $AppPreferencesTable(attachedDatabase, alias);
+  }
+}
+
+class AppPreference extends DataClass implements Insertable<AppPreference> {
+  final String key;
+  final String value;
+  const AppPreference({required this.key, required this.value});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['value'] = Variable<String>(value);
+    return map;
+  }
+
+  AppPreferencesCompanion toCompanion(bool nullToAbsent) {
+    return AppPreferencesCompanion(key: Value(key), value: Value(value));
+  }
+
+  factory AppPreference.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppPreference(
+      key: serializer.fromJson<String>(json['key']),
+      value: serializer.fromJson<String>(json['value']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'value': serializer.toJson<String>(value),
+    };
+  }
+
+  AppPreference copyWith({String? key, String? value}) =>
+      AppPreference(key: key ?? this.key, value: value ?? this.value);
+  AppPreference copyWithCompanion(AppPreferencesCompanion data) {
+    return AppPreference(
+      key: data.key.present ? data.key.value : this.key,
+      value: data.value.present ? data.value.value : this.value,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppPreference(')
+          ..write('key: $key, ')
+          ..write('value: $value')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, value);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppPreference &&
+          other.key == this.key &&
+          other.value == this.value);
+}
+
+class AppPreferencesCompanion extends UpdateCompanion<AppPreference> {
+  final Value<String> key;
+  final Value<String> value;
+  final Value<int> rowid;
+  const AppPreferencesCompanion({
+    this.key = const Value.absent(),
+    this.value = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AppPreferencesCompanion.insert({
+    required String key,
+    required String value,
+    this.rowid = const Value.absent(),
+  }) : key = Value(key),
+       value = Value(value);
+  static Insertable<AppPreference> custom({
+    Expression<String>? key,
+    Expression<String>? value,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (value != null) 'value': value,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AppPreferencesCompanion copyWith({
+    Value<String>? key,
+    Value<String>? value,
+    Value<int>? rowid,
+  }) {
+    return AppPreferencesCompanion(
+      key: key ?? this.key,
+      value: value ?? this.value,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppPreferencesCompanion(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -548,6 +973,19 @@ class $WorkSessionsTable extends WorkSessions
     requiredDuringInsert: false,
     clientDefault: () => const Uuid().v4(),
   );
+  static const VerificationMeta _jobIdMeta = const VerificationMeta('jobId');
+  @override
+  late final GeneratedColumn<int> jobId = GeneratedColumn<int>(
+    'job_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES jobs (id)',
+    ),
+    defaultValue: const Constant(1),
+  );
   static const VerificationMeta _dateMeta = const VerificationMeta('date');
   @override
   late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
@@ -556,9 +994,6 @@ class $WorkSessionsTable extends WorkSessions
     false,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES day_entries (date)',
-    ),
   );
   static const VerificationMeta _startTimeMeta = const VerificationMeta(
     'startTime',
@@ -627,6 +1062,7 @@ class $WorkSessionsTable extends WorkSessions
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    jobId,
     date,
     startTime,
     endTime,
@@ -649,6 +1085,12 @@ class $WorkSessionsTable extends WorkSessions
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('job_id')) {
+      context.handle(
+        _jobIdMeta,
+        jobId.isAcceptableOrUnknown(data['job_id']!, _jobIdMeta),
+      );
     }
     if (data.containsKey('date')) {
       context.handle(
@@ -703,6 +1145,10 @@ class $WorkSessionsTable extends WorkSessions
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
+      jobId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}job_id'],
+      )!,
       date: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}date'],
@@ -747,6 +1193,7 @@ class $WorkSessionsTable extends WorkSessions
 
 class WorkSession extends DataClass implements Insertable<WorkSession> {
   final String id;
+  final int jobId;
   final DateTime date;
   final DateTime startTime;
   final DateTime? endTime;
@@ -756,6 +1203,7 @@ class WorkSession extends DataClass implements Insertable<WorkSession> {
   final DateTime updatedAt;
   const WorkSession({
     required this.id,
+    required this.jobId,
     required this.date,
     required this.startTime,
     this.endTime,
@@ -768,6 +1216,7 @@ class WorkSession extends DataClass implements Insertable<WorkSession> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    map['job_id'] = Variable<int>(jobId);
     map['date'] = Variable<DateTime>(date);
     map['start_time'] = Variable<DateTime>(startTime);
     if (!nullToAbsent || endTime != null) {
@@ -789,6 +1238,7 @@ class WorkSession extends DataClass implements Insertable<WorkSession> {
   WorkSessionsCompanion toCompanion(bool nullToAbsent) {
     return WorkSessionsCompanion(
       id: Value(id),
+      jobId: Value(jobId),
       date: Value(date),
       startTime: Value(startTime),
       endTime: endTime == null && nullToAbsent
@@ -810,6 +1260,7 @@ class WorkSession extends DataClass implements Insertable<WorkSession> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return WorkSession(
       id: serializer.fromJson<String>(json['id']),
+      jobId: serializer.fromJson<int>(json['jobId']),
       date: serializer.fromJson<DateTime>(json['date']),
       startTime: serializer.fromJson<DateTime>(json['startTime']),
       endTime: serializer.fromJson<DateTime?>(json['endTime']),
@@ -826,6 +1277,7 @@ class WorkSession extends DataClass implements Insertable<WorkSession> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'jobId': serializer.toJson<int>(jobId),
       'date': serializer.toJson<DateTime>(date),
       'startTime': serializer.toJson<DateTime>(startTime),
       'endTime': serializer.toJson<DateTime?>(endTime),
@@ -840,6 +1292,7 @@ class WorkSession extends DataClass implements Insertable<WorkSession> {
 
   WorkSession copyWith({
     String? id,
+    int? jobId,
     DateTime? date,
     DateTime? startTime,
     Value<DateTime?> endTime = const Value.absent(),
@@ -849,6 +1302,7 @@ class WorkSession extends DataClass implements Insertable<WorkSession> {
     DateTime? updatedAt,
   }) => WorkSession(
     id: id ?? this.id,
+    jobId: jobId ?? this.jobId,
     date: date ?? this.date,
     startTime: startTime ?? this.startTime,
     endTime: endTime.present ? endTime.value : this.endTime,
@@ -860,6 +1314,7 @@ class WorkSession extends DataClass implements Insertable<WorkSession> {
   WorkSession copyWithCompanion(WorkSessionsCompanion data) {
     return WorkSession(
       id: data.id.present ? data.id.value : this.id,
+      jobId: data.jobId.present ? data.jobId.value : this.jobId,
       date: data.date.present ? data.date.value : this.date,
       startTime: data.startTime.present ? data.startTime.value : this.startTime,
       endTime: data.endTime.present ? data.endTime.value : this.endTime,
@@ -874,6 +1329,7 @@ class WorkSession extends DataClass implements Insertable<WorkSession> {
   String toString() {
     return (StringBuffer('WorkSession(')
           ..write('id: $id, ')
+          ..write('jobId: $jobId, ')
           ..write('date: $date, ')
           ..write('startTime: $startTime, ')
           ..write('endTime: $endTime, ')
@@ -888,6 +1344,7 @@ class WorkSession extends DataClass implements Insertable<WorkSession> {
   @override
   int get hashCode => Object.hash(
     id,
+    jobId,
     date,
     startTime,
     endTime,
@@ -901,6 +1358,7 @@ class WorkSession extends DataClass implements Insertable<WorkSession> {
       identical(this, other) ||
       (other is WorkSession &&
           other.id == this.id &&
+          other.jobId == this.jobId &&
           other.date == this.date &&
           other.startTime == this.startTime &&
           other.endTime == this.endTime &&
@@ -912,6 +1370,7 @@ class WorkSession extends DataClass implements Insertable<WorkSession> {
 
 class WorkSessionsCompanion extends UpdateCompanion<WorkSession> {
   final Value<String> id;
+  final Value<int> jobId;
   final Value<DateTime> date;
   final Value<DateTime> startTime;
   final Value<DateTime?> endTime;
@@ -922,6 +1381,7 @@ class WorkSessionsCompanion extends UpdateCompanion<WorkSession> {
   final Value<int> rowid;
   const WorkSessionsCompanion({
     this.id = const Value.absent(),
+    this.jobId = const Value.absent(),
     this.date = const Value.absent(),
     this.startTime = const Value.absent(),
     this.endTime = const Value.absent(),
@@ -933,6 +1393,7 @@ class WorkSessionsCompanion extends UpdateCompanion<WorkSession> {
   });
   WorkSessionsCompanion.insert({
     this.id = const Value.absent(),
+    this.jobId = const Value.absent(),
     required DateTime date,
     required DateTime startTime,
     this.endTime = const Value.absent(),
@@ -946,6 +1407,7 @@ class WorkSessionsCompanion extends UpdateCompanion<WorkSession> {
        status = Value(status);
   static Insertable<WorkSession> custom({
     Expression<String>? id,
+    Expression<int>? jobId,
     Expression<DateTime>? date,
     Expression<DateTime>? startTime,
     Expression<DateTime>? endTime,
@@ -957,6 +1419,7 @@ class WorkSessionsCompanion extends UpdateCompanion<WorkSession> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (jobId != null) 'job_id': jobId,
       if (date != null) 'date': date,
       if (startTime != null) 'start_time': startTime,
       if (endTime != null) 'end_time': endTime,
@@ -970,6 +1433,7 @@ class WorkSessionsCompanion extends UpdateCompanion<WorkSession> {
 
   WorkSessionsCompanion copyWith({
     Value<String>? id,
+    Value<int>? jobId,
     Value<DateTime>? date,
     Value<DateTime>? startTime,
     Value<DateTime?>? endTime,
@@ -981,6 +1445,7 @@ class WorkSessionsCompanion extends UpdateCompanion<WorkSession> {
   }) {
     return WorkSessionsCompanion(
       id: id ?? this.id,
+      jobId: jobId ?? this.jobId,
       date: date ?? this.date,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
@@ -997,6 +1462,9 @@ class WorkSessionsCompanion extends UpdateCompanion<WorkSession> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (jobId.present) {
+      map['job_id'] = Variable<int>(jobId.value);
     }
     if (date.present) {
       map['date'] = Variable<DateTime>(date.value);
@@ -1031,6 +1499,7 @@ class WorkSessionsCompanion extends UpdateCompanion<WorkSession> {
   String toString() {
     return (StringBuffer('WorkSessionsCompanion(')
           ..write('id: $id, ')
+          ..write('jobId: $jobId, ')
           ..write('date: $date, ')
           ..write('startTime: $startTime, ')
           ..write('endTime: $endTime, ')
@@ -1060,6 +1529,19 @@ class $BreakEntriesTable extends BreakEntries
     requiredDuringInsert: false,
     clientDefault: () => const Uuid().v4(),
   );
+  static const VerificationMeta _jobIdMeta = const VerificationMeta('jobId');
+  @override
+  late final GeneratedColumn<int> jobId = GeneratedColumn<int>(
+    'job_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES jobs (id)',
+    ),
+    defaultValue: const Constant(1),
+  );
   static const VerificationMeta _dateMeta = const VerificationMeta('date');
   @override
   late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
@@ -1068,9 +1550,6 @@ class $BreakEntriesTable extends BreakEntries
     false,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES day_entries (date)',
-    ),
   );
   static const VerificationMeta _startTimeMeta = const VerificationMeta(
     'startTime',
@@ -1130,6 +1609,7 @@ class $BreakEntriesTable extends BreakEntries
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    jobId,
     date,
     startTime,
     endTime,
@@ -1151,6 +1631,12 @@ class $BreakEntriesTable extends BreakEntries
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('job_id')) {
+      context.handle(
+        _jobIdMeta,
+        jobId.isAcceptableOrUnknown(data['job_id']!, _jobIdMeta),
+      );
     }
     if (data.containsKey('date')) {
       context.handle(
@@ -1201,6 +1687,10 @@ class $BreakEntriesTable extends BreakEntries
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
+      jobId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}job_id'],
+      )!,
       date: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}date'],
@@ -1241,6 +1731,7 @@ class $BreakEntriesTable extends BreakEntries
 
 class BreakEntry extends DataClass implements Insertable<BreakEntry> {
   final String id;
+  final int jobId;
   final DateTime date;
   final DateTime startTime;
   final DateTime endTime;
@@ -1249,6 +1740,7 @@ class BreakEntry extends DataClass implements Insertable<BreakEntry> {
   final DateTime updatedAt;
   const BreakEntry({
     required this.id,
+    required this.jobId,
     required this.date,
     required this.startTime,
     required this.endTime,
@@ -1260,6 +1752,7 @@ class BreakEntry extends DataClass implements Insertable<BreakEntry> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    map['job_id'] = Variable<int>(jobId);
     map['date'] = Variable<DateTime>(date);
     map['start_time'] = Variable<DateTime>(startTime);
     map['end_time'] = Variable<DateTime>(endTime);
@@ -1276,6 +1769,7 @@ class BreakEntry extends DataClass implements Insertable<BreakEntry> {
   BreakEntriesCompanion toCompanion(bool nullToAbsent) {
     return BreakEntriesCompanion(
       id: Value(id),
+      jobId: Value(jobId),
       date: Value(date),
       startTime: Value(startTime),
       endTime: Value(endTime),
@@ -1292,6 +1786,7 @@ class BreakEntry extends DataClass implements Insertable<BreakEntry> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return BreakEntry(
       id: serializer.fromJson<String>(json['id']),
+      jobId: serializer.fromJson<int>(json['jobId']),
       date: serializer.fromJson<DateTime>(json['date']),
       startTime: serializer.fromJson<DateTime>(json['startTime']),
       endTime: serializer.fromJson<DateTime>(json['endTime']),
@@ -1307,6 +1802,7 @@ class BreakEntry extends DataClass implements Insertable<BreakEntry> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'jobId': serializer.toJson<int>(jobId),
       'date': serializer.toJson<DateTime>(date),
       'startTime': serializer.toJson<DateTime>(startTime),
       'endTime': serializer.toJson<DateTime>(endTime),
@@ -1320,6 +1816,7 @@ class BreakEntry extends DataClass implements Insertable<BreakEntry> {
 
   BreakEntry copyWith({
     String? id,
+    int? jobId,
     DateTime? date,
     DateTime? startTime,
     DateTime? endTime,
@@ -1328,6 +1825,7 @@ class BreakEntry extends DataClass implements Insertable<BreakEntry> {
     DateTime? updatedAt,
   }) => BreakEntry(
     id: id ?? this.id,
+    jobId: jobId ?? this.jobId,
     date: date ?? this.date,
     startTime: startTime ?? this.startTime,
     endTime: endTime ?? this.endTime,
@@ -1338,6 +1836,7 @@ class BreakEntry extends DataClass implements Insertable<BreakEntry> {
   BreakEntry copyWithCompanion(BreakEntriesCompanion data) {
     return BreakEntry(
       id: data.id.present ? data.id.value : this.id,
+      jobId: data.jobId.present ? data.jobId.value : this.jobId,
       date: data.date.present ? data.date.value : this.date,
       startTime: data.startTime.present ? data.startTime.value : this.startTime,
       endTime: data.endTime.present ? data.endTime.value : this.endTime,
@@ -1351,6 +1850,7 @@ class BreakEntry extends DataClass implements Insertable<BreakEntry> {
   String toString() {
     return (StringBuffer('BreakEntry(')
           ..write('id: $id, ')
+          ..write('jobId: $jobId, ')
           ..write('date: $date, ')
           ..write('startTime: $startTime, ')
           ..write('endTime: $endTime, ')
@@ -1362,13 +1862,22 @@ class BreakEntry extends DataClass implements Insertable<BreakEntry> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, date, startTime, endTime, type, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    jobId,
+    date,
+    startTime,
+    endTime,
+    type,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is BreakEntry &&
           other.id == this.id &&
+          other.jobId == this.jobId &&
           other.date == this.date &&
           other.startTime == this.startTime &&
           other.endTime == this.endTime &&
@@ -1379,6 +1888,7 @@ class BreakEntry extends DataClass implements Insertable<BreakEntry> {
 
 class BreakEntriesCompanion extends UpdateCompanion<BreakEntry> {
   final Value<String> id;
+  final Value<int> jobId;
   final Value<DateTime> date;
   final Value<DateTime> startTime;
   final Value<DateTime> endTime;
@@ -1388,6 +1898,7 @@ class BreakEntriesCompanion extends UpdateCompanion<BreakEntry> {
   final Value<int> rowid;
   const BreakEntriesCompanion({
     this.id = const Value.absent(),
+    this.jobId = const Value.absent(),
     this.date = const Value.absent(),
     this.startTime = const Value.absent(),
     this.endTime = const Value.absent(),
@@ -1398,6 +1909,7 @@ class BreakEntriesCompanion extends UpdateCompanion<BreakEntry> {
   });
   BreakEntriesCompanion.insert({
     this.id = const Value.absent(),
+    this.jobId = const Value.absent(),
     required DateTime date,
     required DateTime startTime,
     required DateTime endTime,
@@ -1411,6 +1923,7 @@ class BreakEntriesCompanion extends UpdateCompanion<BreakEntry> {
        type = Value(type);
   static Insertable<BreakEntry> custom({
     Expression<String>? id,
+    Expression<int>? jobId,
     Expression<DateTime>? date,
     Expression<DateTime>? startTime,
     Expression<DateTime>? endTime,
@@ -1421,6 +1934,7 @@ class BreakEntriesCompanion extends UpdateCompanion<BreakEntry> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (jobId != null) 'job_id': jobId,
       if (date != null) 'date': date,
       if (startTime != null) 'start_time': startTime,
       if (endTime != null) 'end_time': endTime,
@@ -1433,6 +1947,7 @@ class BreakEntriesCompanion extends UpdateCompanion<BreakEntry> {
 
   BreakEntriesCompanion copyWith({
     Value<String>? id,
+    Value<int>? jobId,
     Value<DateTime>? date,
     Value<DateTime>? startTime,
     Value<DateTime>? endTime,
@@ -1443,6 +1958,7 @@ class BreakEntriesCompanion extends UpdateCompanion<BreakEntry> {
   }) {
     return BreakEntriesCompanion(
       id: id ?? this.id,
+      jobId: jobId ?? this.jobId,
       date: date ?? this.date,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
@@ -1458,6 +1974,9 @@ class BreakEntriesCompanion extends UpdateCompanion<BreakEntry> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (jobId.present) {
+      map['job_id'] = Variable<int>(jobId.value);
     }
     if (date.present) {
       map['date'] = Variable<DateTime>(date.value);
@@ -1489,6 +2008,7 @@ class BreakEntriesCompanion extends UpdateCompanion<BreakEntry> {
   String toString() {
     return (StringBuffer('BreakEntriesCompanion(')
           ..write('id: $id, ')
+          ..write('jobId: $jobId, ')
           ..write('date: $date, ')
           ..write('startTime: $startTime, ')
           ..write('endTime: $endTime, ')
@@ -1517,6 +2037,19 @@ class $LeaveEntriesTable extends LeaveEntries
     requiredDuringInsert: false,
     clientDefault: () => const Uuid().v4(),
   );
+  static const VerificationMeta _jobIdMeta = const VerificationMeta('jobId');
+  @override
+  late final GeneratedColumn<int> jobId = GeneratedColumn<int>(
+    'job_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES jobs (id)',
+    ),
+    defaultValue: const Constant(1),
+  );
   static const VerificationMeta _dateMeta = const VerificationMeta('date');
   @override
   late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
@@ -1525,9 +2058,6 @@ class $LeaveEntriesTable extends LeaveEntries
     false,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES day_entries (date)',
-    ),
   );
   @override
   late final GeneratedColumnWithTypeConverter<LeaveType, String> type =
@@ -1556,6 +2086,20 @@ class $LeaveEntriesTable extends LeaveEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _vacationIdMeta = const VerificationMeta(
+    'vacationId',
+  );
+  @override
+  late final GeneratedColumn<String> vacationId = GeneratedColumn<String>(
+    'vacation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES vacations (id)',
+    ),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1583,10 +2127,12 @@ class $LeaveEntriesTable extends LeaveEntries
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    jobId,
     date,
     type,
     hours,
     notes,
+    vacationId,
     createdAt,
     updatedAt,
   ];
@@ -1604,6 +2150,12 @@ class $LeaveEntriesTable extends LeaveEntries
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('job_id')) {
+      context.handle(
+        _jobIdMeta,
+        jobId.isAcceptableOrUnknown(data['job_id']!, _jobIdMeta),
+      );
     }
     if (data.containsKey('date')) {
       context.handle(
@@ -1625,6 +2177,12 @@ class $LeaveEntriesTable extends LeaveEntries
       context.handle(
         _notesMeta,
         notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('vacation_id')) {
+      context.handle(
+        _vacationIdMeta,
+        vacationId.isAcceptableOrUnknown(data['vacation_id']!, _vacationIdMeta),
       );
     }
     if (data.containsKey('created_at')) {
@@ -1652,6 +2210,10 @@ class $LeaveEntriesTable extends LeaveEntries
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
+      jobId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}job_id'],
+      )!,
       date: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}date'],
@@ -1669,6 +2231,10 @@ class $LeaveEntriesTable extends LeaveEntries
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
+      ),
+      vacationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vacation_id'],
       ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
@@ -1692,18 +2258,25 @@ class $LeaveEntriesTable extends LeaveEntries
 
 class LeaveEntry extends DataClass implements Insertable<LeaveEntry> {
   final String id;
+  final int jobId;
   final DateTime date;
   final LeaveType type;
   final double hours;
   final String? notes;
+
+  /// The booking this day belongs to. Vacation only; null for sick and flex
+  /// days, which are not named.
+  final String? vacationId;
   final DateTime createdAt;
   final DateTime updatedAt;
   const LeaveEntry({
     required this.id,
+    required this.jobId,
     required this.date,
     required this.type,
     required this.hours,
     this.notes,
+    this.vacationId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -1711,6 +2284,7 @@ class LeaveEntry extends DataClass implements Insertable<LeaveEntry> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    map['job_id'] = Variable<int>(jobId);
     map['date'] = Variable<DateTime>(date);
     {
       map['type'] = Variable<String>(
@@ -1721,6 +2295,9 @@ class LeaveEntry extends DataClass implements Insertable<LeaveEntry> {
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
+    if (!nullToAbsent || vacationId != null) {
+      map['vacation_id'] = Variable<String>(vacationId);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -1729,12 +2306,16 @@ class LeaveEntry extends DataClass implements Insertable<LeaveEntry> {
   LeaveEntriesCompanion toCompanion(bool nullToAbsent) {
     return LeaveEntriesCompanion(
       id: Value(id),
+      jobId: Value(jobId),
       date: Value(date),
       type: Value(type),
       hours: Value(hours),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
+      vacationId: vacationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(vacationId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -1747,12 +2328,14 @@ class LeaveEntry extends DataClass implements Insertable<LeaveEntry> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return LeaveEntry(
       id: serializer.fromJson<String>(json['id']),
+      jobId: serializer.fromJson<int>(json['jobId']),
       date: serializer.fromJson<DateTime>(json['date']),
       type: $LeaveEntriesTable.$convertertype.fromJson(
         serializer.fromJson<String>(json['type']),
       ),
       hours: serializer.fromJson<double>(json['hours']),
       notes: serializer.fromJson<String?>(json['notes']),
+      vacationId: serializer.fromJson<String?>(json['vacationId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -1762,12 +2345,14 @@ class LeaveEntry extends DataClass implements Insertable<LeaveEntry> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'jobId': serializer.toJson<int>(jobId),
       'date': serializer.toJson<DateTime>(date),
       'type': serializer.toJson<String>(
         $LeaveEntriesTable.$convertertype.toJson(type),
       ),
       'hours': serializer.toJson<double>(hours),
       'notes': serializer.toJson<String?>(notes),
+      'vacationId': serializer.toJson<String?>(vacationId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -1775,28 +2360,36 @@ class LeaveEntry extends DataClass implements Insertable<LeaveEntry> {
 
   LeaveEntry copyWith({
     String? id,
+    int? jobId,
     DateTime? date,
     LeaveType? type,
     double? hours,
     Value<String?> notes = const Value.absent(),
+    Value<String?> vacationId = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => LeaveEntry(
     id: id ?? this.id,
+    jobId: jobId ?? this.jobId,
     date: date ?? this.date,
     type: type ?? this.type,
     hours: hours ?? this.hours,
     notes: notes.present ? notes.value : this.notes,
+    vacationId: vacationId.present ? vacationId.value : this.vacationId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
   LeaveEntry copyWithCompanion(LeaveEntriesCompanion data) {
     return LeaveEntry(
       id: data.id.present ? data.id.value : this.id,
+      jobId: data.jobId.present ? data.jobId.value : this.jobId,
       date: data.date.present ? data.date.value : this.date,
       type: data.type.present ? data.type.value : this.type,
       hours: data.hours.present ? data.hours.value : this.hours,
       notes: data.notes.present ? data.notes.value : this.notes,
+      vacationId: data.vacationId.present
+          ? data.vacationId.value
+          : this.vacationId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1806,10 +2399,12 @@ class LeaveEntry extends DataClass implements Insertable<LeaveEntry> {
   String toString() {
     return (StringBuffer('LeaveEntry(')
           ..write('id: $id, ')
+          ..write('jobId: $jobId, ')
           ..write('date: $date, ')
           ..write('type: $type, ')
           ..write('hours: $hours, ')
           ..write('notes: $notes, ')
+          ..write('vacationId: $vacationId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1817,46 +2412,63 @@ class LeaveEntry extends DataClass implements Insertable<LeaveEntry> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, date, type, hours, notes, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    jobId,
+    date,
+    type,
+    hours,
+    notes,
+    vacationId,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is LeaveEntry &&
           other.id == this.id &&
+          other.jobId == this.jobId &&
           other.date == this.date &&
           other.type == this.type &&
           other.hours == this.hours &&
           other.notes == this.notes &&
+          other.vacationId == this.vacationId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
 
 class LeaveEntriesCompanion extends UpdateCompanion<LeaveEntry> {
   final Value<String> id;
+  final Value<int> jobId;
   final Value<DateTime> date;
   final Value<LeaveType> type;
   final Value<double> hours;
   final Value<String?> notes;
+  final Value<String?> vacationId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
   const LeaveEntriesCompanion({
     this.id = const Value.absent(),
+    this.jobId = const Value.absent(),
     this.date = const Value.absent(),
     this.type = const Value.absent(),
     this.hours = const Value.absent(),
     this.notes = const Value.absent(),
+    this.vacationId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LeaveEntriesCompanion.insert({
     this.id = const Value.absent(),
+    this.jobId = const Value.absent(),
     required DateTime date,
     required LeaveType type,
     required double hours,
     this.notes = const Value.absent(),
+    this.vacationId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1865,20 +2477,24 @@ class LeaveEntriesCompanion extends UpdateCompanion<LeaveEntry> {
        hours = Value(hours);
   static Insertable<LeaveEntry> custom({
     Expression<String>? id,
+    Expression<int>? jobId,
     Expression<DateTime>? date,
     Expression<String>? type,
     Expression<double>? hours,
     Expression<String>? notes,
+    Expression<String>? vacationId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (jobId != null) 'job_id': jobId,
       if (date != null) 'date': date,
       if (type != null) 'type': type,
       if (hours != null) 'hours': hours,
       if (notes != null) 'notes': notes,
+      if (vacationId != null) 'vacation_id': vacationId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -1887,20 +2503,24 @@ class LeaveEntriesCompanion extends UpdateCompanion<LeaveEntry> {
 
   LeaveEntriesCompanion copyWith({
     Value<String>? id,
+    Value<int>? jobId,
     Value<DateTime>? date,
     Value<LeaveType>? type,
     Value<double>? hours,
     Value<String?>? notes,
+    Value<String?>? vacationId,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
   }) {
     return LeaveEntriesCompanion(
       id: id ?? this.id,
+      jobId: jobId ?? this.jobId,
       date: date ?? this.date,
       type: type ?? this.type,
       hours: hours ?? this.hours,
       notes: notes ?? this.notes,
+      vacationId: vacationId ?? this.vacationId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -1912,6 +2532,9 @@ class LeaveEntriesCompanion extends UpdateCompanion<LeaveEntry> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (jobId.present) {
+      map['job_id'] = Variable<int>(jobId.value);
     }
     if (date.present) {
       map['date'] = Variable<DateTime>(date.value);
@@ -1926,6 +2549,9 @@ class LeaveEntriesCompanion extends UpdateCompanion<LeaveEntry> {
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
+    }
+    if (vacationId.present) {
+      map['vacation_id'] = Variable<String>(vacationId.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -1943,10 +2569,12 @@ class LeaveEntriesCompanion extends UpdateCompanion<LeaveEntry> {
   String toString() {
     return (StringBuffer('LeaveEntriesCompanion(')
           ..write('id: $id, ')
+          ..write('jobId: $jobId, ')
           ..write('date: $date, ')
           ..write('type: $type, ')
           ..write('hours: $hours, ')
           ..write('notes: $notes, ')
+          ..write('vacationId: $vacationId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -2319,12 +2947,601 @@ class PublicHolidaysCompanion extends UpdateCompanion<PublicHoliday> {
   }
 }
 
+class $DayEntriesTable extends DayEntries
+    with TableInfo<$DayEntriesTable, DayEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DayEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _jobIdMeta = const VerificationMeta('jobId');
+  @override
+  late final GeneratedColumn<int> jobId = GeneratedColumn<int>(
+    'job_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES jobs (id)',
+    ),
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _netWorkedHoursMeta = const VerificationMeta(
+    'netWorkedHours',
+  );
+  @override
+  late final GeneratedColumn<double> netWorkedHours = GeneratedColumn<double>(
+    'net_worked_hours',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _leaveHoursMeta = const VerificationMeta(
+    'leaveHours',
+  );
+  @override
+  late final GeneratedColumn<double> leaveHours = GeneratedColumn<double>(
+    'leave_hours',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _targetHoursMeta = const VerificationMeta(
+    'targetHours',
+  );
+  @override
+  late final GeneratedColumn<double> targetHours = GeneratedColumn<double>(
+    'target_hours',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _balanceDeltaMeta = const VerificationMeta(
+    'balanceDelta',
+  );
+  @override
+  late final GeneratedColumn<double> balanceDelta = GeneratedColumn<double>(
+    'balance_delta',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _autoBreakOverriddenMeta =
+      const VerificationMeta('autoBreakOverridden');
+  @override
+  late final GeneratedColumn<bool> autoBreakOverridden = GeneratedColumn<bool>(
+    'auto_break_overridden',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("auto_break_overridden" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    jobId,
+    date,
+    netWorkedHours,
+    leaveHours,
+    targetHours,
+    balanceDelta,
+    autoBreakOverridden,
+    notes,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'day_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DayEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('job_id')) {
+      context.handle(
+        _jobIdMeta,
+        jobId.isAcceptableOrUnknown(data['job_id']!, _jobIdMeta),
+      );
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('net_worked_hours')) {
+      context.handle(
+        _netWorkedHoursMeta,
+        netWorkedHours.isAcceptableOrUnknown(
+          data['net_worked_hours']!,
+          _netWorkedHoursMeta,
+        ),
+      );
+    }
+    if (data.containsKey('leave_hours')) {
+      context.handle(
+        _leaveHoursMeta,
+        leaveHours.isAcceptableOrUnknown(data['leave_hours']!, _leaveHoursMeta),
+      );
+    }
+    if (data.containsKey('target_hours')) {
+      context.handle(
+        _targetHoursMeta,
+        targetHours.isAcceptableOrUnknown(
+          data['target_hours']!,
+          _targetHoursMeta,
+        ),
+      );
+    }
+    if (data.containsKey('balance_delta')) {
+      context.handle(
+        _balanceDeltaMeta,
+        balanceDelta.isAcceptableOrUnknown(
+          data['balance_delta']!,
+          _balanceDeltaMeta,
+        ),
+      );
+    }
+    if (data.containsKey('auto_break_overridden')) {
+      context.handle(
+        _autoBreakOverriddenMeta,
+        autoBreakOverridden.isAcceptableOrUnknown(
+          data['auto_break_overridden']!,
+          _autoBreakOverriddenMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {jobId, date};
+  @override
+  DayEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DayEntry(
+      jobId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}job_id'],
+      )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}date'],
+      )!,
+      netWorkedHours: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}net_worked_hours'],
+      )!,
+      leaveHours: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}leave_hours'],
+      )!,
+      targetHours: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}target_hours'],
+      )!,
+      balanceDelta: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}balance_delta'],
+      )!,
+      autoBreakOverridden: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}auto_break_overridden'],
+      )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DayEntriesTable createAlias(String alias) {
+    return $DayEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class DayEntry extends DataClass implements Insertable<DayEntry> {
+  final int jobId;
+  final DateTime date;
+  final double netWorkedHours;
+  final double leaveHours;
+  final double targetHours;
+  final double balanceDelta;
+  final bool autoBreakOverridden;
+  final String? notes;
+  final DateTime updatedAt;
+  const DayEntry({
+    required this.jobId,
+    required this.date,
+    required this.netWorkedHours,
+    required this.leaveHours,
+    required this.targetHours,
+    required this.balanceDelta,
+    required this.autoBreakOverridden,
+    this.notes,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['job_id'] = Variable<int>(jobId);
+    map['date'] = Variable<DateTime>(date);
+    map['net_worked_hours'] = Variable<double>(netWorkedHours);
+    map['leave_hours'] = Variable<double>(leaveHours);
+    map['target_hours'] = Variable<double>(targetHours);
+    map['balance_delta'] = Variable<double>(balanceDelta);
+    map['auto_break_overridden'] = Variable<bool>(autoBreakOverridden);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  DayEntriesCompanion toCompanion(bool nullToAbsent) {
+    return DayEntriesCompanion(
+      jobId: Value(jobId),
+      date: Value(date),
+      netWorkedHours: Value(netWorkedHours),
+      leaveHours: Value(leaveHours),
+      targetHours: Value(targetHours),
+      balanceDelta: Value(balanceDelta),
+      autoBreakOverridden: Value(autoBreakOverridden),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory DayEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DayEntry(
+      jobId: serializer.fromJson<int>(json['jobId']),
+      date: serializer.fromJson<DateTime>(json['date']),
+      netWorkedHours: serializer.fromJson<double>(json['netWorkedHours']),
+      leaveHours: serializer.fromJson<double>(json['leaveHours']),
+      targetHours: serializer.fromJson<double>(json['targetHours']),
+      balanceDelta: serializer.fromJson<double>(json['balanceDelta']),
+      autoBreakOverridden: serializer.fromJson<bool>(
+        json['autoBreakOverridden'],
+      ),
+      notes: serializer.fromJson<String?>(json['notes']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'jobId': serializer.toJson<int>(jobId),
+      'date': serializer.toJson<DateTime>(date),
+      'netWorkedHours': serializer.toJson<double>(netWorkedHours),
+      'leaveHours': serializer.toJson<double>(leaveHours),
+      'targetHours': serializer.toJson<double>(targetHours),
+      'balanceDelta': serializer.toJson<double>(balanceDelta),
+      'autoBreakOverridden': serializer.toJson<bool>(autoBreakOverridden),
+      'notes': serializer.toJson<String?>(notes),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  DayEntry copyWith({
+    int? jobId,
+    DateTime? date,
+    double? netWorkedHours,
+    double? leaveHours,
+    double? targetHours,
+    double? balanceDelta,
+    bool? autoBreakOverridden,
+    Value<String?> notes = const Value.absent(),
+    DateTime? updatedAt,
+  }) => DayEntry(
+    jobId: jobId ?? this.jobId,
+    date: date ?? this.date,
+    netWorkedHours: netWorkedHours ?? this.netWorkedHours,
+    leaveHours: leaveHours ?? this.leaveHours,
+    targetHours: targetHours ?? this.targetHours,
+    balanceDelta: balanceDelta ?? this.balanceDelta,
+    autoBreakOverridden: autoBreakOverridden ?? this.autoBreakOverridden,
+    notes: notes.present ? notes.value : this.notes,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  DayEntry copyWithCompanion(DayEntriesCompanion data) {
+    return DayEntry(
+      jobId: data.jobId.present ? data.jobId.value : this.jobId,
+      date: data.date.present ? data.date.value : this.date,
+      netWorkedHours: data.netWorkedHours.present
+          ? data.netWorkedHours.value
+          : this.netWorkedHours,
+      leaveHours: data.leaveHours.present
+          ? data.leaveHours.value
+          : this.leaveHours,
+      targetHours: data.targetHours.present
+          ? data.targetHours.value
+          : this.targetHours,
+      balanceDelta: data.balanceDelta.present
+          ? data.balanceDelta.value
+          : this.balanceDelta,
+      autoBreakOverridden: data.autoBreakOverridden.present
+          ? data.autoBreakOverridden.value
+          : this.autoBreakOverridden,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DayEntry(')
+          ..write('jobId: $jobId, ')
+          ..write('date: $date, ')
+          ..write('netWorkedHours: $netWorkedHours, ')
+          ..write('leaveHours: $leaveHours, ')
+          ..write('targetHours: $targetHours, ')
+          ..write('balanceDelta: $balanceDelta, ')
+          ..write('autoBreakOverridden: $autoBreakOverridden, ')
+          ..write('notes: $notes, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    jobId,
+    date,
+    netWorkedHours,
+    leaveHours,
+    targetHours,
+    balanceDelta,
+    autoBreakOverridden,
+    notes,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DayEntry &&
+          other.jobId == this.jobId &&
+          other.date == this.date &&
+          other.netWorkedHours == this.netWorkedHours &&
+          other.leaveHours == this.leaveHours &&
+          other.targetHours == this.targetHours &&
+          other.balanceDelta == this.balanceDelta &&
+          other.autoBreakOverridden == this.autoBreakOverridden &&
+          other.notes == this.notes &&
+          other.updatedAt == this.updatedAt);
+}
+
+class DayEntriesCompanion extends UpdateCompanion<DayEntry> {
+  final Value<int> jobId;
+  final Value<DateTime> date;
+  final Value<double> netWorkedHours;
+  final Value<double> leaveHours;
+  final Value<double> targetHours;
+  final Value<double> balanceDelta;
+  final Value<bool> autoBreakOverridden;
+  final Value<String?> notes;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const DayEntriesCompanion({
+    this.jobId = const Value.absent(),
+    this.date = const Value.absent(),
+    this.netWorkedHours = const Value.absent(),
+    this.leaveHours = const Value.absent(),
+    this.targetHours = const Value.absent(),
+    this.balanceDelta = const Value.absent(),
+    this.autoBreakOverridden = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DayEntriesCompanion.insert({
+    this.jobId = const Value.absent(),
+    required DateTime date,
+    this.netWorkedHours = const Value.absent(),
+    this.leaveHours = const Value.absent(),
+    this.targetHours = const Value.absent(),
+    this.balanceDelta = const Value.absent(),
+    this.autoBreakOverridden = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : date = Value(date);
+  static Insertable<DayEntry> custom({
+    Expression<int>? jobId,
+    Expression<DateTime>? date,
+    Expression<double>? netWorkedHours,
+    Expression<double>? leaveHours,
+    Expression<double>? targetHours,
+    Expression<double>? balanceDelta,
+    Expression<bool>? autoBreakOverridden,
+    Expression<String>? notes,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (jobId != null) 'job_id': jobId,
+      if (date != null) 'date': date,
+      if (netWorkedHours != null) 'net_worked_hours': netWorkedHours,
+      if (leaveHours != null) 'leave_hours': leaveHours,
+      if (targetHours != null) 'target_hours': targetHours,
+      if (balanceDelta != null) 'balance_delta': balanceDelta,
+      if (autoBreakOverridden != null)
+        'auto_break_overridden': autoBreakOverridden,
+      if (notes != null) 'notes': notes,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DayEntriesCompanion copyWith({
+    Value<int>? jobId,
+    Value<DateTime>? date,
+    Value<double>? netWorkedHours,
+    Value<double>? leaveHours,
+    Value<double>? targetHours,
+    Value<double>? balanceDelta,
+    Value<bool>? autoBreakOverridden,
+    Value<String?>? notes,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return DayEntriesCompanion(
+      jobId: jobId ?? this.jobId,
+      date: date ?? this.date,
+      netWorkedHours: netWorkedHours ?? this.netWorkedHours,
+      leaveHours: leaveHours ?? this.leaveHours,
+      targetHours: targetHours ?? this.targetHours,
+      balanceDelta: balanceDelta ?? this.balanceDelta,
+      autoBreakOverridden: autoBreakOverridden ?? this.autoBreakOverridden,
+      notes: notes ?? this.notes,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (jobId.present) {
+      map['job_id'] = Variable<int>(jobId.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
+    }
+    if (netWorkedHours.present) {
+      map['net_worked_hours'] = Variable<double>(netWorkedHours.value);
+    }
+    if (leaveHours.present) {
+      map['leave_hours'] = Variable<double>(leaveHours.value);
+    }
+    if (targetHours.present) {
+      map['target_hours'] = Variable<double>(targetHours.value);
+    }
+    if (balanceDelta.present) {
+      map['balance_delta'] = Variable<double>(balanceDelta.value);
+    }
+    if (autoBreakOverridden.present) {
+      map['auto_break_overridden'] = Variable<bool>(autoBreakOverridden.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DayEntriesCompanion(')
+          ..write('jobId: $jobId, ')
+          ..write('date: $date, ')
+          ..write('netWorkedHours: $netWorkedHours, ')
+          ..write('leaveHours: $leaveHours, ')
+          ..write('targetHours: $targetHours, ')
+          ..write('balanceDelta: $balanceDelta, ')
+          ..write('autoBreakOverridden: $autoBreakOverridden, ')
+          ..write('notes: $notes, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $BalanceSnapshotsTable extends BalanceSnapshots
     with TableInfo<$BalanceSnapshotsTable, BalanceSnapshot> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $BalanceSnapshotsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _jobIdMeta = const VerificationMeta('jobId');
+  @override
+  late final GeneratedColumn<int> jobId = GeneratedColumn<int>(
+    'job_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES jobs (id)',
+    ),
+    defaultValue: const Constant(1),
+  );
   static const VerificationMeta _dateMeta = const VerificationMeta('date');
   @override
   late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
@@ -2358,7 +3575,7 @@ class $BalanceSnapshotsTable extends BalanceSnapshots
     defaultValue: currentDateAndTime,
   );
   @override
-  List<GeneratedColumn> get $columns => [date, balance, updatedAt];
+  List<GeneratedColumn> get $columns => [jobId, date, balance, updatedAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2371,6 +3588,12 @@ class $BalanceSnapshotsTable extends BalanceSnapshots
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('job_id')) {
+      context.handle(
+        _jobIdMeta,
+        jobId.isAcceptableOrUnknown(data['job_id']!, _jobIdMeta),
+      );
+    }
     if (data.containsKey('date')) {
       context.handle(
         _dateMeta,
@@ -2397,11 +3620,15 @@ class $BalanceSnapshotsTable extends BalanceSnapshots
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {date};
+  Set<GeneratedColumn> get $primaryKey => {jobId, date};
   @override
   BalanceSnapshot map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return BalanceSnapshot(
+      jobId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}job_id'],
+      )!,
       date: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}date'],
@@ -2424,10 +3651,12 @@ class $BalanceSnapshotsTable extends BalanceSnapshots
 }
 
 class BalanceSnapshot extends DataClass implements Insertable<BalanceSnapshot> {
+  final int jobId;
   final DateTime date;
   final double balance;
   final DateTime updatedAt;
   const BalanceSnapshot({
+    required this.jobId,
     required this.date,
     required this.balance,
     required this.updatedAt,
@@ -2435,6 +3664,7 @@ class BalanceSnapshot extends DataClass implements Insertable<BalanceSnapshot> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['job_id'] = Variable<int>(jobId);
     map['date'] = Variable<DateTime>(date);
     map['balance'] = Variable<double>(balance);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -2443,6 +3673,7 @@ class BalanceSnapshot extends DataClass implements Insertable<BalanceSnapshot> {
 
   BalanceSnapshotsCompanion toCompanion(bool nullToAbsent) {
     return BalanceSnapshotsCompanion(
+      jobId: Value(jobId),
       date: Value(date),
       balance: Value(balance),
       updatedAt: Value(updatedAt),
@@ -2455,6 +3686,7 @@ class BalanceSnapshot extends DataClass implements Insertable<BalanceSnapshot> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return BalanceSnapshot(
+      jobId: serializer.fromJson<int>(json['jobId']),
       date: serializer.fromJson<DateTime>(json['date']),
       balance: serializer.fromJson<double>(json['balance']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -2464,6 +3696,7 @@ class BalanceSnapshot extends DataClass implements Insertable<BalanceSnapshot> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'jobId': serializer.toJson<int>(jobId),
       'date': serializer.toJson<DateTime>(date),
       'balance': serializer.toJson<double>(balance),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -2471,16 +3704,19 @@ class BalanceSnapshot extends DataClass implements Insertable<BalanceSnapshot> {
   }
 
   BalanceSnapshot copyWith({
+    int? jobId,
     DateTime? date,
     double? balance,
     DateTime? updatedAt,
   }) => BalanceSnapshot(
+    jobId: jobId ?? this.jobId,
     date: date ?? this.date,
     balance: balance ?? this.balance,
     updatedAt: updatedAt ?? this.updatedAt,
   );
   BalanceSnapshot copyWithCompanion(BalanceSnapshotsCompanion data) {
     return BalanceSnapshot(
+      jobId: data.jobId.present ? data.jobId.value : this.jobId,
       date: data.date.present ? data.date.value : this.date,
       balance: data.balance.present ? data.balance.value : this.balance,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -2490,6 +3726,7 @@ class BalanceSnapshot extends DataClass implements Insertable<BalanceSnapshot> {
   @override
   String toString() {
     return (StringBuffer('BalanceSnapshot(')
+          ..write('jobId: $jobId, ')
           ..write('date: $date, ')
           ..write('balance: $balance, ')
           ..write('updatedAt: $updatedAt')
@@ -2498,28 +3735,32 @@ class BalanceSnapshot extends DataClass implements Insertable<BalanceSnapshot> {
   }
 
   @override
-  int get hashCode => Object.hash(date, balance, updatedAt);
+  int get hashCode => Object.hash(jobId, date, balance, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is BalanceSnapshot &&
+          other.jobId == this.jobId &&
           other.date == this.date &&
           other.balance == this.balance &&
           other.updatedAt == this.updatedAt);
 }
 
 class BalanceSnapshotsCompanion extends UpdateCompanion<BalanceSnapshot> {
+  final Value<int> jobId;
   final Value<DateTime> date;
   final Value<double> balance;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
   const BalanceSnapshotsCompanion({
+    this.jobId = const Value.absent(),
     this.date = const Value.absent(),
     this.balance = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BalanceSnapshotsCompanion.insert({
+    this.jobId = const Value.absent(),
     required DateTime date,
     required double balance,
     this.updatedAt = const Value.absent(),
@@ -2527,12 +3768,14 @@ class BalanceSnapshotsCompanion extends UpdateCompanion<BalanceSnapshot> {
   }) : date = Value(date),
        balance = Value(balance);
   static Insertable<BalanceSnapshot> custom({
+    Expression<int>? jobId,
     Expression<DateTime>? date,
     Expression<double>? balance,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (jobId != null) 'job_id': jobId,
       if (date != null) 'date': date,
       if (balance != null) 'balance': balance,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -2541,12 +3784,14 @@ class BalanceSnapshotsCompanion extends UpdateCompanion<BalanceSnapshot> {
   }
 
   BalanceSnapshotsCompanion copyWith({
+    Value<int>? jobId,
     Value<DateTime>? date,
     Value<double>? balance,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
   }) {
     return BalanceSnapshotsCompanion(
+      jobId: jobId ?? this.jobId,
       date: date ?? this.date,
       balance: balance ?? this.balance,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -2557,6 +3802,9 @@ class BalanceSnapshotsCompanion extends UpdateCompanion<BalanceSnapshot> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (jobId.present) {
+      map['job_id'] = Variable<int>(jobId.value);
+    }
     if (date.present) {
       map['date'] = Variable<DateTime>(date.value);
     }
@@ -2575,6 +3823,7 @@ class BalanceSnapshotsCompanion extends UpdateCompanion<BalanceSnapshot> {
   @override
   String toString() {
     return (StringBuffer('BalanceSnapshotsCompanion(')
+          ..write('jobId: $jobId, ')
           ..write('date: $date, ')
           ..write('balance: $balance, ')
           ..write('updatedAt: $updatedAt, ')
@@ -2590,6 +3839,19 @@ class $VacationQuotasTable extends VacationQuotas
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $VacationQuotasTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _jobIdMeta = const VerificationMeta('jobId');
+  @override
+  late final GeneratedColumn<int> jobId = GeneratedColumn<int>(
+    'job_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES jobs (id)',
+    ),
+    defaultValue: const Constant(1),
+  );
   static const VerificationMeta _yearMeta = const VerificationMeta('year');
   @override
   late final GeneratedColumn<int> year = GeneratedColumn<int>(
@@ -2597,7 +3859,7 @@ class $VacationQuotasTable extends VacationQuotas
     aliasedName,
     false,
     type: DriftSqlType.int,
-    requiredDuringInsert: false,
+    requiredDuringInsert: true,
   );
   static const VerificationMeta _totalDaysMeta = const VerificationMeta(
     'totalDays',
@@ -2649,6 +3911,7 @@ class $VacationQuotasTable extends VacationQuotas
   );
   @override
   List<GeneratedColumn> get $columns => [
+    jobId,
     year,
     totalDays,
     rolloverDays,
@@ -2667,11 +3930,19 @@ class $VacationQuotasTable extends VacationQuotas
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('job_id')) {
+      context.handle(
+        _jobIdMeta,
+        jobId.isAcceptableOrUnknown(data['job_id']!, _jobIdMeta),
+      );
+    }
     if (data.containsKey('year')) {
       context.handle(
         _yearMeta,
         year.isAcceptableOrUnknown(data['year']!, _yearMeta),
       );
+    } else if (isInserting) {
+      context.missing(_yearMeta);
     }
     if (data.containsKey('total_days')) {
       context.handle(
@@ -2707,11 +3978,15 @@ class $VacationQuotasTable extends VacationQuotas
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {year};
+  Set<GeneratedColumn> get $primaryKey => {jobId, year};
   @override
   VacationQuota map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return VacationQuota(
+      jobId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}job_id'],
+      )!,
       year: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}year'],
@@ -2742,12 +4017,14 @@ class $VacationQuotasTable extends VacationQuotas
 }
 
 class VacationQuota extends DataClass implements Insertable<VacationQuota> {
+  final int jobId;
   final int year;
   final double totalDays;
   final double rolloverDays;
   final DateTime? rolloverDeadline;
   final DateTime updatedAt;
   const VacationQuota({
+    required this.jobId,
     required this.year,
     required this.totalDays,
     required this.rolloverDays,
@@ -2757,6 +4034,7 @@ class VacationQuota extends DataClass implements Insertable<VacationQuota> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['job_id'] = Variable<int>(jobId);
     map['year'] = Variable<int>(year);
     map['total_days'] = Variable<double>(totalDays);
     map['rollover_days'] = Variable<double>(rolloverDays);
@@ -2769,6 +4047,7 @@ class VacationQuota extends DataClass implements Insertable<VacationQuota> {
 
   VacationQuotasCompanion toCompanion(bool nullToAbsent) {
     return VacationQuotasCompanion(
+      jobId: Value(jobId),
       year: Value(year),
       totalDays: Value(totalDays),
       rolloverDays: Value(rolloverDays),
@@ -2785,6 +4064,7 @@ class VacationQuota extends DataClass implements Insertable<VacationQuota> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return VacationQuota(
+      jobId: serializer.fromJson<int>(json['jobId']),
       year: serializer.fromJson<int>(json['year']),
       totalDays: serializer.fromJson<double>(json['totalDays']),
       rolloverDays: serializer.fromJson<double>(json['rolloverDays']),
@@ -2798,6 +4078,7 @@ class VacationQuota extends DataClass implements Insertable<VacationQuota> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'jobId': serializer.toJson<int>(jobId),
       'year': serializer.toJson<int>(year),
       'totalDays': serializer.toJson<double>(totalDays),
       'rolloverDays': serializer.toJson<double>(rolloverDays),
@@ -2807,12 +4088,14 @@ class VacationQuota extends DataClass implements Insertable<VacationQuota> {
   }
 
   VacationQuota copyWith({
+    int? jobId,
     int? year,
     double? totalDays,
     double? rolloverDays,
     Value<DateTime?> rolloverDeadline = const Value.absent(),
     DateTime? updatedAt,
   }) => VacationQuota(
+    jobId: jobId ?? this.jobId,
     year: year ?? this.year,
     totalDays: totalDays ?? this.totalDays,
     rolloverDays: rolloverDays ?? this.rolloverDays,
@@ -2823,6 +4106,7 @@ class VacationQuota extends DataClass implements Insertable<VacationQuota> {
   );
   VacationQuota copyWithCompanion(VacationQuotasCompanion data) {
     return VacationQuota(
+      jobId: data.jobId.present ? data.jobId.value : this.jobId,
       year: data.year.present ? data.year.value : this.year,
       totalDays: data.totalDays.present ? data.totalDays.value : this.totalDays,
       rolloverDays: data.rolloverDays.present
@@ -2838,6 +4122,7 @@ class VacationQuota extends DataClass implements Insertable<VacationQuota> {
   @override
   String toString() {
     return (StringBuffer('VacationQuota(')
+          ..write('jobId: $jobId, ')
           ..write('year: $year, ')
           ..write('totalDays: $totalDays, ')
           ..write('rolloverDays: $rolloverDays, ')
@@ -2848,12 +4133,19 @@ class VacationQuota extends DataClass implements Insertable<VacationQuota> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(year, totalDays, rolloverDays, rolloverDeadline, updatedAt);
+  int get hashCode => Object.hash(
+    jobId,
+    year,
+    totalDays,
+    rolloverDays,
+    rolloverDeadline,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is VacationQuota &&
+          other.jobId == this.jobId &&
           other.year == this.year &&
           other.totalDays == this.totalDays &&
           other.rolloverDays == this.rolloverDays &&
@@ -2862,60 +4154,77 @@ class VacationQuota extends DataClass implements Insertable<VacationQuota> {
 }
 
 class VacationQuotasCompanion extends UpdateCompanion<VacationQuota> {
+  final Value<int> jobId;
   final Value<int> year;
   final Value<double> totalDays;
   final Value<double> rolloverDays;
   final Value<DateTime?> rolloverDeadline;
   final Value<DateTime> updatedAt;
+  final Value<int> rowid;
   const VacationQuotasCompanion({
+    this.jobId = const Value.absent(),
     this.year = const Value.absent(),
     this.totalDays = const Value.absent(),
     this.rolloverDays = const Value.absent(),
     this.rolloverDeadline = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
   });
   VacationQuotasCompanion.insert({
-    this.year = const Value.absent(),
+    this.jobId = const Value.absent(),
+    required int year,
     this.totalDays = const Value.absent(),
     this.rolloverDays = const Value.absent(),
     this.rolloverDeadline = const Value.absent(),
     this.updatedAt = const Value.absent(),
-  });
+    this.rowid = const Value.absent(),
+  }) : year = Value(year);
   static Insertable<VacationQuota> custom({
+    Expression<int>? jobId,
     Expression<int>? year,
     Expression<double>? totalDays,
     Expression<double>? rolloverDays,
     Expression<DateTime>? rolloverDeadline,
     Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (jobId != null) 'job_id': jobId,
       if (year != null) 'year': year,
       if (totalDays != null) 'total_days': totalDays,
       if (rolloverDays != null) 'rollover_days': rolloverDays,
       if (rolloverDeadline != null) 'rollover_deadline': rolloverDeadline,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
     });
   }
 
   VacationQuotasCompanion copyWith({
+    Value<int>? jobId,
     Value<int>? year,
     Value<double>? totalDays,
     Value<double>? rolloverDays,
     Value<DateTime?>? rolloverDeadline,
     Value<DateTime>? updatedAt,
+    Value<int>? rowid,
   }) {
     return VacationQuotasCompanion(
+      jobId: jobId ?? this.jobId,
       year: year ?? this.year,
       totalDays: totalDays ?? this.totalDays,
       rolloverDays: rolloverDays ?? this.rolloverDays,
       rolloverDeadline: rolloverDeadline ?? this.rolloverDeadline,
       updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
     );
   }
 
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (jobId.present) {
+      map['job_id'] = Variable<int>(jobId.value);
+    }
     if (year.present) {
       map['year'] = Variable<int>(year.value);
     }
@@ -2931,17 +4240,22 @@ class VacationQuotasCompanion extends UpdateCompanion<VacationQuota> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
     return map;
   }
 
   @override
   String toString() {
     return (StringBuffer('VacationQuotasCompanion(')
+          ..write('jobId: $jobId, ')
           ..write('year: $year, ')
           ..write('totalDays: $totalDays, ')
           ..write('rolloverDays: $rolloverDays, ')
           ..write('rolloverDeadline: $rolloverDeadline, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -2962,6 +4276,19 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     clientDefault: () => const Uuid().v4(),
+  );
+  static const VerificationMeta _jobIdMeta = const VerificationMeta('jobId');
+  @override
+  late final GeneratedColumn<int> jobId = GeneratedColumn<int>(
+    'job_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES jobs (id)',
+    ),
+    defaultValue: const Constant(1),
   );
   static const VerificationMeta _effectiveFromMeta = const VerificationMeta(
     'effectiveFrom',
@@ -3114,6 +4441,7 @@ class $AppSettingsTable extends AppSettings
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    jobId,
     effectiveFrom,
     weeklyHours,
     workDays,
@@ -3141,6 +4469,12 @@ class $AppSettingsTable extends AppSettings
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('job_id')) {
+      context.handle(
+        _jobIdMeta,
+        jobId.isAcceptableOrUnknown(data['job_id']!, _jobIdMeta),
+      );
     }
     if (data.containsKey('effective_from')) {
       context.handle(
@@ -3251,6 +4585,10 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
+      jobId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}job_id'],
+      )!,
       effectiveFrom: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}effective_from'],
@@ -3315,6 +4653,11 @@ class $AppSettingsTable extends AppSettings
 
 class AppSetting extends DataClass implements Insertable<AppSetting> {
   final String id;
+
+  /// Settings are versioned per job. The handful that apply to every job
+  /// (auto-break, minimum session, restrict check-in) are written to each
+  /// job's next row together, so every job's history stays complete.
+  final int jobId;
   final DateTime effectiveFrom;
   final double weeklyHours;
 
@@ -3345,6 +4688,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final DateTime createdAt;
   const AppSetting({
     required this.id,
+    required this.jobId,
     required this.effectiveFrom,
     required this.weeklyHours,
     required this.workDays,
@@ -3362,6 +4706,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    map['job_id'] = Variable<int>(jobId);
     map['effective_from'] = Variable<DateTime>(effectiveFrom);
     map['weekly_hours'] = Variable<double>(weeklyHours);
     {
@@ -3388,6 +4733,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   AppSettingsCompanion toCompanion(bool nullToAbsent) {
     return AppSettingsCompanion(
       id: Value(id),
+      jobId: Value(jobId),
       effectiveFrom: Value(effectiveFrom),
       weeklyHours: Value(weeklyHours),
       workDays: Value(workDays),
@@ -3414,6 +4760,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AppSetting(
       id: serializer.fromJson<String>(json['id']),
+      jobId: serializer.fromJson<int>(json['jobId']),
       effectiveFrom: serializer.fromJson<DateTime>(json['effectiveFrom']),
       weeklyHours: serializer.fromJson<double>(json['weeklyHours']),
       workDays: serializer.fromJson<List<int>>(json['workDays']),
@@ -3439,6 +4786,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'jobId': serializer.toJson<int>(jobId),
       'effectiveFrom': serializer.toJson<DateTime>(effectiveFrom),
       'weeklyHours': serializer.toJson<double>(weeklyHours),
       'workDays': serializer.toJson<List<int>>(workDays),
@@ -3456,6 +4804,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
 
   AppSetting copyWith({
     String? id,
+    int? jobId,
     DateTime? effectiveFrom,
     double? weeklyHours,
     List<int>? workDays,
@@ -3470,6 +4819,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     DateTime? createdAt,
   }) => AppSetting(
     id: id ?? this.id,
+    jobId: jobId ?? this.jobId,
     effectiveFrom: effectiveFrom ?? this.effectiveFrom,
     weeklyHours: weeklyHours ?? this.weeklyHours,
     workDays: workDays ?? this.workDays,
@@ -3491,6 +4841,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
       id: data.id.present ? data.id.value : this.id,
+      jobId: data.jobId.present ? data.jobId.value : this.jobId,
       effectiveFrom: data.effectiveFrom.present
           ? data.effectiveFrom.value
           : this.effectiveFrom,
@@ -3530,6 +4881,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   String toString() {
     return (StringBuffer('AppSetting(')
           ..write('id: $id, ')
+          ..write('jobId: $jobId, ')
           ..write('effectiveFrom: $effectiveFrom, ')
           ..write('weeklyHours: $weeklyHours, ')
           ..write('workDays: $workDays, ')
@@ -3549,6 +4901,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   @override
   int get hashCode => Object.hash(
     id,
+    jobId,
     effectiveFrom,
     weeklyHours,
     workDays,
@@ -3567,6 +4920,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       identical(this, other) ||
       (other is AppSetting &&
           other.id == this.id &&
+          other.jobId == this.jobId &&
           other.effectiveFrom == this.effectiveFrom &&
           other.weeklyHours == this.weeklyHours &&
           other.workDays == this.workDays &&
@@ -3583,6 +4937,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<String> id;
+  final Value<int> jobId;
   final Value<DateTime> effectiveFrom;
   final Value<double> weeklyHours;
   final Value<List<int>> workDays;
@@ -3598,6 +4953,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<int> rowid;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
+    this.jobId = const Value.absent(),
     this.effectiveFrom = const Value.absent(),
     this.weeklyHours = const Value.absent(),
     this.workDays = const Value.absent(),
@@ -3614,6 +4970,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
+    this.jobId = const Value.absent(),
     this.effectiveFrom = const Value.absent(),
     this.weeklyHours = const Value.absent(),
     this.workDays = const Value.absent(),
@@ -3630,6 +4987,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   });
   static Insertable<AppSetting> custom({
     Expression<String>? id,
+    Expression<int>? jobId,
     Expression<DateTime>? effectiveFrom,
     Expression<double>? weeklyHours,
     Expression<String>? workDays,
@@ -3646,6 +5004,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (jobId != null) 'job_id': jobId,
       if (effectiveFrom != null) 'effective_from': effectiveFrom,
       if (weeklyHours != null) 'weekly_hours': weeklyHours,
       if (workDays != null) 'work_days': workDays,
@@ -3667,6 +5026,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
 
   AppSettingsCompanion copyWith({
     Value<String>? id,
+    Value<int>? jobId,
     Value<DateTime>? effectiveFrom,
     Value<double>? weeklyHours,
     Value<List<int>>? workDays,
@@ -3683,6 +5043,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
+      jobId: jobId ?? this.jobId,
       effectiveFrom: effectiveFrom ?? this.effectiveFrom,
       weeklyHours: weeklyHours ?? this.weeklyHours,
       workDays: workDays ?? this.workDays,
@@ -3705,6 +5066,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (jobId.present) {
+      map['job_id'] = Variable<int>(jobId.value);
     }
     if (effectiveFrom.present) {
       map['effective_from'] = Variable<DateTime>(effectiveFrom.value);
@@ -3758,6 +5122,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   String toString() {
     return (StringBuffer('AppSettingsCompanion(')
           ..write('id: $id, ')
+          ..write('jobId: $jobId, ')
           ..write('effectiveFrom: $effectiveFrom, ')
           ..write('weeklyHours: $weeklyHours, ')
           ..write('workDays: $workDays, ')
@@ -4244,11 +5609,14 @@ class AuditLogEntriesCompanion extends UpdateCompanion<AuditLogEntry> {
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
-  late final $DayEntriesTable dayEntries = $DayEntriesTable(this);
+  late final $JobsTable jobs = $JobsTable(this);
+  late final $VacationsTable vacations = $VacationsTable(this);
+  late final $AppPreferencesTable appPreferences = $AppPreferencesTable(this);
   late final $WorkSessionsTable workSessions = $WorkSessionsTable(this);
   late final $BreakEntriesTable breakEntries = $BreakEntriesTable(this);
   late final $LeaveEntriesTable leaveEntries = $LeaveEntriesTable(this);
   late final $PublicHolidaysTable publicHolidays = $PublicHolidaysTable(this);
+  late final $DayEntriesTable dayEntries = $DayEntriesTable(this);
   late final $BalanceSnapshotsTable balanceSnapshots = $BalanceSnapshotsTable(
     this,
   );
@@ -4257,6 +5625,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AuditLogEntriesTable auditLogEntries = $AuditLogEntriesTable(
     this,
   );
+  late final JobDao jobDao = JobDao(this as AppDatabase);
   late final WorkSessionDao workSessionDao = WorkSessionDao(
     this as AppDatabase,
   );
@@ -4279,11 +5648,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
-    dayEntries,
+    jobs,
+    vacations,
+    appPreferences,
     workSessions,
     breakEntries,
     leaveEntries,
     publicHolidays,
+    dayEntries,
     balanceSnapshots,
     vacationQuotas,
     appSettings,
@@ -4291,46 +5663,58 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   ];
 }
 
-typedef $$DayEntriesTableCreateCompanionBuilder =
-    DayEntriesCompanion Function({
-      required DateTime date,
-      Value<double> netWorkedHours,
-      Value<double> leaveHours,
-      Value<double> targetHours,
-      Value<double> balanceDelta,
-      Value<bool> autoBreakOverridden,
-      Value<String?> notes,
+typedef $$JobsTableCreateCompanionBuilder =
+    JobsCompanion Function({
+      Value<int> id,
+      required String name,
+      required DateTime startDate,
+      Value<DateTime?> endDate,
+      Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
-      Value<int> rowid,
     });
-typedef $$DayEntriesTableUpdateCompanionBuilder =
-    DayEntriesCompanion Function({
-      Value<DateTime> date,
-      Value<double> netWorkedHours,
-      Value<double> leaveHours,
-      Value<double> targetHours,
-      Value<double> balanceDelta,
-      Value<bool> autoBreakOverridden,
-      Value<String?> notes,
+typedef $$JobsTableUpdateCompanionBuilder =
+    JobsCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<DateTime> startDate,
+      Value<DateTime?> endDate,
+      Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
-      Value<int> rowid,
     });
 
-final class $$DayEntriesTableReferences
-    extends BaseReferences<_$AppDatabase, $DayEntriesTable, DayEntry> {
-  $$DayEntriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+final class $$JobsTableReferences
+    extends BaseReferences<_$AppDatabase, $JobsTable, Job> {
+  $$JobsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$VacationsTable, List<Vacation>>
+  _vacationsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.vacations,
+    aliasName: 'jobs__id__vacations__job_id',
+  );
+
+  $$VacationsTableProcessedTableManager get vacationsRefs {
+    final manager = $$VacationsTableTableManager(
+      $_db,
+      $_db.vacations,
+    ).filter((f) => f.jobId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_vacationsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 
   static MultiTypedResultKey<$WorkSessionsTable, List<WorkSession>>
   _workSessionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.workSessions,
-    aliasName: 'day_entries__date__work_sessions__date',
+    aliasName: 'jobs__id__work_sessions__job_id',
   );
 
   $$WorkSessionsTableProcessedTableManager get workSessionsRefs {
     final manager = $$WorkSessionsTableTableManager(
       $_db,
       $_db.workSessions,
-    ).filter((f) => f.date.date.sqlEquals($_itemColumn<DateTime>('date')!));
+    ).filter((f) => f.jobId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_workSessionsRefsTable($_db));
     return ProcessedTableManager(
@@ -4341,14 +5725,14 @@ final class $$DayEntriesTableReferences
   static MultiTypedResultKey<$BreakEntriesTable, List<BreakEntry>>
   _breakEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.breakEntries,
-    aliasName: 'day_entries__date__break_entries__date',
+    aliasName: 'jobs__id__break_entries__job_id',
   );
 
   $$BreakEntriesTableProcessedTableManager get breakEntriesRefs {
     final manager = $$BreakEntriesTableTableManager(
       $_db,
       $_db.breakEntries,
-    ).filter((f) => f.date.date.sqlEquals($_itemColumn<DateTime>('date')!));
+    ).filter((f) => f.jobId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_breakEntriesRefsTable($_db));
     return ProcessedTableManager(
@@ -4359,63 +5743,126 @@ final class $$DayEntriesTableReferences
   static MultiTypedResultKey<$LeaveEntriesTable, List<LeaveEntry>>
   _leaveEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.leaveEntries,
-    aliasName: 'day_entries__date__leave_entries__date',
+    aliasName: 'jobs__id__leave_entries__job_id',
   );
 
   $$LeaveEntriesTableProcessedTableManager get leaveEntriesRefs {
     final manager = $$LeaveEntriesTableTableManager(
       $_db,
       $_db.leaveEntries,
-    ).filter((f) => f.date.date.sqlEquals($_itemColumn<DateTime>('date')!));
+    ).filter((f) => f.jobId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_leaveEntriesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$DayEntriesTable, List<DayEntry>>
+  _dayEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.dayEntries,
+    aliasName: 'jobs__id__day_entries__job_id',
+  );
+
+  $$DayEntriesTableProcessedTableManager get dayEntriesRefs {
+    final manager = $$DayEntriesTableTableManager(
+      $_db,
+      $_db.dayEntries,
+    ).filter((f) => f.jobId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_dayEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$BalanceSnapshotsTable, List<BalanceSnapshot>>
+  _balanceSnapshotsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.balanceSnapshots,
+    aliasName: 'jobs__id__balance_snapshots__job_id',
+  );
+
+  $$BalanceSnapshotsTableProcessedTableManager get balanceSnapshotsRefs {
+    final manager = $$BalanceSnapshotsTableTableManager(
+      $_db,
+      $_db.balanceSnapshots,
+    ).filter((f) => f.jobId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _balanceSnapshotsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$VacationQuotasTable, List<VacationQuota>>
+  _vacationQuotasRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.vacationQuotas,
+    aliasName: 'jobs__id__vacation_quotas__job_id',
+  );
+
+  $$VacationQuotasTableProcessedTableManager get vacationQuotasRefs {
+    final manager = $$VacationQuotasTableTableManager(
+      $_db,
+      $_db.vacationQuotas,
+    ).filter((f) => f.jobId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_vacationQuotasRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$AppSettingsTable, List<AppSetting>>
+  _appSettingsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.appSettings,
+    aliasName: 'jobs__id__app_settings__job_id',
+  );
+
+  $$AppSettingsTableProcessedTableManager get appSettingsRefs {
+    final manager = $$AppSettingsTableTableManager(
+      $_db,
+      $_db.appSettings,
+    ).filter((f) => f.jobId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_appSettingsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
-class $$DayEntriesTableFilterComposer
-    extends Composer<_$AppDatabase, $DayEntriesTable> {
-  $$DayEntriesTableFilterComposer({
+class $$JobsTableFilterComposer extends Composer<_$AppDatabase, $JobsTable> {
+  $$JobsTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<DateTime> get date => $composableBuilder(
-    column: $table.date,
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<double> get netWorkedHours => $composableBuilder(
-    column: $table.netWorkedHours,
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<double> get leaveHours => $composableBuilder(
-    column: $table.leaveHours,
+  ColumnFilters<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<double> get targetHours => $composableBuilder(
-    column: $table.targetHours,
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<double> get balanceDelta => $composableBuilder(
-    column: $table.balanceDelta,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get autoBreakOverridden => $composableBuilder(
-    column: $table.autoBreakOverridden,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get notes => $composableBuilder(
-    column: $table.notes,
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4424,14 +5871,39 @@ class $$DayEntriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  Expression<bool> vacationsRefs(
+    Expression<bool> Function($$VacationsTableFilterComposer f) f,
+  ) {
+    final $$VacationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.vacations,
+      getReferencedColumn: (t) => t.jobId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VacationsTableFilterComposer(
+            $db: $db,
+            $table: $db.vacations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<bool> workSessionsRefs(
     Expression<bool> Function($$WorkSessionsTableFilterComposer f) f,
   ) {
     final $$WorkSessionsTableFilterComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.id,
       referencedTable: $db.workSessions,
-      getReferencedColumn: (t) => t.date,
+      getReferencedColumn: (t) => t.jobId,
       builder:
           (
             joinBuilder, {
@@ -4454,9 +5926,9 @@ class $$DayEntriesTableFilterComposer
   ) {
     final $$BreakEntriesTableFilterComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.id,
       referencedTable: $db.breakEntries,
-      getReferencedColumn: (t) => t.date,
+      getReferencedColumn: (t) => t.jobId,
       builder:
           (
             joinBuilder, {
@@ -4479,9 +5951,9 @@ class $$DayEntriesTableFilterComposer
   ) {
     final $$LeaveEntriesTableFilterComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.id,
       referencedTable: $db.leaveEntries,
-      getReferencedColumn: (t) => t.date,
+      getReferencedColumn: (t) => t.jobId,
       builder:
           (
             joinBuilder, {
@@ -4498,49 +5970,138 @@ class $$DayEntriesTableFilterComposer
     );
     return f(composer);
   }
+
+  Expression<bool> dayEntriesRefs(
+    Expression<bool> Function($$DayEntriesTableFilterComposer f) f,
+  ) {
+    final $$DayEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.dayEntries,
+      getReferencedColumn: (t) => t.jobId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DayEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.dayEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> balanceSnapshotsRefs(
+    Expression<bool> Function($$BalanceSnapshotsTableFilterComposer f) f,
+  ) {
+    final $$BalanceSnapshotsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.balanceSnapshots,
+      getReferencedColumn: (t) => t.jobId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BalanceSnapshotsTableFilterComposer(
+            $db: $db,
+            $table: $db.balanceSnapshots,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> vacationQuotasRefs(
+    Expression<bool> Function($$VacationQuotasTableFilterComposer f) f,
+  ) {
+    final $$VacationQuotasTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.vacationQuotas,
+      getReferencedColumn: (t) => t.jobId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VacationQuotasTableFilterComposer(
+            $db: $db,
+            $table: $db.vacationQuotas,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> appSettingsRefs(
+    Expression<bool> Function($$AppSettingsTableFilterComposer f) f,
+  ) {
+    final $$AppSettingsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.appSettings,
+      getReferencedColumn: (t) => t.jobId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AppSettingsTableFilterComposer(
+            $db: $db,
+            $table: $db.appSettings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
-class $$DayEntriesTableOrderingComposer
-    extends Composer<_$AppDatabase, $DayEntriesTable> {
-  $$DayEntriesTableOrderingComposer({
+class $$JobsTableOrderingComposer extends Composer<_$AppDatabase, $JobsTable> {
+  $$JobsTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<DateTime> get date => $composableBuilder(
-    column: $table.date,
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<double> get netWorkedHours => $composableBuilder(
-    column: $table.netWorkedHours,
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<double> get leaveHours => $composableBuilder(
-    column: $table.leaveHours,
+  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<double> get targetHours => $composableBuilder(
-    column: $table.targetHours,
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<double> get balanceDelta => $composableBuilder(
-    column: $table.balanceDelta,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get autoBreakOverridden => $composableBuilder(
-    column: $table.autoBreakOverridden,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get notes => $composableBuilder(
-    column: $table.notes,
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -4550,57 +6111,66 @@ class $$DayEntriesTableOrderingComposer
   );
 }
 
-class $$DayEntriesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $DayEntriesTable> {
-  $$DayEntriesTableAnnotationComposer({
+class $$JobsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $JobsTable> {
+  $$JobsTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<DateTime> get date =>
-      $composableBuilder(column: $table.date, builder: (column) => column);
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<double> get netWorkedHours => $composableBuilder(
-    column: $table.netWorkedHours,
-    builder: (column) => column,
-  );
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
 
-  GeneratedColumn<double> get leaveHours => $composableBuilder(
-    column: $table.leaveHours,
-    builder: (column) => column,
-  );
+  GeneratedColumn<DateTime> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
 
-  GeneratedColumn<double> get targetHours => $composableBuilder(
-    column: $table.targetHours,
-    builder: (column) => column,
-  );
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
 
-  GeneratedColumn<double> get balanceDelta => $composableBuilder(
-    column: $table.balanceDelta,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<bool> get autoBreakOverridden => $composableBuilder(
-    column: $table.autoBreakOverridden,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get notes =>
-      $composableBuilder(column: $table.notes, builder: (column) => column);
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> vacationsRefs<T extends Object>(
+    Expression<T> Function($$VacationsTableAnnotationComposer a) f,
+  ) {
+    final $$VacationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.vacations,
+      getReferencedColumn: (t) => t.jobId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VacationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.vacations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 
   Expression<T> workSessionsRefs<T extends Object>(
     Expression<T> Function($$WorkSessionsTableAnnotationComposer a) f,
   ) {
     final $$WorkSessionsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.id,
       referencedTable: $db.workSessions,
-      getReferencedColumn: (t) => t.date,
+      getReferencedColumn: (t) => t.jobId,
       builder:
           (
             joinBuilder, {
@@ -4623,9 +6193,9 @@ class $$DayEntriesTableAnnotationComposer
   ) {
     final $$BreakEntriesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.id,
       referencedTable: $db.breakEntries,
-      getReferencedColumn: (t) => t.date,
+      getReferencedColumn: (t) => t.jobId,
       builder:
           (
             joinBuilder, {
@@ -4648,9 +6218,637 @@ class $$DayEntriesTableAnnotationComposer
   ) {
     final $$LeaveEntriesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.id,
       referencedTable: $db.leaveEntries,
-      getReferencedColumn: (t) => t.date,
+      getReferencedColumn: (t) => t.jobId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LeaveEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.leaveEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> dayEntriesRefs<T extends Object>(
+    Expression<T> Function($$DayEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$DayEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.dayEntries,
+      getReferencedColumn: (t) => t.jobId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DayEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.dayEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> balanceSnapshotsRefs<T extends Object>(
+    Expression<T> Function($$BalanceSnapshotsTableAnnotationComposer a) f,
+  ) {
+    final $$BalanceSnapshotsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.balanceSnapshots,
+      getReferencedColumn: (t) => t.jobId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BalanceSnapshotsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.balanceSnapshots,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> vacationQuotasRefs<T extends Object>(
+    Expression<T> Function($$VacationQuotasTableAnnotationComposer a) f,
+  ) {
+    final $$VacationQuotasTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.vacationQuotas,
+      getReferencedColumn: (t) => t.jobId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VacationQuotasTableAnnotationComposer(
+            $db: $db,
+            $table: $db.vacationQuotas,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> appSettingsRefs<T extends Object>(
+    Expression<T> Function($$AppSettingsTableAnnotationComposer a) f,
+  ) {
+    final $$AppSettingsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.appSettings,
+      getReferencedColumn: (t) => t.jobId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AppSettingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.appSettings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$JobsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $JobsTable,
+          Job,
+          $$JobsTableFilterComposer,
+          $$JobsTableOrderingComposer,
+          $$JobsTableAnnotationComposer,
+          $$JobsTableCreateCompanionBuilder,
+          $$JobsTableUpdateCompanionBuilder,
+          (Job, $$JobsTableReferences),
+          Job,
+          PrefetchHooks Function({
+            bool vacationsRefs,
+            bool workSessionsRefs,
+            bool breakEntriesRefs,
+            bool leaveEntriesRefs,
+            bool dayEntriesRefs,
+            bool balanceSnapshotsRefs,
+            bool vacationQuotasRefs,
+            bool appSettingsRefs,
+          })
+        > {
+  $$JobsTableTableManager(_$AppDatabase db, $JobsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$JobsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$JobsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$JobsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<DateTime> startDate = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => JobsCompanion(
+                id: id,
+                name: name,
+                startDate: startDate,
+                endDate: endDate,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                required DateTime startDate,
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => JobsCompanion.insert(
+                id: id,
+                name: name,
+                startDate: startDate,
+                endDate: endDate,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$JobsTable, Job>(table),
+                  $$JobsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                vacationsRefs = false,
+                workSessionsRefs = false,
+                breakEntriesRefs = false,
+                leaveEntriesRefs = false,
+                dayEntriesRefs = false,
+                balanceSnapshotsRefs = false,
+                vacationQuotasRefs = false,
+                appSettingsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (vacationsRefs) db.vacations,
+                    if (workSessionsRefs) db.workSessions,
+                    if (breakEntriesRefs) db.breakEntries,
+                    if (leaveEntriesRefs) db.leaveEntries,
+                    if (dayEntriesRefs) db.dayEntries,
+                    if (balanceSnapshotsRefs) db.balanceSnapshots,
+                    if (vacationQuotasRefs) db.vacationQuotas,
+                    if (appSettingsRefs) db.appSettings,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (vacationsRefs)
+                        await $_getPrefetchedData<Job, $JobsTable, Vacation>(
+                          currentTable: table,
+                          referencedTable: $$JobsTableReferences
+                              ._vacationsRefsTable(db),
+                          managerFromTypedResult: (p0) => $$JobsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).vacationsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.jobId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (workSessionsRefs)
+                        await $_getPrefetchedData<Job, $JobsTable, WorkSession>(
+                          currentTable: table,
+                          referencedTable: $$JobsTableReferences
+                              ._workSessionsRefsTable(db),
+                          managerFromTypedResult: (p0) => $$JobsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).workSessionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.jobId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (breakEntriesRefs)
+                        await $_getPrefetchedData<Job, $JobsTable, BreakEntry>(
+                          currentTable: table,
+                          referencedTable: $$JobsTableReferences
+                              ._breakEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) => $$JobsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).breakEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.jobId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (leaveEntriesRefs)
+                        await $_getPrefetchedData<Job, $JobsTable, LeaveEntry>(
+                          currentTable: table,
+                          referencedTable: $$JobsTableReferences
+                              ._leaveEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) => $$JobsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).leaveEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.jobId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (dayEntriesRefs)
+                        await $_getPrefetchedData<Job, $JobsTable, DayEntry>(
+                          currentTable: table,
+                          referencedTable: $$JobsTableReferences
+                              ._dayEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) => $$JobsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).dayEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.jobId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (balanceSnapshotsRefs)
+                        await $_getPrefetchedData<
+                          Job,
+                          $JobsTable,
+                          BalanceSnapshot
+                        >(
+                          currentTable: table,
+                          referencedTable: $$JobsTableReferences
+                              ._balanceSnapshotsRefsTable(db),
+                          managerFromTypedResult: (p0) => $$JobsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).balanceSnapshotsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.jobId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (vacationQuotasRefs)
+                        await $_getPrefetchedData<
+                          Job,
+                          $JobsTable,
+                          VacationQuota
+                        >(
+                          currentTable: table,
+                          referencedTable: $$JobsTableReferences
+                              ._vacationQuotasRefsTable(db),
+                          managerFromTypedResult: (p0) => $$JobsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).vacationQuotasRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.jobId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (appSettingsRefs)
+                        await $_getPrefetchedData<Job, $JobsTable, AppSetting>(
+                          currentTable: table,
+                          referencedTable: $$JobsTableReferences
+                              ._appSettingsRefsTable(db),
+                          managerFromTypedResult: (p0) => $$JobsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).appSettingsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.jobId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$JobsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $JobsTable,
+      Job,
+      $$JobsTableFilterComposer,
+      $$JobsTableOrderingComposer,
+      $$JobsTableAnnotationComposer,
+      $$JobsTableCreateCompanionBuilder,
+      $$JobsTableUpdateCompanionBuilder,
+      (Job, $$JobsTableReferences),
+      Job,
+      PrefetchHooks Function({
+        bool vacationsRefs,
+        bool workSessionsRefs,
+        bool breakEntriesRefs,
+        bool leaveEntriesRefs,
+        bool dayEntriesRefs,
+        bool balanceSnapshotsRefs,
+        bool vacationQuotasRefs,
+        bool appSettingsRefs,
+      })
+    >;
+typedef $$VacationsTableCreateCompanionBuilder =
+    VacationsCompanion Function({
+      Value<String> id,
+      required int jobId,
+      Value<String?> name,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$VacationsTableUpdateCompanionBuilder =
+    VacationsCompanion Function({
+      Value<String> id,
+      Value<int> jobId,
+      Value<String?> name,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$VacationsTableReferences
+    extends BaseReferences<_$AppDatabase, $VacationsTable, Vacation> {
+  $$VacationsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $JobsTable _jobIdTable(_$AppDatabase db) =>
+      db.jobs.createAlias('vacations__job_id__jobs__id');
+
+  $$JobsTableProcessedTableManager get jobId {
+    final $_column = $_itemColumn<int>('job_id')!;
+
+    final manager = $$JobsTableTableManager(
+      $_db,
+      $_db.jobs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_jobIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$LeaveEntriesTable, List<LeaveEntry>>
+  _leaveEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.leaveEntries,
+    aliasName: 'vacations__id__leave_entries__vacation_id',
+  );
+
+  $$LeaveEntriesTableProcessedTableManager get leaveEntriesRefs {
+    final manager = $$LeaveEntriesTableTableManager(
+      $_db,
+      $_db.leaveEntries,
+    ).filter((f) => f.vacationId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_leaveEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$VacationsTableFilterComposer
+    extends Composer<_$AppDatabase, $VacationsTable> {
+  $$VacationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$JobsTableFilterComposer get jobId {
+    final $$JobsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableFilterComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> leaveEntriesRefs(
+    Expression<bool> Function($$LeaveEntriesTableFilterComposer f) f,
+  ) {
+    final $$LeaveEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.leaveEntries,
+      getReferencedColumn: (t) => t.vacationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LeaveEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.leaveEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$VacationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $VacationsTable> {
+  $$VacationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$JobsTableOrderingComposer get jobId {
+    final $$JobsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableOrderingComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$VacationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $VacationsTable> {
+  $$VacationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$JobsTableAnnotationComposer get jobId {
+    final $$JobsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> leaveEntriesRefs<T extends Object>(
+    Expression<T> Function($$LeaveEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$LeaveEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.leaveEntries,
+      getReferencedColumn: (t) => t.vacationId,
       builder:
           (
             joinBuilder, {
@@ -4669,196 +6867,306 @@ class $$DayEntriesTableAnnotationComposer
   }
 }
 
-class $$DayEntriesTableTableManager
+class $$VacationsTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $DayEntriesTable,
-          DayEntry,
-          $$DayEntriesTableFilterComposer,
-          $$DayEntriesTableOrderingComposer,
-          $$DayEntriesTableAnnotationComposer,
-          $$DayEntriesTableCreateCompanionBuilder,
-          $$DayEntriesTableUpdateCompanionBuilder,
-          (DayEntry, $$DayEntriesTableReferences),
-          DayEntry,
-          PrefetchHooks Function({
-            bool workSessionsRefs,
-            bool breakEntriesRefs,
-            bool leaveEntriesRefs,
-          })
+          $VacationsTable,
+          Vacation,
+          $$VacationsTableFilterComposer,
+          $$VacationsTableOrderingComposer,
+          $$VacationsTableAnnotationComposer,
+          $$VacationsTableCreateCompanionBuilder,
+          $$VacationsTableUpdateCompanionBuilder,
+          (Vacation, $$VacationsTableReferences),
+          Vacation,
+          PrefetchHooks Function({bool jobId, bool leaveEntriesRefs})
         > {
-  $$DayEntriesTableTableManager(_$AppDatabase db, $DayEntriesTable table)
+  $$VacationsTableTableManager(_$AppDatabase db, $VacationsTable table)
     : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$DayEntriesTableFilterComposer($db: db, $table: table),
+              $$VacationsTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$DayEntriesTableOrderingComposer($db: db, $table: table),
+              $$VacationsTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$DayEntriesTableAnnotationComposer($db: db, $table: table),
+              $$VacationsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<DateTime> date = const Value.absent(),
-                Value<double> netWorkedHours = const Value.absent(),
-                Value<double> leaveHours = const Value.absent(),
-                Value<double> targetHours = const Value.absent(),
-                Value<double> balanceDelta = const Value.absent(),
-                Value<bool> autoBreakOverridden = const Value.absent(),
-                Value<String?> notes = const Value.absent(),
+                Value<String> id = const Value.absent(),
+                Value<int> jobId = const Value.absent(),
+                Value<String?> name = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => DayEntriesCompanion(
-                date: date,
-                netWorkedHours: netWorkedHours,
-                leaveHours: leaveHours,
-                targetHours: targetHours,
-                balanceDelta: balanceDelta,
-                autoBreakOverridden: autoBreakOverridden,
-                notes: notes,
+              }) => VacationsCompanion(
+                id: id,
+                jobId: jobId,
+                name: name,
+                createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
-                required DateTime date,
-                Value<double> netWorkedHours = const Value.absent(),
-                Value<double> leaveHours = const Value.absent(),
-                Value<double> targetHours = const Value.absent(),
-                Value<double> balanceDelta = const Value.absent(),
-                Value<bool> autoBreakOverridden = const Value.absent(),
-                Value<String?> notes = const Value.absent(),
+                Value<String> id = const Value.absent(),
+                required int jobId,
+                Value<String?> name = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => DayEntriesCompanion.insert(
-                date: date,
-                netWorkedHours: netWorkedHours,
-                leaveHours: leaveHours,
-                targetHours: targetHours,
-                balanceDelta: balanceDelta,
-                autoBreakOverridden: autoBreakOverridden,
-                notes: notes,
+              }) => VacationsCompanion.insert(
+                id: id,
+                jobId: jobId,
+                name: name,
+                createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable<$DayEntriesTable, DayEntry>(table),
-                  $$DayEntriesTableReferences(db, table, e),
+                  e.readTable<$VacationsTable, Vacation>(table),
+                  $$VacationsTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback:
-              ({
-                workSessionsRefs = false,
-                breakEntriesRefs = false,
-                leaveEntriesRefs = false,
-              }) {
-                return PrefetchHooks(
-                  db: db,
-                  explicitlyWatchedTables: [
-                    if (workSessionsRefs) db.workSessions,
-                    if (breakEntriesRefs) db.breakEntries,
-                    if (leaveEntriesRefs) db.leaveEntries,
-                  ],
-                  addJoins: null,
-                  getPrefetchedDataCallback: (items) async {
-                    return [
-                      if (workSessionsRefs)
-                        await $_getPrefetchedData<
-                          DayEntry,
-                          $DayEntriesTable,
-                          WorkSession
-                        >(
-                          currentTable: table,
-                          referencedTable: $$DayEntriesTableReferences
-                              ._workSessionsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$DayEntriesTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).workSessionsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.date == item.date,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (breakEntriesRefs)
-                        await $_getPrefetchedData<
-                          DayEntry,
-                          $DayEntriesTable,
-                          BreakEntry
-                        >(
-                          currentTable: table,
-                          referencedTable: $$DayEntriesTableReferences
-                              ._breakEntriesRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$DayEntriesTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).breakEntriesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.date == item.date,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (leaveEntriesRefs)
-                        await $_getPrefetchedData<
-                          DayEntry,
-                          $DayEntriesTable,
-                          LeaveEntry
-                        >(
-                          currentTable: table,
-                          referencedTable: $$DayEntriesTableReferences
-                              ._leaveEntriesRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$DayEntriesTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).leaveEntriesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.date == item.date,
-                              ),
-                          typedResults: items,
-                        ),
-                    ];
+          prefetchHooksCallback: ({jobId = false, leaveEntriesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (leaveEntriesRefs) db.leaveEntries],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (jobId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.jobId,
+                                referencedTable: $$VacationsTableReferences
+                                    ._jobIdTable(db),
+                                referencedColumn: $$VacationsTableReferences
+                                    ._jobIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
                   },
-                );
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (leaveEntriesRefs)
+                    await $_getPrefetchedData<
+                      Vacation,
+                      $VacationsTable,
+                      LeaveEntry
+                    >(
+                      currentTable: table,
+                      referencedTable: $$VacationsTableReferences
+                          ._leaveEntriesRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$VacationsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).leaveEntriesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.vacationId == item.id),
+                      typedResults: items,
+                    ),
+                ];
               },
+            );
+          },
         ),
       );
 }
 
-typedef $$DayEntriesTableProcessedTableManager =
+typedef $$VacationsTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $DayEntriesTable,
-      DayEntry,
-      $$DayEntriesTableFilterComposer,
-      $$DayEntriesTableOrderingComposer,
-      $$DayEntriesTableAnnotationComposer,
-      $$DayEntriesTableCreateCompanionBuilder,
-      $$DayEntriesTableUpdateCompanionBuilder,
-      (DayEntry, $$DayEntriesTableReferences),
-      DayEntry,
-      PrefetchHooks Function({
-        bool workSessionsRefs,
-        bool breakEntriesRefs,
-        bool leaveEntriesRefs,
-      })
+      $VacationsTable,
+      Vacation,
+      $$VacationsTableFilterComposer,
+      $$VacationsTableOrderingComposer,
+      $$VacationsTableAnnotationComposer,
+      $$VacationsTableCreateCompanionBuilder,
+      $$VacationsTableUpdateCompanionBuilder,
+      (Vacation, $$VacationsTableReferences),
+      Vacation,
+      PrefetchHooks Function({bool jobId, bool leaveEntriesRefs})
+    >;
+typedef $$AppPreferencesTableCreateCompanionBuilder =
+    AppPreferencesCompanion Function({
+      required String key,
+      required String value,
+      Value<int> rowid,
+    });
+typedef $$AppPreferencesTableUpdateCompanionBuilder =
+    AppPreferencesCompanion Function({
+      Value<String> key,
+      Value<String> value,
+      Value<int> rowid,
+    });
+
+class $$AppPreferencesTableFilterComposer
+    extends Composer<_$AppDatabase, $AppPreferencesTable> {
+  $$AppPreferencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AppPreferencesTableOrderingComposer
+    extends Composer<_$AppDatabase, $AppPreferencesTable> {
+  $$AppPreferencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AppPreferencesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AppPreferencesTable> {
+  $$AppPreferencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+}
+
+class $$AppPreferencesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AppPreferencesTable,
+          AppPreference,
+          $$AppPreferencesTableFilterComposer,
+          $$AppPreferencesTableOrderingComposer,
+          $$AppPreferencesTableAnnotationComposer,
+          $$AppPreferencesTableCreateCompanionBuilder,
+          $$AppPreferencesTableUpdateCompanionBuilder,
+          (
+            AppPreference,
+            BaseReferences<_$AppDatabase, $AppPreferencesTable, AppPreference>,
+          ),
+          AppPreference,
+          PrefetchHooks Function()
+        > {
+  $$AppPreferencesTableTableManager(
+    _$AppDatabase db,
+    $AppPreferencesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AppPreferencesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppPreferencesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AppPreferencesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> key = const Value.absent(),
+                Value<String> value = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) =>
+                  AppPreferencesCompanion(key: key, value: value, rowid: rowid),
+          createCompanionCallback:
+              ({
+                required String key,
+                required String value,
+                Value<int> rowid = const Value.absent(),
+              }) => AppPreferencesCompanion.insert(
+                key: key,
+                value: value,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$AppPreferencesTable, AppPreference>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AppPreferencesTable,
+                    AppPreference
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AppPreferencesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AppPreferencesTable,
+      AppPreference,
+      $$AppPreferencesTableFilterComposer,
+      $$AppPreferencesTableOrderingComposer,
+      $$AppPreferencesTableAnnotationComposer,
+      $$AppPreferencesTableCreateCompanionBuilder,
+      $$AppPreferencesTableUpdateCompanionBuilder,
+      (
+        AppPreference,
+        BaseReferences<_$AppDatabase, $AppPreferencesTable, AppPreference>,
+      ),
+      AppPreference,
+      PrefetchHooks Function()
     >;
 typedef $$WorkSessionsTableCreateCompanionBuilder =
     WorkSessionsCompanion Function({
       Value<String> id,
+      Value<int> jobId,
       required DateTime date,
       required DateTime startTime,
       Value<DateTime?> endTime,
@@ -4871,6 +7179,7 @@ typedef $$WorkSessionsTableCreateCompanionBuilder =
 typedef $$WorkSessionsTableUpdateCompanionBuilder =
     WorkSessionsCompanion Function({
       Value<String> id,
+      Value<int> jobId,
       Value<DateTime> date,
       Value<DateTime> startTime,
       Value<DateTime?> endTime,
@@ -4885,17 +7194,17 @@ final class $$WorkSessionsTableReferences
     extends BaseReferences<_$AppDatabase, $WorkSessionsTable, WorkSession> {
   $$WorkSessionsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $DayEntriesTable _dateTable(_$AppDatabase db) =>
-      db.dayEntries.createAlias('work_sessions__date__day_entries__date');
+  static $JobsTable _jobIdTable(_$AppDatabase db) =>
+      db.jobs.createAlias('work_sessions__job_id__jobs__id');
 
-  $$DayEntriesTableProcessedTableManager get date {
-    final $_column = $_itemColumn<DateTime>('date')!;
+  $$JobsTableProcessedTableManager get jobId {
+    final $_column = $_itemColumn<int>('job_id')!;
 
-    final manager = $$DayEntriesTableTableManager(
+    final manager = $$JobsTableTableManager(
       $_db,
-      $_db.dayEntries,
-    ).filter((f) => f.date.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_dateTable($_db));
+      $_db.jobs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_jobIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -4914,6 +7223,11 @@ class $$WorkSessionsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+    column: $table.date,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4948,20 +7262,20 @@ class $$WorkSessionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  $$DayEntriesTableFilterComposer get date {
-    final $$DayEntriesTableFilterComposer composer = $composerBuilder(
+  $$JobsTableFilterComposer get jobId {
+    final $$JobsTableFilterComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
-      referencedTable: $db.dayEntries,
-      getReferencedColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$DayEntriesTableFilterComposer(
+          }) => $$JobsTableFilterComposer(
             $db: $db,
-            $table: $db.dayEntries,
+            $table: $db.jobs,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -4983,6 +7297,11 @@ class $$WorkSessionsTableOrderingComposer
   });
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+    column: $table.date,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5016,20 +7335,20 @@ class $$WorkSessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  $$DayEntriesTableOrderingComposer get date {
-    final $$DayEntriesTableOrderingComposer composer = $composerBuilder(
+  $$JobsTableOrderingComposer get jobId {
+    final $$JobsTableOrderingComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
-      referencedTable: $db.dayEntries,
-      getReferencedColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$DayEntriesTableOrderingComposer(
+          }) => $$JobsTableOrderingComposer(
             $db: $db,
-            $table: $db.dayEntries,
+            $table: $db.jobs,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5052,6 +7371,9 @@ class $$WorkSessionsTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
   GeneratedColumn<DateTime> get startTime =>
       $composableBuilder(column: $table.startTime, builder: (column) => column);
 
@@ -5070,20 +7392,20 @@ class $$WorkSessionsTableAnnotationComposer
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  $$DayEntriesTableAnnotationComposer get date {
-    final $$DayEntriesTableAnnotationComposer composer = $composerBuilder(
+  $$JobsTableAnnotationComposer get jobId {
+    final $$JobsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
-      referencedTable: $db.dayEntries,
-      getReferencedColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$DayEntriesTableAnnotationComposer(
+          }) => $$JobsTableAnnotationComposer(
             $db: $db,
-            $table: $db.dayEntries,
+            $table: $db.jobs,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5107,7 +7429,7 @@ class $$WorkSessionsTableTableManager
           $$WorkSessionsTableUpdateCompanionBuilder,
           (WorkSession, $$WorkSessionsTableReferences),
           WorkSession,
-          PrefetchHooks Function({bool date})
+          PrefetchHooks Function({bool jobId})
         > {
   $$WorkSessionsTableTableManager(_$AppDatabase db, $WorkSessionsTable table)
     : super(
@@ -5123,6 +7445,7 @@ class $$WorkSessionsTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<int> jobId = const Value.absent(),
                 Value<DateTime> date = const Value.absent(),
                 Value<DateTime> startTime = const Value.absent(),
                 Value<DateTime?> endTime = const Value.absent(),
@@ -5133,6 +7456,7 @@ class $$WorkSessionsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => WorkSessionsCompanion(
                 id: id,
+                jobId: jobId,
                 date: date,
                 startTime: startTime,
                 endTime: endTime,
@@ -5145,6 +7469,7 @@ class $$WorkSessionsTableTableManager
           createCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<int> jobId = const Value.absent(),
                 required DateTime date,
                 required DateTime startTime,
                 Value<DateTime?> endTime = const Value.absent(),
@@ -5155,6 +7480,7 @@ class $$WorkSessionsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => WorkSessionsCompanion.insert(
                 id: id,
+                jobId: jobId,
                 date: date,
                 startTime: startTime,
                 endTime: endTime,
@@ -5172,7 +7498,7 @@ class $$WorkSessionsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({date = false}) {
+          prefetchHooksCallback: ({jobId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -5192,16 +7518,16 @@ class $$WorkSessionsTableTableManager
                       dynamic
                     >
                   >(state) {
-                    if (date) {
+                    if (jobId) {
                       state =
                           state.withJoin(
                                 currentTable: table,
-                                currentColumn: table.date,
+                                currentColumn: table.jobId,
                                 referencedTable: $$WorkSessionsTableReferences
-                                    ._dateTable(db),
+                                    ._jobIdTable(db),
                                 referencedColumn: $$WorkSessionsTableReferences
-                                    ._dateTable(db)
-                                    .date,
+                                    ._jobIdTable(db)
+                                    .id,
                               )
                               as T;
                     }
@@ -5229,11 +7555,12 @@ typedef $$WorkSessionsTableProcessedTableManager =
       $$WorkSessionsTableUpdateCompanionBuilder,
       (WorkSession, $$WorkSessionsTableReferences),
       WorkSession,
-      PrefetchHooks Function({bool date})
+      PrefetchHooks Function({bool jobId})
     >;
 typedef $$BreakEntriesTableCreateCompanionBuilder =
     BreakEntriesCompanion Function({
       Value<String> id,
+      Value<int> jobId,
       required DateTime date,
       required DateTime startTime,
       required DateTime endTime,
@@ -5245,6 +7572,7 @@ typedef $$BreakEntriesTableCreateCompanionBuilder =
 typedef $$BreakEntriesTableUpdateCompanionBuilder =
     BreakEntriesCompanion Function({
       Value<String> id,
+      Value<int> jobId,
       Value<DateTime> date,
       Value<DateTime> startTime,
       Value<DateTime> endTime,
@@ -5258,17 +7586,17 @@ final class $$BreakEntriesTableReferences
     extends BaseReferences<_$AppDatabase, $BreakEntriesTable, BreakEntry> {
   $$BreakEntriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $DayEntriesTable _dateTable(_$AppDatabase db) =>
-      db.dayEntries.createAlias('break_entries__date__day_entries__date');
+  static $JobsTable _jobIdTable(_$AppDatabase db) =>
+      db.jobs.createAlias('break_entries__job_id__jobs__id');
 
-  $$DayEntriesTableProcessedTableManager get date {
-    final $_column = $_itemColumn<DateTime>('date')!;
+  $$JobsTableProcessedTableManager get jobId {
+    final $_column = $_itemColumn<int>('job_id')!;
 
-    final manager = $$DayEntriesTableTableManager(
+    final manager = $$JobsTableTableManager(
       $_db,
-      $_db.dayEntries,
-    ).filter((f) => f.date.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_dateTable($_db));
+      $_db.jobs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_jobIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -5287,6 +7615,11 @@ class $$BreakEntriesTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+    column: $table.date,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5316,20 +7649,20 @@ class $$BreakEntriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  $$DayEntriesTableFilterComposer get date {
-    final $$DayEntriesTableFilterComposer composer = $composerBuilder(
+  $$JobsTableFilterComposer get jobId {
+    final $$JobsTableFilterComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
-      referencedTable: $db.dayEntries,
-      getReferencedColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$DayEntriesTableFilterComposer(
+          }) => $$JobsTableFilterComposer(
             $db: $db,
-            $table: $db.dayEntries,
+            $table: $db.jobs,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5351,6 +7684,11 @@ class $$BreakEntriesTableOrderingComposer
   });
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+    column: $table.date,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5379,20 +7717,20 @@ class $$BreakEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  $$DayEntriesTableOrderingComposer get date {
-    final $$DayEntriesTableOrderingComposer composer = $composerBuilder(
+  $$JobsTableOrderingComposer get jobId {
+    final $$JobsTableOrderingComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
-      referencedTable: $db.dayEntries,
-      getReferencedColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$DayEntriesTableOrderingComposer(
+          }) => $$JobsTableOrderingComposer(
             $db: $db,
-            $table: $db.dayEntries,
+            $table: $db.jobs,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5415,6 +7753,9 @@ class $$BreakEntriesTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
   GeneratedColumn<DateTime> get startTime =>
       $composableBuilder(column: $table.startTime, builder: (column) => column);
 
@@ -5430,20 +7771,20 @@ class $$BreakEntriesTableAnnotationComposer
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  $$DayEntriesTableAnnotationComposer get date {
-    final $$DayEntriesTableAnnotationComposer composer = $composerBuilder(
+  $$JobsTableAnnotationComposer get jobId {
+    final $$JobsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
-      referencedTable: $db.dayEntries,
-      getReferencedColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$DayEntriesTableAnnotationComposer(
+          }) => $$JobsTableAnnotationComposer(
             $db: $db,
-            $table: $db.dayEntries,
+            $table: $db.jobs,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5467,7 +7808,7 @@ class $$BreakEntriesTableTableManager
           $$BreakEntriesTableUpdateCompanionBuilder,
           (BreakEntry, $$BreakEntriesTableReferences),
           BreakEntry,
-          PrefetchHooks Function({bool date})
+          PrefetchHooks Function({bool jobId})
         > {
   $$BreakEntriesTableTableManager(_$AppDatabase db, $BreakEntriesTable table)
     : super(
@@ -5483,6 +7824,7 @@ class $$BreakEntriesTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<int> jobId = const Value.absent(),
                 Value<DateTime> date = const Value.absent(),
                 Value<DateTime> startTime = const Value.absent(),
                 Value<DateTime> endTime = const Value.absent(),
@@ -5492,6 +7834,7 @@ class $$BreakEntriesTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => BreakEntriesCompanion(
                 id: id,
+                jobId: jobId,
                 date: date,
                 startTime: startTime,
                 endTime: endTime,
@@ -5503,6 +7846,7 @@ class $$BreakEntriesTableTableManager
           createCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<int> jobId = const Value.absent(),
                 required DateTime date,
                 required DateTime startTime,
                 required DateTime endTime,
@@ -5512,6 +7856,7 @@ class $$BreakEntriesTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => BreakEntriesCompanion.insert(
                 id: id,
+                jobId: jobId,
                 date: date,
                 startTime: startTime,
                 endTime: endTime,
@@ -5528,7 +7873,7 @@ class $$BreakEntriesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({date = false}) {
+          prefetchHooksCallback: ({jobId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -5548,16 +7893,16 @@ class $$BreakEntriesTableTableManager
                       dynamic
                     >
                   >(state) {
-                    if (date) {
+                    if (jobId) {
                       state =
                           state.withJoin(
                                 currentTable: table,
-                                currentColumn: table.date,
+                                currentColumn: table.jobId,
                                 referencedTable: $$BreakEntriesTableReferences
-                                    ._dateTable(db),
+                                    ._jobIdTable(db),
                                 referencedColumn: $$BreakEntriesTableReferences
-                                    ._dateTable(db)
-                                    .date,
+                                    ._jobIdTable(db)
+                                    .id,
                               )
                               as T;
                     }
@@ -5585,15 +7930,17 @@ typedef $$BreakEntriesTableProcessedTableManager =
       $$BreakEntriesTableUpdateCompanionBuilder,
       (BreakEntry, $$BreakEntriesTableReferences),
       BreakEntry,
-      PrefetchHooks Function({bool date})
+      PrefetchHooks Function({bool jobId})
     >;
 typedef $$LeaveEntriesTableCreateCompanionBuilder =
     LeaveEntriesCompanion Function({
       Value<String> id,
+      Value<int> jobId,
       required DateTime date,
       required LeaveType type,
       required double hours,
       Value<String?> notes,
+      Value<String?> vacationId,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -5601,10 +7948,12 @@ typedef $$LeaveEntriesTableCreateCompanionBuilder =
 typedef $$LeaveEntriesTableUpdateCompanionBuilder =
     LeaveEntriesCompanion Function({
       Value<String> id,
+      Value<int> jobId,
       Value<DateTime> date,
       Value<LeaveType> type,
       Value<double> hours,
       Value<String?> notes,
+      Value<String?> vacationId,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -5614,17 +7963,34 @@ final class $$LeaveEntriesTableReferences
     extends BaseReferences<_$AppDatabase, $LeaveEntriesTable, LeaveEntry> {
   $$LeaveEntriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $DayEntriesTable _dateTable(_$AppDatabase db) =>
-      db.dayEntries.createAlias('leave_entries__date__day_entries__date');
+  static $JobsTable _jobIdTable(_$AppDatabase db) =>
+      db.jobs.createAlias('leave_entries__job_id__jobs__id');
 
-  $$DayEntriesTableProcessedTableManager get date {
-    final $_column = $_itemColumn<DateTime>('date')!;
+  $$JobsTableProcessedTableManager get jobId {
+    final $_column = $_itemColumn<int>('job_id')!;
 
-    final manager = $$DayEntriesTableTableManager(
+    final manager = $$JobsTableTableManager(
       $_db,
-      $_db.dayEntries,
-    ).filter((f) => f.date.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_dateTable($_db));
+      $_db.jobs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_jobIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $VacationsTable _vacationIdTable(_$AppDatabase db) =>
+      db.vacations.createAlias('leave_entries__vacation_id__vacations__id');
+
+  $$VacationsTableProcessedTableManager? get vacationId {
+    final $_column = $_itemColumn<String>('vacation_id');
+    if ($_column == null) return null;
+    final manager = $$VacationsTableTableManager(
+      $_db,
+      $_db.vacations,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_vacationIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -5643,6 +8009,11 @@ class $$LeaveEntriesTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+    column: $table.date,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5672,20 +8043,43 @@ class $$LeaveEntriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  $$DayEntriesTableFilterComposer get date {
-    final $$DayEntriesTableFilterComposer composer = $composerBuilder(
+  $$JobsTableFilterComposer get jobId {
+    final $$JobsTableFilterComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
-      referencedTable: $db.dayEntries,
-      getReferencedColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$DayEntriesTableFilterComposer(
+          }) => $$JobsTableFilterComposer(
             $db: $db,
-            $table: $db.dayEntries,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$VacationsTableFilterComposer get vacationId {
+    final $$VacationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.vacationId,
+      referencedTable: $db.vacations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VacationsTableFilterComposer(
+            $db: $db,
+            $table: $db.vacations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5707,6 +8101,11 @@ class $$LeaveEntriesTableOrderingComposer
   });
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+    column: $table.date,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5735,20 +8134,43 @@ class $$LeaveEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  $$DayEntriesTableOrderingComposer get date {
-    final $$DayEntriesTableOrderingComposer composer = $composerBuilder(
+  $$JobsTableOrderingComposer get jobId {
+    final $$JobsTableOrderingComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
-      referencedTable: $db.dayEntries,
-      getReferencedColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$DayEntriesTableOrderingComposer(
+          }) => $$JobsTableOrderingComposer(
             $db: $db,
-            $table: $db.dayEntries,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$VacationsTableOrderingComposer get vacationId {
+    final $$VacationsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.vacationId,
+      referencedTable: $db.vacations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VacationsTableOrderingComposer(
+            $db: $db,
+            $table: $db.vacations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5771,6 +8193,9 @@ class $$LeaveEntriesTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
   GeneratedColumnWithTypeConverter<LeaveType, String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
 
@@ -5786,20 +8211,43 @@ class $$LeaveEntriesTableAnnotationComposer
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  $$DayEntriesTableAnnotationComposer get date {
-    final $$DayEntriesTableAnnotationComposer composer = $composerBuilder(
+  $$JobsTableAnnotationComposer get jobId {
+    final $$JobsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.date,
-      referencedTable: $db.dayEntries,
-      getReferencedColumn: (t) => t.date,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$DayEntriesTableAnnotationComposer(
+          }) => $$JobsTableAnnotationComposer(
             $db: $db,
-            $table: $db.dayEntries,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$VacationsTableAnnotationComposer get vacationId {
+    final $$VacationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.vacationId,
+      referencedTable: $db.vacations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VacationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.vacations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5823,7 +8271,7 @@ class $$LeaveEntriesTableTableManager
           $$LeaveEntriesTableUpdateCompanionBuilder,
           (LeaveEntry, $$LeaveEntriesTableReferences),
           LeaveEntry,
-          PrefetchHooks Function({bool date})
+          PrefetchHooks Function({bool jobId, bool vacationId})
         > {
   $$LeaveEntriesTableTableManager(_$AppDatabase db, $LeaveEntriesTable table)
     : super(
@@ -5839,19 +8287,23 @@ class $$LeaveEntriesTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<int> jobId = const Value.absent(),
                 Value<DateTime> date = const Value.absent(),
                 Value<LeaveType> type = const Value.absent(),
                 Value<double> hours = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<String?> vacationId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LeaveEntriesCompanion(
                 id: id,
+                jobId: jobId,
                 date: date,
                 type: type,
                 hours: hours,
                 notes: notes,
+                vacationId: vacationId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -5859,19 +8311,23 @@ class $$LeaveEntriesTableTableManager
           createCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<int> jobId = const Value.absent(),
                 required DateTime date,
                 required LeaveType type,
                 required double hours,
                 Value<String?> notes = const Value.absent(),
+                Value<String?> vacationId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LeaveEntriesCompanion.insert(
                 id: id,
+                jobId: jobId,
                 date: date,
                 type: type,
                 hours: hours,
                 notes: notes,
+                vacationId: vacationId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -5884,7 +8340,7 @@ class $$LeaveEntriesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({date = false}) {
+          prefetchHooksCallback: ({jobId = false, vacationId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -5904,16 +8360,29 @@ class $$LeaveEntriesTableTableManager
                       dynamic
                     >
                   >(state) {
-                    if (date) {
+                    if (jobId) {
                       state =
                           state.withJoin(
                                 currentTable: table,
-                                currentColumn: table.date,
+                                currentColumn: table.jobId,
                                 referencedTable: $$LeaveEntriesTableReferences
-                                    ._dateTable(db),
+                                    ._jobIdTable(db),
                                 referencedColumn: $$LeaveEntriesTableReferences
-                                    ._dateTable(db)
-                                    .date,
+                                    ._jobIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (vacationId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.vacationId,
+                                referencedTable: $$LeaveEntriesTableReferences
+                                    ._vacationIdTable(db),
+                                referencedColumn: $$LeaveEntriesTableReferences
+                                    ._vacationIdTable(db)
+                                    .id,
                               )
                               as T;
                     }
@@ -5941,7 +8410,7 @@ typedef $$LeaveEntriesTableProcessedTableManager =
       $$LeaveEntriesTableUpdateCompanionBuilder,
       (LeaveEntry, $$LeaveEntriesTableReferences),
       LeaveEntry,
-      PrefetchHooks Function({bool date})
+      PrefetchHooks Function({bool jobId, bool vacationId})
     >;
 typedef $$PublicHolidaysTableCreateCompanionBuilder =
     PublicHolidaysCompanion Function({
@@ -6155,8 +8624,412 @@ typedef $$PublicHolidaysTableProcessedTableManager =
       PublicHoliday,
       PrefetchHooks Function()
     >;
+typedef $$DayEntriesTableCreateCompanionBuilder =
+    DayEntriesCompanion Function({
+      Value<int> jobId,
+      required DateTime date,
+      Value<double> netWorkedHours,
+      Value<double> leaveHours,
+      Value<double> targetHours,
+      Value<double> balanceDelta,
+      Value<bool> autoBreakOverridden,
+      Value<String?> notes,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$DayEntriesTableUpdateCompanionBuilder =
+    DayEntriesCompanion Function({
+      Value<int> jobId,
+      Value<DateTime> date,
+      Value<double> netWorkedHours,
+      Value<double> leaveHours,
+      Value<double> targetHours,
+      Value<double> balanceDelta,
+      Value<bool> autoBreakOverridden,
+      Value<String?> notes,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$DayEntriesTableReferences
+    extends BaseReferences<_$AppDatabase, $DayEntriesTable, DayEntry> {
+  $$DayEntriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $JobsTable _jobIdTable(_$AppDatabase db) =>
+      db.jobs.createAlias('day_entries__job_id__jobs__id');
+
+  $$JobsTableProcessedTableManager get jobId {
+    final $_column = $_itemColumn<int>('job_id')!;
+
+    final manager = $$JobsTableTableManager(
+      $_db,
+      $_db.jobs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_jobIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$DayEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $DayEntriesTable> {
+  $$DayEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get netWorkedHours => $composableBuilder(
+    column: $table.netWorkedHours,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get leaveHours => $composableBuilder(
+    column: $table.leaveHours,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get targetHours => $composableBuilder(
+    column: $table.targetHours,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get balanceDelta => $composableBuilder(
+    column: $table.balanceDelta,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get autoBreakOverridden => $composableBuilder(
+    column: $table.autoBreakOverridden,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$JobsTableFilterComposer get jobId {
+    final $$JobsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableFilterComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DayEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $DayEntriesTable> {
+  $$DayEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get netWorkedHours => $composableBuilder(
+    column: $table.netWorkedHours,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get leaveHours => $composableBuilder(
+    column: $table.leaveHours,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get targetHours => $composableBuilder(
+    column: $table.targetHours,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get balanceDelta => $composableBuilder(
+    column: $table.balanceDelta,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get autoBreakOverridden => $composableBuilder(
+    column: $table.autoBreakOverridden,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$JobsTableOrderingComposer get jobId {
+    final $$JobsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableOrderingComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DayEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DayEntriesTable> {
+  $$DayEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<double> get netWorkedHours => $composableBuilder(
+    column: $table.netWorkedHours,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get leaveHours => $composableBuilder(
+    column: $table.leaveHours,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get targetHours => $composableBuilder(
+    column: $table.targetHours,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get balanceDelta => $composableBuilder(
+    column: $table.balanceDelta,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get autoBreakOverridden => $composableBuilder(
+    column: $table.autoBreakOverridden,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$JobsTableAnnotationComposer get jobId {
+    final $$JobsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DayEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DayEntriesTable,
+          DayEntry,
+          $$DayEntriesTableFilterComposer,
+          $$DayEntriesTableOrderingComposer,
+          $$DayEntriesTableAnnotationComposer,
+          $$DayEntriesTableCreateCompanionBuilder,
+          $$DayEntriesTableUpdateCompanionBuilder,
+          (DayEntry, $$DayEntriesTableReferences),
+          DayEntry,
+          PrefetchHooks Function({bool jobId})
+        > {
+  $$DayEntriesTableTableManager(_$AppDatabase db, $DayEntriesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DayEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DayEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DayEntriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> jobId = const Value.absent(),
+                Value<DateTime> date = const Value.absent(),
+                Value<double> netWorkedHours = const Value.absent(),
+                Value<double> leaveHours = const Value.absent(),
+                Value<double> targetHours = const Value.absent(),
+                Value<double> balanceDelta = const Value.absent(),
+                Value<bool> autoBreakOverridden = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DayEntriesCompanion(
+                jobId: jobId,
+                date: date,
+                netWorkedHours: netWorkedHours,
+                leaveHours: leaveHours,
+                targetHours: targetHours,
+                balanceDelta: balanceDelta,
+                autoBreakOverridden: autoBreakOverridden,
+                notes: notes,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> jobId = const Value.absent(),
+                required DateTime date,
+                Value<double> netWorkedHours = const Value.absent(),
+                Value<double> leaveHours = const Value.absent(),
+                Value<double> targetHours = const Value.absent(),
+                Value<double> balanceDelta = const Value.absent(),
+                Value<bool> autoBreakOverridden = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DayEntriesCompanion.insert(
+                jobId: jobId,
+                date: date,
+                netWorkedHours: netWorkedHours,
+                leaveHours: leaveHours,
+                targetHours: targetHours,
+                balanceDelta: balanceDelta,
+                autoBreakOverridden: autoBreakOverridden,
+                notes: notes,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DayEntriesTable, DayEntry>(table),
+                  $$DayEntriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({jobId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (jobId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.jobId,
+                                referencedTable: $$DayEntriesTableReferences
+                                    ._jobIdTable(db),
+                                referencedColumn: $$DayEntriesTableReferences
+                                    ._jobIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$DayEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DayEntriesTable,
+      DayEntry,
+      $$DayEntriesTableFilterComposer,
+      $$DayEntriesTableOrderingComposer,
+      $$DayEntriesTableAnnotationComposer,
+      $$DayEntriesTableCreateCompanionBuilder,
+      $$DayEntriesTableUpdateCompanionBuilder,
+      (DayEntry, $$DayEntriesTableReferences),
+      DayEntry,
+      PrefetchHooks Function({bool jobId})
+    >;
 typedef $$BalanceSnapshotsTableCreateCompanionBuilder =
     BalanceSnapshotsCompanion Function({
+      Value<int> jobId,
       required DateTime date,
       required double balance,
       Value<DateTime> updatedAt,
@@ -6164,11 +9037,39 @@ typedef $$BalanceSnapshotsTableCreateCompanionBuilder =
     });
 typedef $$BalanceSnapshotsTableUpdateCompanionBuilder =
     BalanceSnapshotsCompanion Function({
+      Value<int> jobId,
       Value<DateTime> date,
       Value<double> balance,
       Value<DateTime> updatedAt,
       Value<int> rowid,
     });
+
+final class $$BalanceSnapshotsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $BalanceSnapshotsTable, BalanceSnapshot> {
+  $$BalanceSnapshotsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $JobsTable _jobIdTable(_$AppDatabase db) =>
+      db.jobs.createAlias('balance_snapshots__job_id__jobs__id');
+
+  $$JobsTableProcessedTableManager get jobId {
+    final $_column = $_itemColumn<int>('job_id')!;
+
+    final manager = $$JobsTableTableManager(
+      $_db,
+      $_db.jobs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_jobIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
 
 class $$BalanceSnapshotsTableFilterComposer
     extends Composer<_$AppDatabase, $BalanceSnapshotsTable> {
@@ -6193,6 +9094,29 @@ class $$BalanceSnapshotsTableFilterComposer
     column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$JobsTableFilterComposer get jobId {
+    final $$JobsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableFilterComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$BalanceSnapshotsTableOrderingComposer
@@ -6218,6 +9142,29 @@ class $$BalanceSnapshotsTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$JobsTableOrderingComposer get jobId {
+    final $$JobsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableOrderingComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$BalanceSnapshotsTableAnnotationComposer
@@ -6237,6 +9184,29 @@ class $$BalanceSnapshotsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$JobsTableAnnotationComposer get jobId {
+    final $$JobsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$BalanceSnapshotsTableTableManager
@@ -6250,16 +9220,9 @@ class $$BalanceSnapshotsTableTableManager
           $$BalanceSnapshotsTableAnnotationComposer,
           $$BalanceSnapshotsTableCreateCompanionBuilder,
           $$BalanceSnapshotsTableUpdateCompanionBuilder,
-          (
-            BalanceSnapshot,
-            BaseReferences<
-              _$AppDatabase,
-              $BalanceSnapshotsTable,
-              BalanceSnapshot
-            >,
-          ),
+          (BalanceSnapshot, $$BalanceSnapshotsTableReferences),
           BalanceSnapshot,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool jobId})
         > {
   $$BalanceSnapshotsTableTableManager(
     _$AppDatabase db,
@@ -6276,11 +9239,13 @@ class $$BalanceSnapshotsTableTableManager
               $$BalanceSnapshotsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<int> jobId = const Value.absent(),
                 Value<DateTime> date = const Value.absent(),
                 Value<double> balance = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BalanceSnapshotsCompanion(
+                jobId: jobId,
                 date: date,
                 balance: balance,
                 updatedAt: updatedAt,
@@ -6288,11 +9253,13 @@ class $$BalanceSnapshotsTableTableManager
               ),
           createCompanionCallback:
               ({
+                Value<int> jobId = const Value.absent(),
                 required DateTime date,
                 required double balance,
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BalanceSnapshotsCompanion.insert(
+                jobId: jobId,
                 date: date,
                 balance: balance,
                 updatedAt: updatedAt,
@@ -6302,15 +9269,53 @@ class $$BalanceSnapshotsTableTableManager
               .map(
                 (e) => (
                   e.readTable<$BalanceSnapshotsTable, BalanceSnapshot>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $BalanceSnapshotsTable,
-                    BalanceSnapshot
-                  >(db, table, e),
+                  $$BalanceSnapshotsTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({jobId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (jobId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.jobId,
+                                referencedTable:
+                                    $$BalanceSnapshotsTableReferences
+                                        ._jobIdTable(db),
+                                referencedColumn:
+                                    $$BalanceSnapshotsTableReferences
+                                        ._jobIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
         ),
       );
 }
@@ -6325,29 +9330,56 @@ typedef $$BalanceSnapshotsTableProcessedTableManager =
       $$BalanceSnapshotsTableAnnotationComposer,
       $$BalanceSnapshotsTableCreateCompanionBuilder,
       $$BalanceSnapshotsTableUpdateCompanionBuilder,
-      (
-        BalanceSnapshot,
-        BaseReferences<_$AppDatabase, $BalanceSnapshotsTable, BalanceSnapshot>,
-      ),
+      (BalanceSnapshot, $$BalanceSnapshotsTableReferences),
       BalanceSnapshot,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool jobId})
     >;
 typedef $$VacationQuotasTableCreateCompanionBuilder =
     VacationQuotasCompanion Function({
-      Value<int> year,
+      Value<int> jobId,
+      required int year,
       Value<double> totalDays,
       Value<double> rolloverDays,
       Value<DateTime?> rolloverDeadline,
       Value<DateTime> updatedAt,
+      Value<int> rowid,
     });
 typedef $$VacationQuotasTableUpdateCompanionBuilder =
     VacationQuotasCompanion Function({
+      Value<int> jobId,
       Value<int> year,
       Value<double> totalDays,
       Value<double> rolloverDays,
       Value<DateTime?> rolloverDeadline,
       Value<DateTime> updatedAt,
+      Value<int> rowid,
     });
+
+final class $$VacationQuotasTableReferences
+    extends BaseReferences<_$AppDatabase, $VacationQuotasTable, VacationQuota> {
+  $$VacationQuotasTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $JobsTable _jobIdTable(_$AppDatabase db) =>
+      db.jobs.createAlias('vacation_quotas__job_id__jobs__id');
+
+  $$JobsTableProcessedTableManager get jobId {
+    final $_column = $_itemColumn<int>('job_id')!;
+
+    final manager = $$JobsTableTableManager(
+      $_db,
+      $_db.jobs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_jobIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
 
 class $$VacationQuotasTableFilterComposer
     extends Composer<_$AppDatabase, $VacationQuotasTable> {
@@ -6382,6 +9414,29 @@ class $$VacationQuotasTableFilterComposer
     column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$JobsTableFilterComposer get jobId {
+    final $$JobsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableFilterComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$VacationQuotasTableOrderingComposer
@@ -6417,6 +9472,29 @@ class $$VacationQuotasTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$JobsTableOrderingComposer get jobId {
+    final $$JobsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableOrderingComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$VacationQuotasTableAnnotationComposer
@@ -6446,6 +9524,29 @@ class $$VacationQuotasTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$JobsTableAnnotationComposer get jobId {
+    final $$JobsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$VacationQuotasTableTableManager
@@ -6459,12 +9560,9 @@ class $$VacationQuotasTableTableManager
           $$VacationQuotasTableAnnotationComposer,
           $$VacationQuotasTableCreateCompanionBuilder,
           $$VacationQuotasTableUpdateCompanionBuilder,
-          (
-            VacationQuota,
-            BaseReferences<_$AppDatabase, $VacationQuotasTable, VacationQuota>,
-          ),
+          (VacationQuota, $$VacationQuotasTableReferences),
           VacationQuota,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool jobId})
         > {
   $$VacationQuotasTableTableManager(
     _$AppDatabase db,
@@ -6481,45 +9579,90 @@ class $$VacationQuotasTableTableManager
               $$VacationQuotasTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<int> jobId = const Value.absent(),
                 Value<int> year = const Value.absent(),
                 Value<double> totalDays = const Value.absent(),
                 Value<double> rolloverDays = const Value.absent(),
                 Value<DateTime?> rolloverDeadline = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
               }) => VacationQuotasCompanion(
+                jobId: jobId,
                 year: year,
                 totalDays: totalDays,
                 rolloverDays: rolloverDays,
                 rolloverDeadline: rolloverDeadline,
                 updatedAt: updatedAt,
+                rowid: rowid,
               ),
           createCompanionCallback:
               ({
-                Value<int> year = const Value.absent(),
+                Value<int> jobId = const Value.absent(),
+                required int year,
                 Value<double> totalDays = const Value.absent(),
                 Value<double> rolloverDays = const Value.absent(),
                 Value<DateTime?> rolloverDeadline = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
               }) => VacationQuotasCompanion.insert(
+                jobId: jobId,
                 year: year,
                 totalDays: totalDays,
                 rolloverDays: rolloverDays,
                 rolloverDeadline: rolloverDeadline,
                 updatedAt: updatedAt,
+                rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
                   e.readTable<$VacationQuotasTable, VacationQuota>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $VacationQuotasTable,
-                    VacationQuota
-                  >(db, table, e),
+                  $$VacationQuotasTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({jobId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (jobId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.jobId,
+                                referencedTable: $$VacationQuotasTableReferences
+                                    ._jobIdTable(db),
+                                referencedColumn:
+                                    $$VacationQuotasTableReferences
+                                        ._jobIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
         ),
       );
 }
@@ -6534,16 +9677,14 @@ typedef $$VacationQuotasTableProcessedTableManager =
       $$VacationQuotasTableAnnotationComposer,
       $$VacationQuotasTableCreateCompanionBuilder,
       $$VacationQuotasTableUpdateCompanionBuilder,
-      (
-        VacationQuota,
-        BaseReferences<_$AppDatabase, $VacationQuotasTable, VacationQuota>,
-      ),
+      (VacationQuota, $$VacationQuotasTableReferences),
       VacationQuota,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool jobId})
     >;
 typedef $$AppSettingsTableCreateCompanionBuilder =
     AppSettingsCompanion Function({
       Value<String> id,
+      Value<int> jobId,
       Value<DateTime> effectiveFrom,
       Value<double> weeklyHours,
       Value<List<int>> workDays,
@@ -6561,6 +9702,7 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
       Value<String> id,
+      Value<int> jobId,
       Value<DateTime> effectiveFrom,
       Value<double> weeklyHours,
       Value<List<int>> workDays,
@@ -6575,6 +9717,28 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
+
+final class $$AppSettingsTableReferences
+    extends BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting> {
+  $$AppSettingsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $JobsTable _jobIdTable(_$AppDatabase db) =>
+      db.jobs.createAlias('app_settings__job_id__jobs__id');
+
+  $$JobsTableProcessedTableManager get jobId {
+    final $_column = $_itemColumn<int>('job_id')!;
+
+    final manager = $$JobsTableTableManager(
+      $_db,
+      $_db.jobs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_jobIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
 
 class $$AppSettingsTableFilterComposer
     extends Composer<_$AppDatabase, $AppSettingsTable> {
@@ -6650,6 +9814,29 @@ class $$AppSettingsTableFilterComposer
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$JobsTableFilterComposer get jobId {
+    final $$JobsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableFilterComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$AppSettingsTableOrderingComposer
@@ -6725,6 +9912,29 @@ class $$AppSettingsTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$JobsTableOrderingComposer get jobId {
+    final $$JobsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableOrderingComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -6794,6 +10004,29 @@ class $$AppSettingsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$JobsTableAnnotationComposer get jobId {
+    final $$JobsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jobId,
+      referencedTable: $db.jobs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JobsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.jobs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$AppSettingsTableTableManager
@@ -6807,12 +10040,9 @@ class $$AppSettingsTableTableManager
           $$AppSettingsTableAnnotationComposer,
           $$AppSettingsTableCreateCompanionBuilder,
           $$AppSettingsTableUpdateCompanionBuilder,
-          (
-            AppSetting,
-            BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>,
-          ),
+          (AppSetting, $$AppSettingsTableReferences),
           AppSetting,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool jobId})
         > {
   $$AppSettingsTableTableManager(_$AppDatabase db, $AppSettingsTable table)
     : super(
@@ -6828,6 +10058,7 @@ class $$AppSettingsTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<int> jobId = const Value.absent(),
                 Value<DateTime> effectiveFrom = const Value.absent(),
                 Value<double> weeklyHours = const Value.absent(),
                 Value<List<int>> workDays = const Value.absent(),
@@ -6843,6 +10074,7 @@ class $$AppSettingsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
+                jobId: jobId,
                 effectiveFrom: effectiveFrom,
                 weeklyHours: weeklyHours,
                 workDays: workDays,
@@ -6860,6 +10092,7 @@ class $$AppSettingsTableTableManager
           createCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<int> jobId = const Value.absent(),
                 Value<DateTime> effectiveFrom = const Value.absent(),
                 Value<double> weeklyHours = const Value.absent(),
                 Value<List<int>> workDays = const Value.absent(),
@@ -6875,6 +10108,7 @@ class $$AppSettingsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
+                jobId: jobId,
                 effectiveFrom: effectiveFrom,
                 weeklyHours: weeklyHours,
                 workDays: workDays,
@@ -6893,15 +10127,51 @@ class $$AppSettingsTableTableManager
               .map(
                 (e) => (
                   e.readTable<$AppSettingsTable, AppSetting>(table),
-                  BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>(
-                    db,
-                    table,
-                    e,
-                  ),
+                  $$AppSettingsTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({jobId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (jobId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.jobId,
+                                referencedTable: $$AppSettingsTableReferences
+                                    ._jobIdTable(db),
+                                referencedColumn: $$AppSettingsTableReferences
+                                    ._jobIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
         ),
       );
 }
@@ -6916,12 +10186,9 @@ typedef $$AppSettingsTableProcessedTableManager =
       $$AppSettingsTableAnnotationComposer,
       $$AppSettingsTableCreateCompanionBuilder,
       $$AppSettingsTableUpdateCompanionBuilder,
-      (
-        AppSetting,
-        BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>,
-      ),
+      (AppSetting, $$AppSettingsTableReferences),
       AppSetting,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool jobId})
     >;
 typedef $$AuditLogEntriesTableCreateCompanionBuilder =
     AuditLogEntriesCompanion Function({
@@ -7178,8 +10445,11 @@ typedef $$AuditLogEntriesTableProcessedTableManager =
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
-  $$DayEntriesTableTableManager get dayEntries =>
-      $$DayEntriesTableTableManager(_db, _db.dayEntries);
+  $$JobsTableTableManager get jobs => $$JobsTableTableManager(_db, _db.jobs);
+  $$VacationsTableTableManager get vacations =>
+      $$VacationsTableTableManager(_db, _db.vacations);
+  $$AppPreferencesTableTableManager get appPreferences =>
+      $$AppPreferencesTableTableManager(_db, _db.appPreferences);
   $$WorkSessionsTableTableManager get workSessions =>
       $$WorkSessionsTableTableManager(_db, _db.workSessions);
   $$BreakEntriesTableTableManager get breakEntries =>
@@ -7188,6 +10458,8 @@ class $AppDatabaseManager {
       $$LeaveEntriesTableTableManager(_db, _db.leaveEntries);
   $$PublicHolidaysTableTableManager get publicHolidays =>
       $$PublicHolidaysTableTableManager(_db, _db.publicHolidays);
+  $$DayEntriesTableTableManager get dayEntries =>
+      $$DayEntriesTableTableManager(_db, _db.dayEntries);
   $$BalanceSnapshotsTableTableManager get balanceSnapshots =>
       $$BalanceSnapshotsTableTableManager(_db, _db.balanceSnapshots);
   $$VacationQuotasTableTableManager get vacationQuotas =>

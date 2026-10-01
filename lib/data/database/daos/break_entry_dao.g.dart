@@ -4,7 +4,7 @@ part of 'break_entry_dao.dart';
 
 // ignore_for_file: type=lint
 mixin _$BreakEntryDaoMixin on DatabaseAccessor<AppDatabase> {
-  $DayEntriesTable get dayEntries => attachedDatabase.dayEntries;
+  $JobsTable get jobs => attachedDatabase.jobs;
   $BreakEntriesTable get breakEntries => attachedDatabase.breakEntries;
   BreakEntryDaoManager get managers => BreakEntryDaoManager(this);
 }
@@ -12,8 +12,8 @@ mixin _$BreakEntryDaoMixin on DatabaseAccessor<AppDatabase> {
 class BreakEntryDaoManager {
   final _$BreakEntryDaoMixin _db;
   BreakEntryDaoManager(this._db);
-  $$DayEntriesTableTableManager get dayEntries =>
-      $$DayEntriesTableTableManager(_db.attachedDatabase, _db.dayEntries);
+  $$JobsTableTableManager get jobs =>
+      $$JobsTableTableManager(_db.attachedDatabase, _db.jobs);
   $$BreakEntriesTableTableManager get breakEntries =>
       $$BreakEntriesTableTableManager(_db.attachedDatabase, _db.breakEntries);
 }
