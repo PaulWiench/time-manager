@@ -1290,6 +1290,37 @@
         from the 15 March start.
       </p>
     </div>
+    <div class="entry">
+      <div class="date">1 October 2026, later</div>
+      <h3>Seven screens from one design pass</h3>
+      <span class="pill">Feedback batch</span>
+      <p>
+        With the data layer safely on the phone, the rest of the list became
+        screens. Paul ran the prompt through Claude Design and came back with a
+        full handoff. One rule from that exchange is now a habit: for a visual
+        choice, put the options on screen at the same moment as the question.
+        He picked the bottom sheet for settings info, but only if it also lets
+        you change the setting. So every sheet now explains a setting and holds
+        its control.
+      </p>
+      <p>
+        The rest: a "Started earlier?" and a "Check in at…" sheet for fixing
+        the day while it is still going; vacations with names, listed by
+        booking and labelled "day 6 of 11" in History; the six- and twelve-month
+        charts with real axes; and jobs, with a switcher that only appears once
+        there is a second job, an edit screen that shows the pro-rated vacation
+        as you type, and an end-job sheet that lists what ending means.
+      </p>
+      <div class="problem">
+        <strong>Why the wide widget never worked</strong>
+        It was not a layout bug in the wide layout. There was no wide layout
+        being chosen at all. The widget declared three sizes, and the launcher
+        handed it the nearest declared one rather than its real size, so
+        anything one row tall became the small square tile. Widget v2 reads the
+        real size and lays itself out from formulas: ring over today's hours at
+        every tall size, one line of ring, today and balance when it is wide.
+      </div>
+    </div>
     <!-- STORY_ENTRIES_END -->
   </section>
 
@@ -1806,6 +1837,30 @@
     <div class="log-entry">
       <span class="ts">2026-10-01</span><span class="tag">[feedback-batch/ship-0.6]</span>
       <p>0.6.0+9 then 0.6.1+10 on the phone. Before installing, the in-app export at 19:27 was byte-identical (SHA-256) to the 18:47 one, and the real-data migration test passed against it (<code>TM_BACKUP=…</code>). Signer SHA-256 matched before and after the build, <code>adb install -r</code>, <code>firstInstallTime</code> unchanged. Home was screenshot before and after: identical (−25:00, 5:54 today). An export taken after the upgrade was compared row by row with the one from before it: all 9 tables, 0 missing rows, 0 changed values; the only addition is the migration's own audit entry. Found on the phone: Stats → Leave said 1 planned day for 26–30 Oct. This was an older bug, present in the pre-upgrade export too. <code>recalculateRangeFrom</code> ran to max(start, today), so a booking entirely ahead was worked out on its first day only. The fix adds a <code>through:</code> parameter used by every leave write, plus <code>refreshFutureDays()</code> at launch to repair stored rows; a real-data test shows it fixes those 5 days and touches no past day and no balance. 0.6.1 on the phone now shows 13 used · 5 planned · 5 left of 23.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-10-01</span><span class="tag">[feedback-batch/session-fix]</span>
+      <p>"Started earlier?" and "Check in at…" (additions handoff §5). The rules live in <code>lib/domain/session_fix.dart</code>, which is pure and tested. Started earlier: the earliest start is the latest of the day start, the previous session's end, and the work window start when restrict check-in is on; the latest is the current start; 5-minute steps snap to the grid but can always land exactly on a limit. Check in at: from the last check-out to now, in 1-minute steps. The sheet works in whole minutes, so <code>resolve()</code> maps the earliest limit back to the exact second: a check-out at 12:30:20 is resumed rather than overlapped by 20 s. In the repository, <code>moveActiveStart</code> and <code>checkInAt</code> re-check the same limits, and checking in exactly at the last check-out reopens that session instead of creating a new one. The sheet (<code>session_fix_sheet.dart</code>) has the stepper, the limit rail (CustomPainter), the limits row, one message line (effect / hint / note / error, wording tested) and the time in the primary label. The UI opens it from the active timeline row (label and chip are one 44 dp target) and, beyond the design, from the day's last "Check out" row once the 2 h break window has passed, because a long forgotten break otherwise reads as checked out with no way to fix it.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-10-01</span><span class="tag">[feedback-batch/vacations]</span>
+      <p>Named vacations (§4). The leave sheet became stateful, so it owns its name controller, and gained an optional name field (vacation only) plus "N workdays · X → Y days left" (new bookings only, so an edited day isn't subtracted twice). <code>LeaveRepository.saveFromSheet</code> keeps an edited day inside its booking and renames it if the name changed; <code>moveVacation</code> re-dates a booking at its share of a day, skipping rest days and holidays. <code>vacation_bookings.dart</code> groups days into bookings (planned first, soonest first; then taken, newest first) with a "day n of N" lookup. Stats → Leave lists the year's bookings (hatched swatch for taken, dashed for planned). History labels a named day as "Name / Vacation · day 6 of 11 · 7:54" and expands to an "Edit vacation" pill. <code>formatLeaveDays</code> moved to <code>domain/leave_days.dart</code> so widgets can use it without importing a feature.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-10-01</span><span class="tag">[feedback-batch/daily-hours-2]</span>
+      <p>Daily Hours per §6. The y axis runs from 0 to at least 10 h. Axis labels: under the first week of each month at 6M (a label within 3 bars of the previous one replaces it), and under every month at 1Y with the year under the first bar and under January. 1Y covers the 12 calendar months ending with the current one, not the trailing 365 days, which made 13 bars. Custom ranges bucket at ≤45/≤270 days. Month bars sit 8 dp apart, with a legend, and the caption names the bucket. Bar radius is min(4, width/2).</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-10-01</span><span class="tag">[feedback-batch/info-sheets]</span>
+      <p>Settings info (§1, variant B, which Paul chose on condition that the sheet can also change the setting). <code>SettingsRow</code>'s icon tile is its own button with a real 44 dp box; the row gives the 4 dp back in its padding and gap, because an OverflowBox overhang is not hit-testable in Flutter. <code>setting_info_sheet.dart</code> takes a <code>SettingInfo</code> (body, rules table, footnote) and either a <code>SettingControl</code> (toggle / number / work days / work window, edited as a draft and saved together; the primary reads "Got it" until something changes) or an Open button. The copy was checked against the code: restrict check-in only bounds the overnight stop and "Started earlier?", floor/cap annual reset is stored but never read, and notifications and rollover are not built. The quota row shows this year's pro-rated figure. Paul has not yet been asked about the "advanced options live here" half.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-10-01</span><span class="tag">[feedback-batch/jobs-ui]</span>
+      <p>Jobs UI (§3). <code>TabScreen.header</code> holds a <code>JobPill</code> that screens pass in only when there are several jobs, which keeps the bodies provider-free for the goldens. The switcher sheet and jobs list share <code>JobRow</code>, fed by <code>jobSummaryProvider</code> (latest settings, running session, settled balance — through the last working day for an ended job). <code>EditJobScreen</code> covers name, dates, weekly hours, work days, window, starting balance, floor/cap, quota with <code>ProrateCallout</code>, and validates against the job's tracked span. Schedule changes on an existing job write a settings row effective today, or from the start for a job that hasn't started. <code>EndJobSheet</code> lists the consequences, including the pro-rated quota for the new end. Home on an ended job shows the final balance, a non-button ring with the end date, and Switch job. Settings, with several jobs, gets a JOBS group, moves the per-job rows into Edit job, and suffixes "· ALL JOBS"; with one job it only adds a "Jobs" row, because the design hid the group entirely and that left no way to add a second job. Tests: <code>job_repository_test.dart</code> (separate balances, parallel sessions, ending with a session running, date validation, selection fallback). Renders: <code>jobs_test.dart</code>. Drift's watch streams leave a zero-delay timer after teardown, which the render test flushes.</p>
+    </div>
+    <div class="log-entry">
+      <span class="ts">2026-10-01</span><span class="tag">[feedback-batch/widget-v2]</span>
+      <p>Widget v2 (§2). Root cause of "wide widget does not work": <code>SizeMode.Responsive</code> lays out at the nearest declared size, and with declared sizes 40², 90², 250×110, any cell under 110 dp tall became the 90×90 compact tile. Switched to <code>SizeMode.Exact</code> and formula layouts: Tall (ring diameter min(w−2p, 0.6(h−2p)), centred at h/3; hours at 5h/6 in 18/28/40 sp; "of 7:54" from 100 dp; at 1x1 the whole widget toggles), Wide (under 100 dp tall; the compact variant under 260 dp shows TODAY and drops the target), Expanded (w ≥ 2h; padding 18, ring = h−36 up to 112). New <code>tm_slab_card_small</code> (radius 24). Job awareness in <code>WidgetRepository</code>: the widget follows the running session's job, else the last checked-in job, never an ended one; every query and the check-in insert carry <code>job_id</code>; it falls back to the old job-less queries when no <code>jobs</code> table exists (installed but not yet opened), and a tap does nothing when no job is active. Compiles in the release build. The Kotlin unit tests (BreakLaw, DaySettlement, both unchanged) could not be run from the CLI: Gradle stops on its Kotlin-plugin dependency check outside Flutter's build.</p>
     </div>
     <!-- TECH_LOG_END -->
   </section>
