@@ -202,6 +202,15 @@ class _Expansion extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         EventTimeline(items: expansion.timeline, ground: colors.surface, stagger: true),
+        if (expansion.onEditVacation != null) ...[
+          if (expansion.timeline.isNotEmpty) const SizedBox(height: AppSpace.s3),
+          SecondaryPill(
+            label: 'Edit vacation',
+            expand: false,
+            height: AppSize.touch,
+            onPressed: expansion.onEditVacation,
+          ),
+        ],
         if (expansion.consequence != null) ...[
           const SizedBox(height: AppSpace.s2),
           Padding(

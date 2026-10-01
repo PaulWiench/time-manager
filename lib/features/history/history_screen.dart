@@ -20,10 +20,12 @@ import '../../providers/settings_providers.dart';
 import '../../providers/stats_providers.dart';
 import '../../widgets/app_date_picker.dart';
 import '../../widgets/edit_session_sheet.dart';
+import '../../widgets/edit_vacation_sheet.dart';
 import '../../widgets/leave_sheet.dart';
 import 'history_body.dart';
 import 'history_view.dart';
 import '../../providers/job_providers.dart';
+import '../../providers/vacation_providers.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -204,6 +206,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final now = DateTime.now();
     final active = date == today ? ref.watch(activeSessionProvider).valueOrNull : null;
 
+    final booking = ref.watch(vacationBookingForDateProvider(date));
     final facts = DayFacts(
       date: date,
       settings: _settled(ref.watch(effectiveSettingsForProvider(date)), null),
@@ -216,6 +219,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       previousClosingBalance: _closingBalance(shiftDays(date, -1), snapshots),
       runningSince: active?.startTime,
       now: now,
+      vacationName: booking?.name,
+      vacationDay: booking?.dayNumber(date),
+      vacationLength: booking?.dates.length,
     );
 
     return historyDayRow(
@@ -227,6 +233,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       onSelectBreak: (id) => setState(
         () => _selectedBreakId = _selectedBreakId == id ? null : id,
       ),
+      onEditVacation: booking == null || booking.isUngrouped
+          ? null
+          : () => showEditVacationSheet(context, booking),
       onDeleteBreak: () {
         final jobId = ref.read(selectedJobIdProvider);
         if (jobId != null) {
@@ -287,11 +296,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           holidayFraction: ref.read(publicHolidayForDateProvider(date)).valueOrNull?.fraction,
         );
 
+    final booking = ref.read(vacationBookingForDateProvider(date));
     final edit = await showLeaveSheet(
       context: context,
       dates: [date],
       targetFor: (_) => targetHours,
       existing: existing,
+      vacationName: booking?.name,
+      daysLeft: ref.read(vacationDaysLeftProvider(date.year)),
+      jobName: ref.read(hasSeveralJobsProvider) ? ref.read(selectedJobProvider)?.name : null,
     );
     if (edit == null || !mounted) return;
 
@@ -304,11 +317,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     if (edit.cleared) {
       await repo.clearLeaveForDates(jobId, [date]);
     } else {
-      await repo.setLeaveForDates(
+      await repo.saveFromSheet(
         jobId: jobId,
         hoursByDate: {date: edit.hoursFor(targetHours)},
         type: edit.type!,
-        vacationName: edit.name,
+        name: edit.name,
+        existingVacationId: existing.isEmpty ? null : existing.first.vacationId,
       );
     }
   }

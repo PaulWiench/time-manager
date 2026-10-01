@@ -54,6 +54,12 @@ void main() {
       rows: fixtures.leaveWorkedDays(),
       expandedDay: DateTime(2026, 9, 28),
     ),
+    'history-day-vacation': HistoryBody(
+      mode: HistoryMode.day,
+      stepperLabel: '10–16 Aug 2026',
+      rows: fixtures.vacationDays(expanded: DateTime(2026, 8, 12)),
+      expandedDay: DateTime(2026, 8, 12),
+    ),
     // `now` is pinned, not defaulted: the "today" outline used to come from
     // the wall clock, so this render drifted by one cell every day and the
     // golden failed a little more each morning.

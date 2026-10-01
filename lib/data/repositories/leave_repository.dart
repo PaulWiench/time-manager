@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../domain/date_only.dart';
+import '../../domain/recalculation_engine.dart';
 import '../database/database.dart';
 import '../database/enums.dart';
 import 'recalculation_service.dart';
@@ -109,6 +110,32 @@ class LeaveRepository {
     await recalc.recalculateRangeFrom(jobId, earliest, through: latest);
   }
 
+  /// Saves what the leave sheet returned for [hoursByDate]. Editing a day that
+  /// already belongs to a vacation keeps it in that booking — renaming the
+  /// booking if the name changed — rather than splitting it off as a new one.
+  Future<void> saveFromSheet({
+    required int jobId,
+    required Map<DateTime, double> hoursByDate,
+    required LeaveType type,
+    String? name,
+    String? existingVacationId,
+  }) async {
+    final keepBooking = type == LeaveType.vacation && existingVacationId != null;
+    await setLeaveForDates(
+      jobId: jobId,
+      hoursByDate: hoursByDate,
+      type: type,
+      vacationName: keepBooking ? null : name,
+      vacationId: keepBooking ? existingVacationId : null,
+    );
+    if (keepBooking) {
+      final current = await db.jobDao.vacationById(existingVacationId);
+      if (current != null && (current.name ?? '') != (name?.trim() ?? '')) {
+        await renameVacation(existingVacationId, name);
+      }
+    }
+  }
+
   /// Removes every one of [jobId]'s leave entries on each of [dates], in one
   /// pass.
   Future<void> clearLeaveForDates(int jobId, Iterable<DateTime> dates) async {
@@ -189,6 +216,51 @@ class LeaveRepository {
       final latest = oldDates.reduce((a, b) => a.isAfter(b) ? a : b);
       await recalc.recalculateRangeFrom(vacation.jobId, earliest, through: latest);
     }
+  }
+
+  /// Moves a booking to run from [first] to [last]: every scheduled day in
+  /// between becomes leave of the same share of a day the booking had (a
+  /// full day unless it was booked as halves), worked out against each day's
+  /// own target. Weekends and full holidays are skipped, as the picker does.
+  Future<void> moveVacation({
+    required String vacationId,
+    required DateTime first,
+    required DateTime last,
+  }) async {
+    final vacation = await db.jobDao.vacationById(vacationId);
+    if (vacation == null) return;
+    final job = await db.jobDao.byId(vacation.jobId);
+    if (job == null) return;
+
+    final old = await db.leaveEntryDao.forVacation(vacationId);
+    var share = 1.0;
+    if (old.isNotEmpty) {
+      final target = await _targetFor(job, old.first.date);
+      if (target > 0) share = ((old.first.hours / target) * 4).round() / 4;
+      if (share <= 0) share = 1.0;
+    }
+
+    final hours = <DateTime, double>{};
+    for (var d = dateOnly(first); !d.isAfter(dateOnly(last)); d = shiftDays(d, 1)) {
+      final target = await _targetFor(job, d);
+      if (target > 0) hours[d] = target * share;
+    }
+    if (hours.isEmpty) return;
+    await rebookVacation(vacationId: vacationId, hoursByDate: hours);
+  }
+
+  Future<double> _targetFor(Job job, DateTime day) async {
+    if (day.isBefore(dateOnly(job.startDate))) return 0;
+    if (job.endDate != null && day.isAfter(dateOnly(job.endDate!))) return 0;
+    final settings = await db.settingsDao.effectiveFor(job.id, day);
+    if (settings == null) return 0;
+    final holiday = await db.publicHolidayDao.forDate(day);
+    return computeTargetHours(
+      date: day,
+      workDays: settings.workDays,
+      weeklyHours: settings.weeklyHours,
+      holidayFraction: holiday?.fraction,
+    );
   }
 
   Future<void> _clearDay(int jobId, DateTime day) async {

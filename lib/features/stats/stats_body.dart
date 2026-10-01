@@ -16,6 +16,8 @@ import 'charts/balance_trend_chart.dart';
 import 'charts/checkin_distribution_chart.dart';
 import 'charts/daily_hours_chart.dart';
 import 'charts/leave_breakdown.dart';
+import 'vacation_list.dart';
+import '../../domain/vacation_bookings.dart';
 import 'charts/monthly_heatmap.dart';
 import 'charts/overtime_rate_chart.dart';
 import 'charts/weekday_hours_chart.dart';
@@ -31,6 +33,7 @@ class StatsBody extends StatelessWidget {
     this.overview,
     this.patterns,
     this.leave,
+    this.onOpenVacation,
     this.onTabChanged,
     this.onRangeChanged,
     this.onStepMonth,
@@ -46,6 +49,9 @@ class StatsBody extends StatelessWidget {
   final OverviewData? overview;
   final PatternsData? patterns;
   final LeaveData? leave;
+
+  /// Opens the rename/edit sheet for a booking in the vacation list.
+  final ValueChanged<VacationBooking>? onOpenVacation;
 
   final ValueChanged<StatsTab>? onTabChanged;
   final ValueChanged<StatsRange>? onRangeChanged;
@@ -277,6 +283,13 @@ class StatsBody extends StatelessWidget {
             unit: 'd',
             caption: '${data.year} so far',
             tone: colors.accentStrong,
+          ),
+        if (data.vacations.isNotEmpty)
+          VacationList(
+            year: data.year,
+            bookings: data.vacations,
+            daysLeftAfterPlanned: data.remainingDays,
+            onOpen: onOpenVacation,
           ),
       ],
     ];

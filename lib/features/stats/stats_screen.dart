@@ -20,6 +20,8 @@ import '../../providers/stats_providers.dart';
 import 'stats_body.dart';
 import 'stats_view.dart';
 import '../../providers/job_providers.dart';
+import '../../providers/vacation_providers.dart';
+import '../../widgets/edit_vacation_sheet.dart';
 
 class StatsScreen extends ConsumerStatefulWidget {
   const StatsScreen({super.key});
@@ -56,6 +58,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
       overview: _tab == StatsTab.overview ? _overview(range, today) : null,
       patterns: _tab == StatsTab.patterns ? _patterns(range, today) : null,
       leave: _tab == StatsTab.leave ? _leave(today) : null,
+      onOpenVacation: (booking) => showEditVacationSheet(context, booking),
       onTabChanged: (tab) => setState(() => _tab = tab),
       onRangeChanged: (value) {
         if (value == StatsRange.custom) {
@@ -222,6 +225,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
       plannedDays: planned,
       sickDays: sick,
       flexDays: flex,
+      vacations: ref.watch(vacationBookingsProvider(_leaveYear)),
     );
   }
 

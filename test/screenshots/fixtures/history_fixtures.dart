@@ -262,3 +262,34 @@ List<HistoryRow> leaveWorkedDays() {
       ),
   ];
 }
+
+/// 10–16 August 2026, the middle of a named eleven-day vacation (additions
+/// handoff §4.3): each day says which booking it is and where in it.
+List<HistoryRow> vacationDays({DateTime? expanded}) {
+  final settings = settingsRow();
+  final monday = DateTime(2026, 8, 10);
+  return [
+    for (var i = 0; i < 7; i++)
+      () {
+        final date = shiftDays(monday, i);
+        final workday = date.weekday <= 5;
+        return historyDayRow(
+          facts: DayFacts(
+            date: date,
+            settings: settings,
+            dayEntry: workday
+                ? dayEntryRow(date: date, leaveHours: _target, targetHours: _target)
+                : null,
+            leave: workday ? [leaveRow(date: date, hours: _target)] : const [],
+            vacationName: workday ? 'Sommer an der Ostsee' : null,
+            vacationDay: workday ? 6 + i : null,
+            vacationLength: workday ? 11 : null,
+          ),
+          today: today,
+          expanded: date == expanded,
+          onEditVacation: () {},
+        );
+      }(),
+  ];
+}
+

@@ -202,4 +202,54 @@ void main() {
     expect(repaired!.leaveHours, closeTo(7.9, 0.001));
     expect(repaired.targetHours, closeTo(7.9, 0.001));
   });
+
+  group('named bookings', () {
+    Future<String> bookFortnight({String? name}) async {
+      await leave.setLeaveForDates(
+        jobId: j,
+        hoursByDate: fortnight(),
+        type: LeaveType.vacation,
+        vacationName: name,
+      );
+      return (await db.leaveEntryDao.forDate(j, day(0))).single.vacationId!;
+    }
+
+    test('a booking is one vacation, named once for all its days', () async {
+      final id = await bookFortnight(name: '  Sommer an der Ostsee  ');
+      final entries = await db.leaveEntryDao.forVacation(id);
+      expect(entries, hasLength(10));
+      expect((await db.jobDao.vacationById(id))!.name, 'Sommer an der Ostsee');
+
+      await leave.renameVacation(id, 'Ostsee');
+      expect((await db.jobDao.vacationById(id))!.name, 'Ostsee');
+      await leave.renameVacation(id, '   ');
+      expect((await db.jobDao.vacationById(id))!.name, isNull, reason: 'blank is unnamed');
+    });
+
+    test('moving a booking keeps its name and rebooks only scheduled days', () async {
+      final id = await bookFortnight(name: 'Ostsee');
+      // Mon 19 – Sun 25 Oct: five workdays.
+      await leave.moveVacation(vacationId: id, first: day(14), last: day(20));
+
+      final entries = await db.leaveEntryDao.forVacation(id);
+      expect(entries.map((e) => e.date), [for (final n in [14, 15, 16, 17, 18]) day(n)]);
+      expect((await db.jobDao.vacationById(id))!.name, 'Ostsee');
+      // The old fortnight is no longer leave and owes its target again.
+      final freed = await db.dayEntryDao.forDate(j, day(0));
+      expect(freed!.leaveHours, 0);
+      expect(await db.leaveEntryDao.forYear(j, 2026), hasLength(5));
+    });
+
+    test('clearing every day of a booking removes the booking', () async {
+      final id = await bookFortnight(name: 'Ostsee');
+      await leave.clearLeaveForDates(j, fortnight().keys);
+      expect(await db.jobDao.vacationById(id), isNull);
+    });
+
+    test('sick days are not bookings', () async {
+      await leave.setLeaveForDates(jobId: j, hoursByDate: {day(0): 7.9}, type: LeaveType.sick);
+      expect((await db.leaveEntryDao.forDate(j, day(0))).single.vacationId, isNull);
+      expect(await db.select(db.vacations).get(), isEmpty);
+    });
+  });
 }

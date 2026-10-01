@@ -8,6 +8,7 @@ library;
 
 import 'package:time_manager/domain/date_only.dart';
 import 'package:time_manager/domain/stats_aggregation.dart';
+import 'package:time_manager/domain/vacation_bookings.dart';
 import 'package:time_manager/features/stats/stats_view.dart';
 
 final today = DateTime(2026, 9, 22);
@@ -112,11 +113,26 @@ PatternsData patterns({int days = 30, HoursBucket bucket = HoursBucket.day}) {
 
 /// Paul's own 2026: thirteen vacation days taken, three more booked for the
 /// end of September, one sick day and a half-day of flex.
-LeaveData leave() => const LeaveData(
+LeaveData leave() => LeaveData(
       year: 2026,
       totalDays: 30,
       usedDays: 13,
       plannedDays: 3,
       sickDays: 1,
       flexDays: 0.5,
+      vacations: groupVacations(
+        [
+          for (final d in [26, 27, 28, 29, 30])
+            VacationDay(date: DateTime(2026, 10, d), vacationId: 'autumn', days: 1),
+          for (final d in [31])
+            VacationDay(date: DateTime(2026, 8, d), vacationId: 'sea', days: 1),
+          for (final d in [1, 2, 3, 4, 7, 8, 9, 10, 11])
+            VacationDay(date: DateTime(2026, 9, d), vacationId: 'sea', days: 1),
+          VacationDay(date: DateTime(2026, 7, 17), vacationId: 'bridge', days: 1),
+          VacationDay(date: DateTime(2026, 7, 20), vacationId: 'bridge', days: 1),
+          VacationDay(date: DateTime(2026, 6, 5), vacationId: 'june', days: 1),
+        ],
+        names: {'autumn': 'Herbstferien', 'sea': 'Sommer an der Ostsee', 'june': 'Brückentag'},
+        today: DateTime(2026, 10, 1),
+      ),
     );

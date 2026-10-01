@@ -21,7 +21,9 @@ import '../core/theme/app_dimens.dart';
 import '../core/theme/app_text_styles.dart';
 import '../data/database/database.dart';
 import '../data/database/enums.dart';
+import '../domain/leave_days.dart';
 import 'app_bottom_sheet.dart';
+import 'app_form_field.dart';
 import 'buttons.dart';
 import 'press_scale.dart';
 import 'segmented_control.dart';
@@ -87,47 +89,102 @@ class LeaveEdit {
 
 /// [dates] must be sorted and non-empty. One date is the ordinary
 /// long-press-a-day case; more is a booked range.
+///
+/// [vacationName] pre-fills the name when the day being edited belongs to a
+/// named booking. [daysLeft] is the year's vacation still unbooked before this
+/// booking, for the "12 → 2 days left" line; [jobName] heads the sheet when
+/// there are several jobs to book against.
 Future<LeaveEdit?> showLeaveSheet({
   required BuildContext context,
   required List<DateTime> dates,
   required double Function(DateTime) targetFor,
   List<LeaveEntry> existing = const [],
+  String? vacationName,
+  double? daysLeft,
+  String? jobName,
 }) {
-  final targets = [for (final date in dates) targetFor(date)];
-  // The labels need one number to quote. Every day in a normal range carries
-  // the same target; a range containing a half-day holiday does not, and says
-  // so rather than quoting a figure that is wrong for one of its days.
-  final headline = targets.first;
-  final mixed = targets.any((t) => (t - headline).abs() > 1 / 60);
-
-  final first = existing.isEmpty ? null : existing.first;
-  var type = first?.type ?? LeaveType.vacation;
-  var fraction = first == null
-      ? LeaveFraction.full
-      : LeaveFraction.nearest(first.hours, headline);
-
-  final bookable = targets.any((t) => t > 0);
-
   return showAppSheet<LeaveEdit>(
     context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => LeaveSheetView(
-        subtitle: _subtitleFor(dates),
-        targetHours: headline,
-        mixedTargets: mixed,
-        type: type,
-        fraction: fraction,
-        hasExisting: existing.isNotEmpty,
-        onType: (value) => setState(() => type = value),
-        onFraction: (value) => setState(() => fraction = value),
-        onClear: () => Navigator.of(context).pop(const LeaveEdit.cleared()),
-        onSave: !bookable
-            ? null
-            : () => Navigator.of(context)
-                .pop(LeaveEdit.set(type: type, fraction: fraction)),
-      ),
+    builder: (context) => _LeaveSheet(
+      dates: dates,
+      targets: [for (final date in dates) targetFor(date)],
+      existing: existing,
+      vacationName: vacationName,
+      daysLeft: daysLeft,
+      jobName: jobName,
     ),
   );
+}
+
+class _LeaveSheet extends StatefulWidget {
+  const _LeaveSheet({
+    required this.dates,
+    required this.targets,
+    required this.existing,
+    required this.vacationName,
+    required this.daysLeft,
+    required this.jobName,
+  });
+
+  final List<DateTime> dates;
+  final List<double> targets;
+  final List<LeaveEntry> existing;
+  final String? vacationName;
+  final double? daysLeft;
+  final String? jobName;
+
+  @override
+  State<_LeaveSheet> createState() => _LeaveSheetState();
+}
+
+class _LeaveSheetState extends State<_LeaveSheet> {
+  late LeaveType _type = widget.existing.isEmpty ? LeaveType.vacation : widget.existing.first.type;
+  late LeaveFraction _fraction = widget.existing.isEmpty
+      ? LeaveFraction.full
+      : LeaveFraction.nearest(widget.existing.first.hours, widget.targets.first);
+  late final _name = TextEditingController(text: widget.vacationName ?? '');
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // The labels need one number to quote. Every day in a normal range carries
+    // the same target; a range containing a half-day holiday does not, and says
+    // so rather than quoting a figure that is wrong for one of its days.
+    final headline = widget.targets.first;
+    final mixed = widget.targets.any((t) => (t - headline).abs() > 1 / 60);
+    final workdays = widget.targets.where((t) => t > 0).length;
+    final bookable = workdays > 0;
+
+    return LeaveSheetView(
+      subtitle: [
+        if (widget.jobName != null) widget.jobName!,
+        _subtitleFor(widget.dates),
+      ].join(' · '),
+      targetHours: headline,
+      mixedTargets: mixed,
+      type: _type,
+      fraction: _fraction,
+      hasExisting: widget.existing.isNotEmpty,
+      name: _name,
+      workdays: workdays,
+      daysLeft: widget.daysLeft,
+      onType: (value) => setState(() => _type = value),
+      onFraction: (value) => setState(() => _fraction = value),
+      onClear: () => Navigator.of(context).pop(const LeaveEdit.cleared()),
+      onSave: !bookable
+          ? null
+          : () => Navigator.of(context).pop(LeaveEdit.set(
+                type: _type,
+                fraction: _fraction,
+                name: _type == LeaveType.vacation ? _name.text : null,
+              )),
+    );
+  }
 }
 
 String _subtitleFor(List<DateTime> dates) {
@@ -147,6 +204,9 @@ class LeaveSheetView extends StatelessWidget {
     required this.fraction,
     required this.hasExisting,
     this.mixedTargets = false,
+    this.name,
+    this.workdays = 1,
+    this.daysLeft,
     this.onType,
     this.onFraction,
     this.onClear,
@@ -168,6 +228,15 @@ class LeaveSheetView extends StatelessWidget {
   final LeaveFraction fraction;
   final bool hasExisting;
 
+  /// The vacation's name, when the sheet offers one (vacation only).
+  final TextEditingController? name;
+
+  /// Scheduled days among the dates — what the booking takes off.
+  final int workdays;
+
+  /// Vacation days still unbooked this year before saving, if known.
+  final double? daysLeft;
+
   final ValueChanged<LeaveType>? onType;
   final ValueChanged<LeaveFraction>? onFraction;
   final VoidCallback? onClear;
@@ -178,15 +247,23 @@ class LeaveSheetView extends StatelessWidget {
     final colors = context.colors;
     final restDay = targetHours <= 0;
 
+    final isVacation = type == LeaveType.vacation;
+    final booked = workdays * fraction.value;
+
     return AppSheet(
-      title: hasExisting ? 'Edit leave' : 'Mark as leave',
+      title: hasExisting ? 'Edit leave' : 'Book leave',
       subtitle: subtitle,
       actions: [
         if (hasExisting)
           SecondaryPill(label: 'Remove', onPressed: onClear)
         else
           AppTextButton(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
-        PrimaryPill(label: 'Save', onPressed: onSave),
+        PrimaryPill(
+          label: !hasExisting && isVacation && workdays > 1
+              ? 'Book ${formatLeaveDays(booked)} days'
+              : 'Save',
+          onPressed: onSave,
+        ),
       ],
       children: [
         SegmentedControl<LeaveType>(
@@ -222,6 +299,16 @@ class LeaveSheetView extends StatelessWidget {
               text: 'Some of these days are shorter than the rest. '
                   'Each one takes off its own hours.',
             ),
+          if (isVacation && name != null)
+            AppTextField(
+              label: 'NAME · OPTIONAL',
+              controller: name!,
+              placeholder: 'e.g. Sommer an der Ostsee',
+              hint: 'Shown on these days in History and in the leave list',
+              maxLength: 40,
+            ),
+          if (isVacation && daysLeft != null && !hasExisting)
+            _BookingSummary(workdays: workdays, booked: booked, daysLeft: daysLeft!),
         ],
       ],
     );
@@ -329,6 +416,48 @@ class _Notice extends StatelessWidget {
             child: Text(
               text,
               style: AppTextStyles.body.copyWith(color: colors.textMuted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "10 workdays" against "12 → 2 days left in 2026" (additions handoff §4.1).
+class _BookingSummary extends StatelessWidget {
+  const _BookingSummary({required this.workdays, required this.booked, required this.daysLeft});
+
+  final int workdays;
+  final double booked;
+  final double daysLeft;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final after = daysLeft - booked;
+    final short = after < 0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.s1),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text('$workdays workday${workdays == 1 ? '' : 's'}',
+                style: AppTextStyles.bodyStrong.copyWith(color: colors.text)),
+          ),
+          Container(
+            padding: short ? const EdgeInsets.symmetric(horizontal: AppSpace.s1) : null,
+            decoration: short
+                ? BoxDecoration(
+                    color: colors.warningTint,
+                    borderRadius: BorderRadius.circular(AppRadius.cell),
+                  )
+                : null,
+            child: Text(
+              '${formatLeaveDays(daysLeft)} → ${formatLeaveDays(after)} days left',
+              style: AppTextStyles.caption
+                  .copyWith(color: short ? colors.warningText : colors.textMuted),
             ),
           ),
         ],

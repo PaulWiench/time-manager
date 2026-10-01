@@ -102,9 +102,13 @@ class HistoryExpansion {
     this.dayNote,
     this.sessionNotes = const [],
     this.consequence,
+    this.onEditVacation,
   });
 
   final List<TimelineItem> timeline;
+
+  /// A vacation day opens to an "Edit vacation" pill for its booking.
+  final VoidCallback? onEditVacation;
   final String? dayNote;
 
   /// `08:05 session: pairing on the export bug`, one per session that has one.
@@ -130,6 +134,9 @@ class DayFacts {
     this.previousClosingBalance,
     this.runningSince,
     this.now,
+    this.vacationName,
+    this.vacationDay,
+    this.vacationLength,
   });
 
   final DateTime date;
@@ -154,6 +161,12 @@ class DayFacts {
   final DateTime? runningSince;
 
   final DateTime? now;
+
+  /// The booking this vacation day belongs to: its name, if it has one, and
+  /// the day's place in it — "day 6 of 11" (additions handoff §4.3).
+  final String? vacationName;
+  final int? vacationDay;
+  final int? vacationLength;
 }
 
 /// A day row, with its expansion already built when [expanded].
@@ -165,6 +178,7 @@ HistoryRow historyDayRow({
   void Function(WorkSession session)? onEditSession,
   void Function(String breakId)? onSelectBreak,
   VoidCallback? onDeleteBreak,
+  VoidCallback? onEditVacation,
 }) {
   final date = facts.date;
   final settings = facts.settings;
@@ -252,6 +266,10 @@ HistoryRow historyDayRow({
     // the day *is* marked as leave — but the work comes back into view, and
     // the row opens so the sessions can be checked.
     final leaveBlocks = hasWork ? _blocksFor(facts) : const <TimelineBlock>[];
+    final booked = leave.type == LeaveType.vacation && facts.vacationDay != null;
+    final named = booked && facts.vacationName != null;
+    final canEditVacation = booked && onEditVacation != null;
+    final hours = AppFormat.hm(leave.hours);
 
     return HistoryRow(
       date: date,
@@ -262,18 +280,20 @@ HistoryRow historyDayRow({
       },
       blockTop: blockTop,
       blockBottom: blockBottom,
-      line1: '${_leaveLabel(leave.type)} · ${AppFormat.hm(leave.hours)}',
+      line1: named ? facts.vacationName! : '${_leaveLabel(leave.type)} · $hours',
       line2: hasWork
           ? 'Also worked ${AppFormat.hm(worked)}'
-          : (leave.notes?.isNotEmpty == true ? leave.notes : 'Leave'),
+          : named
+              ? 'Vacation · day ${facts.vacationDay} of ${facts.vacationLength} · $hours'
+              : (leave.notes?.isNotEmpty == true ? leave.notes : 'Leave'),
       delta: hasWork ? deltaText(entry?.balanceDelta) : null,
       trailingIcon: switch (leave.type) {
         LeaveType.vacation => AppIcons.airplaneTilt,
         LeaveType.sick => AppIcons.thermometerSimple,
         LeaveType.flexDay => AppIcons.arrowsLeftRight,
       },
-      expandable: hasWork,
-      expansion: hasWork && expanded
+      expandable: hasWork || canEditVacation,
+      expansion: (hasWork || canEditVacation) && expanded
           ? _expansionFor(
               facts: facts,
               blocks: leaveBlocks,
@@ -281,6 +301,7 @@ HistoryRow historyDayRow({
               onEditSession: onEditSession,
               onSelectBreak: onSelectBreak,
               onDeleteBreak: onDeleteBreak,
+              onEditVacation: canEditVacation ? onEditVacation : null,
             )
           : null,
     );
@@ -391,6 +412,7 @@ HistoryExpansion _expansionFor({
   void Function(WorkSession session)? onEditSession,
   void Function(String breakId)? onSelectBreak,
   VoidCallback? onDeleteBreak,
+  VoidCallback? onEditVacation,
 }) {
   final items = <TimelineItem>[];
   String? consequence;
@@ -457,6 +479,7 @@ HistoryExpansion _expansionFor({
   }
 
   return HistoryExpansion(
+    onEditVacation: onEditVacation,
     timeline: items,
     dayNote: facts.dayEntry?.notes?.isNotEmpty == true ? facts.dayEntry!.notes : null,
     sessionNotes: [

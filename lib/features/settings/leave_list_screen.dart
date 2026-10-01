@@ -24,6 +24,7 @@ import '../../widgets/app_date_picker.dart';
 import '../../widgets/leave_sheet.dart';
 import 'leave_list_body.dart';
 import '../../providers/job_providers.dart';
+import '../../providers/vacation_providers.dart';
 
 class LeaveListScreen extends ConsumerStatefulWidget {
   const LeaveListScreen({super.key});
@@ -204,11 +205,16 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
         : const <LeaveEntry>[];
     if (!mounted) return;
 
+    final booking =
+        dates.length == 1 ? ref.read(vacationBookingForDateProvider(dates.first)) : null;
     final edit = await showLeaveSheet(
       context: context,
       dates: dates,
       targetFor: targets,
       existing: existing,
+      vacationName: booking?.name,
+      daysLeft: ref.read(vacationDaysLeftProvider(dates.first.year)),
+      jobName: ref.read(hasSeveralJobsProvider) ? ref.read(selectedJobProvider)?.name : null,
     );
     if (edit == null || !mounted) return;
 
@@ -218,11 +224,12 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     if (edit.cleared) {
       await repo.clearLeaveForDates(jobId, dates);
     } else {
-      await repo.setLeaveForDates(
+      await repo.saveFromSheet(
         jobId: jobId,
         hoursByDate: {for (final date in dates) date: edit.hoursFor(targets(date))},
         type: edit.type!,
-        vacationName: edit.name,
+        name: edit.name,
+        existingVacationId: existing.isEmpty ? null : existing.first.vacationId,
       );
     }
     if (mounted) setState(() => _year = dates.first.year);
@@ -251,11 +258,15 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     final targetHours = await _targetFor(day);
     if (!mounted) return;
 
+    final booking = ref.read(vacationBookingForDateProvider(day));
     final edit = await showLeaveSheet(
       context: context,
       dates: [day],
       targetFor: (_) => targetHours,
       existing: existing,
+      vacationName: booking?.name,
+      daysLeft: ref.read(vacationDaysLeftProvider(day.year)),
+      jobName: ref.read(hasSeveralJobsProvider) ? ref.read(selectedJobProvider)?.name : null,
     );
     if (edit == null || !mounted) return;
 
@@ -268,11 +279,12 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     if (edit.cleared) {
       await repo.clearLeaveForDates(jobId, [day]);
     } else {
-      await repo.setLeaveForDates(
+      await repo.saveFromSheet(
         jobId: jobId,
         hoursByDate: {day: edit.hoursFor(targetHours)},
         type: edit.type!,
-        vacationName: edit.name,
+        name: edit.name,
+        existingVacationId: existing.isEmpty ? null : existing.first.vacationId,
       );
     }
   }

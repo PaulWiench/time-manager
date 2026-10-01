@@ -26,3 +26,11 @@ double sumLeaveDays(Iterable<({double hours, double targetHours})> entries) {
   }
   return total;
 }
+
+/// Days, as a number someone would say out loud: `13` rather than `13.0`, and
+/// `2.5` when it really is a half.
+String formatLeaveDays(double days) {
+  final rounded = (days * 4).round() / 4;
+  if (rounded == rounded.roundToDouble()) return '${rounded.round()}';
+  return rounded.toStringAsFixed(2).replaceFirst(RegExp(r'0$'), '');
+}

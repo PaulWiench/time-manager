@@ -11,6 +11,9 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:time_manager/domain/vacation_bookings.dart';
+import 'package:time_manager/widgets/edit_vacation_sheet.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:time_manager/core/theme/app_colors.dart';
 import 'package:time_manager/core/theme/app_dimens.dart';
@@ -171,9 +174,28 @@ void main() {
       type: LeaveType.vacation,
       fraction: LeaveFraction.full,
       hasExisting: false,
+      name: TextEditingController(text: 'Herbstferien'),
+      workdays: 9,
+      daysLeft: 14,
       onType: (_) {},
       onFraction: (_) {},
       onSave: () {},
+    )),
+    'vacation-edit-sheet': _asSheet(ProviderScope(
+      child: EditVacationSheet(
+        autofocus: false,
+        booking: VacationBooking(
+          id: 'sea',
+          name: 'Sommer an der Ostsee',
+          first: DateTime(2026, 8, 3),
+          last: DateTime(2026, 8, 17),
+          days: 11,
+          dates: [
+            for (final d in [3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 17]) DateTime(2026, 8, d),
+          ],
+          planned: false,
+        ),
+      ),
     )),
     'settings-holidays': HolidayListBody(
       year: 2026,

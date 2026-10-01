@@ -5,8 +5,11 @@
 /// so a card can never headline one thing and plot another.
 library;
 
+export '../../domain/leave_days.dart' show formatLeaveDays;
+
 import '../../core/format.dart';
 import '../../domain/stats_aggregation.dart';
+import '../../domain/vacation_bookings.dart';
 
 enum StatsTab { overview, patterns, leave }
 
@@ -225,9 +228,13 @@ class LeaveData {
     required this.plannedDays,
     required this.sickDays,
     required this.flexDays,
+    this.vacations = const [],
   });
 
   final int year;
+
+  /// The year's vacation bookings, planned first (additions handoff §4.2).
+  final List<VacationBooking> vacations;
   final double totalDays;
 
   /// Vacation dated on or before today.
@@ -256,10 +263,3 @@ class LeaveData {
   bool get hasData => totalDays > 0;
 }
 
-/// Days, as a number someone would say out loud: `13` rather than `13.0`, and
-/// `2.5` when it really is a half.
-String formatLeaveDays(double days) {
-  final rounded = (days * 4).round() / 4;
-  if (rounded == rounded.roundToDouble()) return '${rounded.round()}';
-  return rounded.toStringAsFixed(2).replaceFirst(RegExp(r'0$'), '');
-}
