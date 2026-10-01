@@ -85,6 +85,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       balance: balance,
       onEditSession: (session) => EditSessionSheet.show(context, session),
       onFixActive: (fix) => _fixActive(fix, active),
+      breakWindow: ref.watch(breakWindowProvider).valueOrNull ?? kBreakWindow,
       onDeleteSyntheticBreak: () {
         final jobId = ref.read(selectedJobIdProvider);
         if (jobId != null) {

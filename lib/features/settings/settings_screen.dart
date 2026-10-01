@@ -13,6 +13,7 @@ import '../../core/format.dart';
 import '../../core/icons/app_icons.dart';
 import '../../domain/leave_days.dart';
 import '../../domain/date_only.dart';
+import '../../domain/tracking_state.dart' show kBreakWindow;
 import '../../providers/database_providers.dart';
 import '../../providers/holiday_providers.dart';
 import '../../providers/repository_providers.dart';
@@ -151,6 +152,39 @@ class SettingsScreen extends ConsumerWidget {
 
     final entitlement = ref.watch(vacationEntitlementProvider(year));
 
+    final breakWindow = ref.watch(breakWindowProvider).valueOrNull ?? kBreakWindow;
+    final job = ref.watch(selectedJobProvider);
+    final appliesFrom = job == null ? null : AppliesFrom(earliest: job.startDate);
+
+    // A schedule change from today is an ordinary new version; from a past
+    // date it is carried into the versions saved since (see
+    // SettingsRepository.saveScheduleFrom).
+    Future<void> scheduleFrom(
+      DateTime from, {
+      double? weeklyHours,
+      List<int>? workDays,
+      int? windowStart,
+      int? windowEnd,
+    }) {
+      if (!dateOnly(from).isBefore(dateOnly(DateTime.now()))) {
+        return patch(
+          weeklyHours: weeklyHours,
+          workDays: workDays,
+          workWindow: windowStart == null
+              ? null
+              : WorkWindow(startMinutes: windowStart, endMinutes: windowEnd!),
+        );
+      }
+      return ref.read(settingsRepositoryProvider).saveScheduleFrom(
+            jobId: jobId,
+            from: from,
+            weeklyHours: weeklyHours,
+            workDays: workDays,
+            workWindowStartMinutes: windowStart,
+            workWindowEndMinutes: windowEnd,
+          );
+    }
+
     SettingInfo infoFor(SettingKey key) => switch (key) {
       SettingKey.weeklyHours => SettingInfo(
         name: 'Weekly hours',
@@ -171,8 +205,9 @@ class SettingsScreen extends ConsumerWidget {
           unit: 'h',
           format: (v) =>
               v == v.roundToDouble() ? '${v.round()}' : v.toStringAsFixed(1),
-          onSave: (v) => patch(weeklyHours: v),
+          onSave: (v, from) => scheduleFrom(from, weeklyHours: v),
         ),
+        appliesFrom: appliesFrom,
       ),
       SettingKey.workDays => SettingInfo(
         name: 'Work days',
@@ -184,8 +219,9 @@ class SettingsScreen extends ConsumerWidget {
             'work on them still counts in full.',
         control: WorkDaysControl(
           value: settings.workDays,
-          onSave: (v) => patch(workDays: v),
+          onSave: (v, from) => scheduleFrom(from, workDays: v),
         ),
+        appliesFrom: appliesFrom,
       ),
       SettingKey.workHours => SettingInfo(
         name: 'Work hours',
@@ -199,10 +235,28 @@ class SettingsScreen extends ConsumerWidget {
         control: WorkWindowControl(
           start: settings.workWindowStartMinutes,
           end: settings.workWindowEndMinutes,
-          onSave: (start, end) => patch(
-            workWindow: WorkWindow(startMinutes: start, endMinutes: end),
-          ),
+          onSave: (start, end, from) =>
+              scheduleFrom(from, windowStart: start, windowEnd: end),
         ),
+        advanced: [
+          NumberControl(
+            label: 'BREAK WINDOW',
+            description:
+                'How long after checking out the day still reads as a break '
+                '(on Home and the widget). Longer than this, it reads as checked out.',
+            value: breakWindow.inMinutes.toDouble(),
+            min: 15,
+            max: 240,
+            step: 15,
+            format: (v) => AppFormat.hm(v / 60),
+            unit: 'h',
+            onSave: (v, _) => ref
+                .read(appDatabaseProvider)
+                .jobDao
+                .setPreference(kBreakWindowKey, '${v.round()}'),
+          ),
+        ],
+        appliesFrom: appliesFrom,
       ),
       SettingKey.startingBalance => SettingInfo(
         name: 'Starting balance',
@@ -232,7 +286,7 @@ class SettingsScreen extends ConsumerWidget {
         control: ToggleControl(
           label: 'Deduct missing breaks',
           value: settings.autoBreakEnabled,
-          onSave: (v) => patchAllJobs(autoBreakEnabled: v),
+          onSave: (v, _) => patchAllJobs(autoBreakEnabled: v),
         ),
       ),
       SettingKey.minSession => SettingInfo(
@@ -250,7 +304,7 @@ class SettingsScreen extends ConsumerWidget {
           step: 1,
           unit: 'min',
           format: (v) => '${v.round()}',
-          onSave: (v) => patchAllJobs(minSessionMinutes: v.round()),
+          onSave: (v, _) => patchAllJobs(minSessionMinutes: v.round()),
         ),
       ),
       SettingKey.restrictCheckin => SettingInfo(
@@ -265,7 +319,7 @@ class SettingsScreen extends ConsumerWidget {
         control: ToggleControl(
           label: 'Use work hours as the limit',
           value: settings.restrictCheckin,
-          onSave: (v) => patchAllJobs(restrictCheckin: v),
+          onSave: (v, _) => patchAllJobs(restrictCheckin: v),
         ),
       ),
       SettingKey.balanceBounds => SettingInfo(
@@ -277,8 +331,14 @@ class SettingsScreen extends ConsumerWidget {
             'Limits for your balance. Past either one, the balance turns marigold so '
             'you see it. Nothing is cut off. The annual reset is stored but not applied '
             'yet.',
-        openLabel: 'Open setting',
-        onOpen: () => onEditBounds(),
+        control: BoundsControl(
+          value: BalanceBounds(
+            floorHours: settings.balanceFloorHours,
+            capHours: settings.balanceCapHours,
+            annualReset: settings.balanceAnnualReset,
+          ),
+          onSave: (b, _) => patch(bounds: b),
+        ),
       ),
       SettingKey.leave => SettingInfo(
         name: 'Vacation & sick days',
@@ -316,7 +376,7 @@ class SettingsScreen extends ConsumerWidget {
           step: 1,
           unit: 'days',
           format: (v) => '${v.round()}',
-          onSave: (v) => ref
+          onSave: (v, _) => ref
               .read(vacationQuotaRepositoryProvider)
               .setQuota(jobId: jobId, year: year, totalDays: v),
         ),

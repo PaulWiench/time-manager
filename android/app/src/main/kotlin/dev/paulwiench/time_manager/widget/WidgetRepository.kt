@@ -179,6 +179,7 @@ object WidgetRepository {
                     activeStart = activeStart,
                     lastCheckOut = lastCheckOut,
                     targetMet = targetHours > 0 && netHours >= targetHours,
+                    breakWindowSeconds = breakWindowSeconds(db),
                 ),
                 netHours = netHours,
                 targetHours = targetHours,
@@ -199,12 +200,31 @@ object WidgetRepository {
         activeStart: Long?,
         lastCheckOut: Long?,
         targetMet: Boolean,
+        breakWindowSeconds: Long = BREAK_WINDOW_SECONDS.toLong(),
     ): TrackingState {
         if (activeStart != null) return TrackingState.TRACKING
         if (lastCheckOut == null) return TrackingState.NOT_STARTED
         if (targetMet) return TrackingState.CHECKED_OUT
         val since = now - lastCheckOut
-        return if (since <= BREAK_WINDOW_SECONDS) TrackingState.BREAK else TrackingState.CHECKED_OUT
+        return if (since <= breakWindowSeconds) TrackingState.BREAK else TrackingState.CHECKED_OUT
+    }
+
+    /**
+     * The break window the app is set to (Settings → Work hours → advanced),
+     * stored as `breakWindowMinutes` in `app_preferences`; the 2 h default
+     * when unset or on a database from before preferences existed.
+     */
+    private fun breakWindowSeconds(db: SQLiteDatabase): Long {
+        var minutes: Long? = null
+        try {
+            db.rawQuery(
+                "SELECT value FROM app_preferences WHERE key = 'breakWindowMinutes'",
+                null,
+            ).use { c -> if (c.moveToFirst()) minutes = c.getString(0).toLongOrNull() }
+        } catch (_: Exception) {
+            // No app_preferences table yet: the app has not run its migration.
+        }
+        return (minutes ?: (BREAK_WINDOW_SECONDS / 60).toLong()) * 60
     }
 
     /** Local time-of-day of [epochSeconds], in minutes since midnight. */

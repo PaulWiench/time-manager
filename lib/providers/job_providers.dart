@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/database/database.dart';
 import '../domain/date_only.dart';
+import '../domain/tracking_state.dart' show kBreakWindow;
 import '../domain/vacation_proration.dart';
 import 'database_providers.dart';
 import 'repository_providers.dart';
@@ -139,4 +140,17 @@ final jobSummaryProvider = Provider.autoDispose.family<JobSummary?, int>((ref, j
     active: ref.watch(_jobActive(jobId)).valueOrNull,
     balance: settled?.balance ?? job.startingBalanceHours,
   );
+});
+
+/// How long after checking out the day still reads as "on break" (default
+/// 2 h, `kBreakWindow`). One preference for every job — it describes how
+/// the person takes breaks, not a contract. The widget reads the same key.
+const kBreakWindowKey = 'breakWindowMinutes';
+
+final breakWindowProvider = StreamProvider<Duration>((ref) {
+  return ref
+      .watch(appDatabaseProvider)
+      .jobDao
+      .watchPreference(kBreakWindowKey)
+      .map((value) => Duration(minutes: int.tryParse(value ?? '') ?? kBreakWindow.inMinutes));
 });

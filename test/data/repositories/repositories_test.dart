@@ -446,4 +446,36 @@ void main() {
       expect(await sessions.activeSession(j), isNull);
     });
   });
+
+  group('a schedule change that applies from a past date', () {
+    test('counts from that date and survives a later version', () async {
+      // setUp: 40 h from Mon 10 Aug. A later version on Wed 12 Aug changes
+      // only the work window, and so still says 40 h.
+      await settings.save(
+        jobId: j,
+        effectiveFrom: DateTime(2026, 8, 12),
+        weeklyHours: 40,
+        workDays: const [1, 2, 3, 4, 5],
+        minSessionMinutes: 5,
+        autoBreakEnabled: true,
+        restrictCheckin: false,
+        workWindowStartMinutes: 7 * 60,
+      );
+
+      await settings.saveScheduleFrom(jobId: j, from: DateTime(2026, 8, 11), weeklyHours: 30);
+
+      expect((await db.settingsDao.effectiveFor(j, DateTime(2026, 8, 10)))!.weeklyHours, 40);
+      expect((await db.settingsDao.effectiveFor(j, DateTime(2026, 8, 11)))!.weeklyHours, 30);
+      final wednesday = (await db.settingsDao.effectiveFor(j, DateTime(2026, 8, 12)))!;
+      expect(wednesday.weeklyHours, 30, reason: 'carried into the later version');
+      expect(wednesday.workWindowStartMinutes, 7 * 60, reason: 'its own change kept');
+
+      // The days were recalculated against the new target: 6 h, not 8 h.
+      final tuesday = await db.dayEntryDao.forDate(j, DateTime(2026, 8, 11));
+      final balance = await db.balanceSnapshotDao.forDate(j, DateTime(2026, 8, 12));
+      expect(tuesday == null || tuesday.targetHours == 6, isTrue);
+      // Mon −8, Tue −6, Wed −6 (all untracked).
+      expect(balance!.balance, closeTo(-20, 1e-9));
+    });
+  });
 }

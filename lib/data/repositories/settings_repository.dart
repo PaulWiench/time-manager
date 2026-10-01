@@ -84,6 +84,84 @@ class SettingsRepository {
     await recalc.recalculateRangeFrom(jobId, day);
   }
 
+  /// A schedule change that counts from [from] — possibly a date already
+  /// past, e.g. a contract that changed on 1 September.
+  ///
+  /// Settings are versioned, so a plain new row at [from] is not enough: a
+  /// version saved later (say on 28 September, for the work window) still
+  /// carries the old weekly hours and would put them back from its own date
+  /// on. So the change is written as a new version at [from] and carried
+  /// into every later version of this job's settings, for the changed fields
+  /// only; everything else each version says is left alone. Then every day
+  /// from [from] is recalculated.
+  Future<void> saveScheduleFrom({
+    required int jobId,
+    required DateTime from,
+    double? weeklyHours,
+    List<int>? workDays,
+    int? workWindowStartMinutes,
+    int? workWindowEndMinutes,
+  }) async {
+    final day = dateOnly(from);
+    await db.transaction(() async {
+      final rows = await (db.select(db.appSettings)
+            ..where((t) => t.jobId.equals(jobId))
+            ..orderBy([
+              (t) => OrderingTerm.asc(t.effectiveFrom),
+              (t) => OrderingTerm.asc(t.createdAt),
+            ]))
+          .get();
+      if (rows.isEmpty) return;
+      final base = await db.settingsDao.effectiveFor(jobId, day) ?? rows.first;
+
+      await db.settingsDao.insertSettings(AppSettingsCompanion.insert(
+        jobId: Value(jobId),
+        effectiveFrom: Value(day),
+        weeklyHours: Value(weeklyHours ?? base.weeklyHours),
+        workDays: Value(workDays ?? base.workDays),
+        minSessionMinutes: Value(base.minSessionMinutes),
+        autoBreakEnabled: Value(base.autoBreakEnabled),
+        restrictCheckin: Value(base.restrictCheckin),
+        workWindowStartMinutes: Value(workWindowStartMinutes ?? base.workWindowStartMinutes),
+        workWindowEndMinutes: Value(workWindowEndMinutes ?? base.workWindowEndMinutes),
+        balanceFloorHours: Value(base.balanceFloorHours),
+        balanceCapHours: Value(base.balanceCapHours),
+        balanceAnnualReset: Value(base.balanceAnnualReset),
+      ));
+
+      var carried = 0;
+      for (final later in rows.where((r) => dateOnly(r.effectiveFrom).isAfter(day))) {
+        await (db.update(db.appSettings)..where((t) => t.id.equals(later.id))).write(
+          AppSettingsCompanion(
+            weeklyHours: weeklyHours == null ? const Value.absent() : Value(weeklyHours),
+            workDays: workDays == null ? const Value.absent() : Value(workDays),
+            workWindowStartMinutes: workWindowStartMinutes == null
+                ? const Value.absent()
+                : Value(workWindowStartMinutes),
+            workWindowEndMinutes:
+                workWindowEndMinutes == null ? const Value.absent() : Value(workWindowEndMinutes),
+          ),
+        );
+        carried++;
+      }
+
+      await db.auditLogDao.record(AuditLogEntriesCompanion.insert(
+        action: 'update',
+        entityType: 'AppSettings',
+        newValue: Value(jsonEncode({
+          'jobId': jobId,
+          'appliesFrom': day.toIso8601String(),
+          'weeklyHours': weeklyHours,
+          'workDays': workDays,
+          'workWindowStartMinutes': workWindowStartMinutes,
+          'workWindowEndMinutes': workWindowEndMinutes,
+          'carriedIntoLaterVersions': carried,
+        })),
+      ));
+    });
+    await recalc.recalculateRangeFrom(jobId, day);
+  }
+
   /// The settings that apply to every job — auto-break, minimum session
   /// length, restrict check-in. Each job's history gets its own next row
   /// carrying the change, so every job's settings stay complete on their own.

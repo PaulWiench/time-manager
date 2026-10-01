@@ -8,10 +8,12 @@ import 'package:time_manager/core/icons/app_icons.dart';
 import 'package:time_manager/core/theme/app_colors.dart';
 import 'package:time_manager/core/theme/app_dimens.dart';
 import 'package:time_manager/features/settings/setting_info_sheet.dart';
+import 'package:time_manager/features/settings/settings_editors.dart' show BalanceBounds;
 
 import 'harness.dart';
 
-Future<void> _noop(Object? _) async {}
+Future<void> _noop(Object? _, DateTime __) async {}
+Future<void> _noop3(int _, int __, DateTime ___) async {}
 
 void main() {
   setUpAll(loadAppFonts);
@@ -57,6 +59,43 @@ void main() {
           'on them still counts in full.',
       control: WorkDaysControl(value: const [1, 2, 3, 4, 5], onSave: _noop),
     ),
+    'settings-info-workhours': SettingInfo(
+      name: 'Work hours',
+      group: 'Schedule',
+      value: '08:00–18:00',
+      icon: AppIcons.clock,
+      body: "Your normal working hours. Checked out inside them, the app treats the gap as a "
+          "break and holds today's shortfall back; after they end, the day is over and the "
+          'balance settles.',
+      control: WorkWindowControl(start: 8 * 60, end: 18 * 60, onSave: _noop3),
+      advanced: [
+        NumberControl(
+          label: 'BREAK WINDOW',
+          description: 'How long after checking out the day still reads as a break (on Home '
+              'and the widget). Longer than this, it reads as checked out.',
+          value: 120,
+          min: 15,
+          max: 240,
+          step: 15,
+          format: (v) => '${v ~/ 60}:${(v % 60).round().toString().padLeft(2, '0')}',
+          unit: 'h',
+          onSave: _noop,
+        ),
+      ],
+      appliesFrom: AppliesFrom(earliest: DateTime(2026, 3, 15)),
+    ),
+    'settings-info-bounds': SettingInfo(
+      name: 'Floor / cap',
+      group: 'Balance',
+      value: '−20:00 / +40:00',
+      icon: AppIcons.scales,
+      body: 'Limits for your balance. Past either one, the balance turns marigold so you see '
+          'it. Nothing is cut off. The annual reset is stored but not applied yet.',
+      control: BoundsControl(
+        value: const BalanceBounds(floorHours: -20, capHours: 40, annualReset: false),
+        onSave: _noop,
+      ),
+    ),
     'settings-info-holidays': SettingInfo(
       name: 'Public holidays',
       group: 'Holidays · all jobs',
@@ -77,7 +116,7 @@ void main() {
           tester,
           name: name,
           brightness: brightness,
-          size: const Size(1080, 1900),
+          size: const Size(1080, 2340),
           child: Builder(
             builder: (context) => ColoredBox(
               color: context.colors.scrim,
@@ -88,7 +127,7 @@ void main() {
                     color: context.colors.surface,
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
                   ),
-                  child: SettingInfoSheet(info: info),
+                  child: SettingInfoSheet(info: info, today: DateTime(2026, 10, 1)),
                 ),
               ),
             ),

@@ -117,6 +117,7 @@ HomeView buildHomeView({
   void Function(WorkSession session)? onEditSession,
   VoidCallback? onDeleteSyntheticBreak,
   void Function(SessionFix fix)? onFixActive,
+  Duration breakWindow = kBreakWindow,
 }) {
   final today = DateTime(now.year, now.month, now.day);
 
@@ -152,6 +153,7 @@ HomeView buildHomeView({
     lastCheckOut: lastCheckOut,
     completedSessionsToday: completed.length,
     targetMet: targetHours > 0 && netHours >= targetHours,
+    breakWindow: breakWindow,
   );
 
   final blocks = buildDayTimeline(
