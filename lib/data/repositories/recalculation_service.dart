@@ -61,10 +61,15 @@ class RecalculationService {
   /// from that point forward, not just one. Data Model § Recalculation
   /// Trigger Rules: "Settings change with past effective_from -> All
   /// DayEntries and BalanceSnapshots from effective_from forward."
-  Future<void> recalculateRangeFrom(int jobId, DateTime date) async {
+  ///
+  /// [through] extends the range past today, for a change that reaches into
+  /// the future (a vacation booked ahead). Without it a booking that lies
+  /// entirely ahead was worked out on its first day only.
+  Future<void> recalculateRangeFrom(int jobId, DateTime date, {DateTime? through}) async {
     final start = dateOnly(date);
     final today = dateOnly(_now());
-    final end = start.isAfter(today) ? start : today;
+    var end = start.isAfter(today) ? start : today;
+    if (through != null && dateOnly(through).isAfter(end)) end = dateOnly(through);
 
     await db.transaction(() async {
       final job = await db.jobDao.byId(jobId);
@@ -197,6 +202,24 @@ class RecalculationService {
         balance: s.balance,
       ));
     }
+  }
+
+  /// Re-derives every day after today that already has a row — the repair
+  /// for future bookings stored before [recalculateRangeFrom] took
+  /// `through`. Future days carry no balance, so this touches day entries
+  /// only. Runs at launch; cheap, a handful of rows.
+  Future<void> refreshFutureDays() async {
+    final today = dateOnly(_now());
+    final rows = await (db.select(db.dayEntries)
+          ..where((t) => t.date.isBiggerThanValue(today)))
+        .get();
+    final jobs = {for (final job in await db.jobDao.all()) job.id: job};
+    await db.transaction(() async {
+      for (final row in rows) {
+        final job = jobs[row.jobId];
+        if (job != null) await _recalculateDay(job, row.date);
+      }
+    });
   }
 
   /// One-time cleanup for a bug where earlier code wrote speculative

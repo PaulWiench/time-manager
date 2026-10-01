@@ -166,4 +166,40 @@ void main() {
     expect(snapshots.first.date, monday);
     expect(snapshots.last.date, fixedNow);
   });
+
+  test('a vacation booked entirely ahead of today is worked out on every day', () async {
+    // Found on the phone (1 Oct 2026): 26–30 Oct booked in advance had leave
+    // and target on the 26th only. recalculateRangeFrom ran to today or its
+    // own start, whichever was later, so for a future booking that was the
+    // first day alone, and Stats counted one planned day instead of five.
+    final early = RecalculationService(db, now: () => DateTime(2026, 9, 28));
+    await LeaveRepository(db, early).setLeaveForDates(
+      jobId: j,
+      hoursByDate: fortnight(),
+      type: LeaveType.vacation,
+    );
+    for (final n in [0, 1, 4, 7, 11]) {
+      final entry = await db.dayEntryDao.forDate(j, day(n));
+      expect(entry!.leaveHours, closeTo(7.9, 0.001), reason: 'day $n');
+      expect(entry.targetHours, closeTo(7.9, 0.001), reason: 'day $n');
+    }
+  });
+
+  test('days stored before that fix are repaired at launch', () async {
+    final early = RecalculationService(db, now: () => DateTime(2026, 9, 28));
+    await LeaveRepository(db, early).setLeaveForDates(
+      jobId: j,
+      hoursByDate: fortnight(),
+      type: LeaveType.vacation,
+    );
+    // Put a day back the way the old code left it.
+    await (db.update(db.dayEntries)..where((t) => t.date.equals(day(3))))
+        .write(const DayEntriesCompanion(targetHours: Value(0), leaveHours: Value(0)));
+
+    await early.refreshFutureDays();
+
+    final repaired = await db.dayEntryDao.forDate(j, day(3));
+    expect(repaired!.leaveHours, closeTo(7.9, 0.001));
+    expect(repaired.targetHours, closeTo(7.9, 0.001));
+  });
 }

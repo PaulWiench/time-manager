@@ -105,7 +105,8 @@ class LeaveRepository {
       await _dropEmptyVacations();
     });
 
-    await recalc.recalculateRangeFrom(jobId, earliest);
+    final latest = days.keys.reduce((a, b) => a.isAfter(b) ? a : b);
+    await recalc.recalculateRangeFrom(jobId, earliest, through: latest);
   }
 
   /// Removes every one of [jobId]'s leave entries on each of [dates], in one
@@ -114,6 +115,7 @@ class LeaveRepository {
     final days = {for (final date in dates) dateOnly(date)};
     if (days.isEmpty) return;
     final earliest = days.reduce((a, b) => a.isBefore(b) ? a : b);
+    final latest = days.reduce((a, b) => a.isAfter(b) ? a : b);
 
     await db.transaction(() async {
       for (final day in days) {
@@ -122,7 +124,7 @@ class LeaveRepository {
       await _dropEmptyVacations();
     });
 
-    await recalc.recalculateRangeFrom(jobId, earliest);
+    await recalc.recalculateRangeFrom(jobId, earliest, through: latest);
   }
 
   Future<void> deleteLeave(String id, DateTime date) async {
@@ -184,7 +186,8 @@ class LeaveRepository {
     );
     if (oldDates.isNotEmpty) {
       final earliest = oldDates.reduce((a, b) => a.isBefore(b) ? a : b);
-      await recalc.recalculateRangeFrom(vacation.jobId, earliest);
+      final latest = oldDates.reduce((a, b) => a.isAfter(b) ? a : b);
+      await recalc.recalculateRangeFrom(vacation.jobId, earliest, through: latest);
     }
   }
 

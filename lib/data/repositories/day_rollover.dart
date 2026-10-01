@@ -36,6 +36,7 @@ class DayRollover {
 
     await _closeOvernightSessions(now, today);
     await _settleMissedDays(today);
+    await recalc.refreshFutureDays();
   }
 
   /// Stops anything still running from a previous day where the policy says it

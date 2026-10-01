@@ -18,6 +18,7 @@ import 'package:time_manager/data/database/v4_migration.dart';
 import 'package:time_manager/data/repositories/recalculation_service.dart';
 
 final _home = Platform.environment['HOME'];
+
 /// TM_BACKUP points the test at a newer export, as taken right before an
 /// install; without it, the 1 Oct export it was written against.
 final _backup = File(
@@ -93,7 +94,10 @@ void main() {
     final db = raw.sqlite3.open(_backup.path, mode: raw.OpenMode.readOnly);
     expect(db.userVersion, 3);
     if (_isPinnedExport) {
-      expect(db.select('SELECT COUNT(*) AS n FROM work_sessions').first['n'], 329);
+      expect(
+        db.select('SELECT COUNT(*) AS n FROM work_sessions').first['n'],
+        329,
+      );
     }
     db.close();
   });
@@ -108,12 +112,19 @@ void main() {
     test('$table: every row survives with every value unchanged', () {
       // The audit log gains exactly one row, the migration's own record.
       final rows = after[table]!
-          .where((r) => !(table == 'audit_log_entries' && r['action'] == 'migrate'))
+          .where(
+            (r) => !(table == 'audit_log_entries' && r['action'] == 'migrate'),
+          )
           .toList();
       expect(rows.length, before[table]!.length);
       for (var i = 0; i < rows.length; i++) {
-        for (final MapEntry(key: column, value: value) in before[table]![i].entries) {
-          expect(rows[i][column], value, reason: '$table row $i column $column');
+        for (final MapEntry(key: column, value: value)
+            in before[table]![i].entries) {
+          expect(
+            rows[i][column],
+            value,
+            reason: '$table row $i column $column',
+          );
         }
       }
     });
@@ -130,7 +141,9 @@ void main() {
       'app_settings',
     ]) {
       expect(
-        migrated.select('SELECT DISTINCT job_id FROM $table').map((r) => r['job_id']),
+        migrated
+            .select('SELECT DISTINCT job_id FROM $table')
+            .map((r) => r['job_id']),
         anyOf(isEmpty, equals([kFirstJobId])),
         reason: table,
       );
@@ -145,77 +158,160 @@ void main() {
     expect(jobs.first['end_date'], isNull);
     // Onboarding seeded 0:00 the day before tracking began.
     expect(jobs.first['starting_balance_hours'], 0.0);
-    final start = DateTime.fromMillisecondsSinceEpoch((jobs.first['start_date'] as int) * 1000);
+    final start = DateTime.fromMillisecondsSinceEpoch(
+      (jobs.first['start_date'] as int) * 1000,
+    );
     expect(start, DateTime(2026, 3, 15));
   });
 
   test('vacation days are grouped into the four bookings they were', () {
-    final groups = migrated.select('''
+    final groups = migrated
+        .select('''
       SELECT vacation_id, GROUP_CONCAT(date(date, 'unixepoch', 'localtime'), ' ') AS days
       FROM (SELECT * FROM leave_entries WHERE type = 'vacation' ORDER BY date)
       GROUP BY vacation_id ORDER BY MIN(date)
-    ''').map((r) => r['days']).toList();
-    if (_isPinnedExport) expect(groups, [
-      '2026-06-05',
-      '2026-07-17 2026-07-20',
-      '2026-08-31 2026-09-01 2026-09-02 2026-09-03 2026-09-04 '
-          '2026-09-07 2026-09-08 2026-09-09 2026-09-10 2026-09-11',
-      '2026-10-26 2026-10-27 2026-10-28 2026-10-29 2026-10-30',
-    ]);
-    expect(migrated.select('SELECT COUNT(*) AS n FROM vacations').first['n'], groups.length);
+    ''')
+        .map((r) => r['days'])
+        .toList();
+    if (_isPinnedExport) {
+      expect(groups, [
+        '2026-06-05',
+        '2026-07-17 2026-07-20',
+        '2026-08-31 2026-09-01 2026-09-02 2026-09-03 2026-09-04 '
+            '2026-09-07 2026-09-08 2026-09-09 2026-09-10 2026-09-11',
+        '2026-10-26 2026-10-27 2026-10-28 2026-10-29 2026-10-30',
+      ]);
+    }
     expect(
-      migrated.select("SELECT COUNT(*) AS n FROM leave_entries WHERE type != 'vacation' "
-          'AND vacation_id IS NOT NULL').first['n'],
+      migrated.select('SELECT COUNT(*) AS n FROM vacations').first['n'],
+      groups.length,
+    );
+    expect(
+      migrated
+          .select(
+            "SELECT COUNT(*) AS n FROM leave_entries WHERE type != 'vacation' "
+            'AND vacation_id IS NOT NULL',
+          )
+          .first['n'],
       0,
       reason: 'sick and flex days are not bookings',
     );
   });
 
-  test('recalculating every day since the start reproduces every stored number', () async {
-    // The strongest check there is on the job-aware engine: re-derive all
-    // of it, from 15 March to the moment of the export, and compare with what
-    // the pre-jobs engine had stored. Same day entries, same balances.
-    final file = _copyOfBackup();
-    final db = AppDatabase(NativeDatabase(file));
-    // The export's own timestamp is in its file name: timemanager-YYYYMMDD-HHMMSS.
-    final stamp = RegExp(r'(\d{8})-(\d{6})').firstMatch(_backup.path)!;
-    final d = stamp.group(1)!, t = stamp.group(2)!;
-    final exportedAt = DateTime(int.parse(d.substring(0, 4)), int.parse(d.substring(4, 6)),
-        int.parse(d.substring(6)), int.parse(t.substring(0, 2)), int.parse(t.substring(2, 4)),
-        int.parse(t.substring(4)));
-    await RecalculationService(db, now: () => exportedAt)
-        .recalculateRangeFrom(kFirstJobId, DateTime(2026, 3, 15));
-    await db.close();
-    final recomputed = _dump(file.path);
+  test(
+    'recalculating every day since the start reproduces every stored number',
+    () async {
+      // The strongest check there is on the job-aware engine: re-derive all
+      // of it, from 15 March to the moment of the export, and compare with what
+      // the pre-jobs engine had stored. Same day entries, same balances.
+      final file = _copyOfBackup();
+      final db = AppDatabase(NativeDatabase(file));
+      // The export's own timestamp is in its file name: timemanager-YYYYMMDD-HHMMSS.
+      final stamp = RegExp(r'(\d{8})-(\d{6})').firstMatch(_backup.path)!;
+      final d = stamp.group(1)!, t = stamp.group(2)!;
+      final exportedAt = DateTime(
+        int.parse(d.substring(0, 4)),
+        int.parse(d.substring(4, 6)),
+        int.parse(d.substring(6)),
+        int.parse(t.substring(0, 2)),
+        int.parse(t.substring(2, 4)),
+        int.parse(t.substring(4)),
+      );
+      await RecalculationService(
+        db,
+        now: () => exportedAt,
+      ).recalculateRangeFrom(kFirstJobId, DateTime(2026, 3, 15));
+      await db.close();
+      final recomputed = _dump(file.path);
 
-    String key(Map<String, Object?> row) => '${row['date']}';
-    final days = {for (final row in recomputed['day_entries']!) key(row): row};
-    for (final old in before['day_entries']!) {
-      final now = days[key(old)];
-      expect(now, isNotNull, reason: 'day ${old['date']} vanished');
-      for (final column in ['net_worked_hours', 'leave_hours', 'target_hours', 'balance_delta']) {
-        expect(now![column] as double, closeTo(old[column] as double, 1e-9),
-            reason: '$column on ${DateTime.fromMillisecondsSinceEpoch((old['date'] as int) * 1000)}');
+      String key(Map<String, Object?> row) => '${row['date']}';
+      final days = {
+        for (final row in recomputed['day_entries']!) key(row): row,
+      };
+      for (final old in before['day_entries']!) {
+        final now = days[key(old)];
+        expect(now, isNotNull, reason: 'day ${old['date']} vanished');
+        for (final column in [
+          'net_worked_hours',
+          'leave_hours',
+          'target_hours',
+          'balance_delta',
+        ]) {
+          expect(
+            now![column] as double,
+            closeTo(old[column] as double, 1e-9),
+            reason:
+                '$column on ${DateTime.fromMillisecondsSinceEpoch((old['date'] as int) * 1000)}',
+          );
+        }
       }
-    }
-    expect(days.length, before['day_entries']!.length, reason: 'no day entries invented');
+      expect(
+        days.length,
+        before['day_entries']!.length,
+        reason: 'no day entries invented',
+      );
 
-    final balances = {for (final row in recomputed['balance_snapshots']!) key(row): row};
-    for (final old in before['balance_snapshots']!) {
-      final now = balances[key(old)];
-      expect(now, isNotNull, reason: 'snapshot ${old['date']} vanished');
-      expect(now!['balance'] as double, closeTo(old['balance'] as double, 1e-9),
-          reason: 'balance on ${DateTime.fromMillisecondsSinceEpoch((old['date'] as int) * 1000)}');
-    }
-  });
+      final balances = {
+        for (final row in recomputed['balance_snapshots']!) key(row): row,
+      };
+      for (final old in before['balance_snapshots']!) {
+        final now = balances[key(old)];
+        expect(now, isNotNull, reason: 'snapshot ${old['date']} vanished');
+        expect(
+          now!['balance'] as double,
+          closeTo(old['balance'] as double, 1e-9),
+          reason:
+              'balance on ${DateTime.fromMillisecondsSinceEpoch((old['date'] as int) * 1000)}',
+        );
+      }
+    },
+  );
+
+  test(
+    'the launch repair fixes future vacation days and touches nothing else',
+    () async {
+      final file = _copyOfBackup();
+      final db = AppDatabase(NativeDatabase(file));
+      final today = DateTime(2026, 10, 1, 19);
+      await RecalculationService(db, now: () => today).refreshFutureDays();
+      await db.close();
+      final repaired = _dump(file.path);
+
+      final cutoff = DateTime(2026, 10, 2).millisecondsSinceEpoch ~/ 1000;
+      final old = {for (final r in after['day_entries']!) r['date']: r};
+      for (final row in repaired['day_entries']!) {
+        if ((row['date'] as int) < cutoff) {
+          expect(
+            row,
+            old[row['date']],
+            reason: 'past day ${row['date']} must not change',
+          );
+        }
+      }
+      expect(repaired['balance_snapshots'], after['balance_snapshots']);
+      if (_isPinnedExport) {
+        for (final day in [26, 27, 28, 29, 30]) {
+          final date = DateTime(2026, 10, day).millisecondsSinceEpoch ~/ 1000;
+          final row = repaired['day_entries']!.firstWhere(
+            (r) => r['date'] == date,
+          );
+          expect(row['leave_hours'], closeTo(7.9, 1e-9), reason: '$day Oct');
+          expect(row['target_hours'], closeTo(7.9, 1e-9), reason: '$day Oct');
+          expect(row['balance_delta'], closeTo(0, 1e-9), reason: '$day Oct');
+        }
+      }
+    },
+  );
 
   test('a migration that fails leaves the v3 file exactly as it was', () async {
     final file = _copyOfBackup();
     // An orphaned session — a date with no day entry — is what a broken
     // rebuild would produce. Planting one makes the final check throw.
     final db = raw.sqlite3.open(file.path);
-    db.execute("INSERT INTO work_sessions (id, date, start_time, status) "
-        "VALUES ('orphan', 1, 1, 'completed')");
+    db.execute(
+      "INSERT INTO work_sessions (id, date, start_time, status) "
+      "VALUES ('orphan', 1, 1, 'completed')",
+    );
     db.close();
     final planted = _dump(file.path);
 
@@ -226,7 +322,10 @@ void main() {
 
     final check = raw.sqlite3.open(file.path, mode: raw.OpenMode.readOnly);
     expect(check.userVersion, 3);
-    expect(check.select("SELECT name FROM sqlite_master WHERE name = 'jobs'"), isEmpty);
+    expect(
+      check.select("SELECT name FROM sqlite_master WHERE name = 'jobs'"),
+      isEmpty,
+    );
     check.close();
     expect(_dump(file.path), planted);
   });
