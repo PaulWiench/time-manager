@@ -58,6 +58,34 @@ object WidgetRepository {
     /** Mirrors `kBreakWindow` in lib/domain/tracking_state.dart. */
     private const val BREAK_WINDOW_SECONDS = 2 * 60 * 60
 
+    /**
+     * The job the widget shows and toggles (additions handoff §2.5): the job
+     * of the running session; when nothing runs, the job last checked in to;
+     * never an ended job. Null on a database from before jobs (schema < 4),
+     * which only exists between installing an update and first opening the
+     * app — the queries then run without a job, exactly as they used to.
+     */
+    private fun hasJobsTable(db: SQLiteDatabase): Boolean =
+        db.rawQuery("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'jobs'", null)
+            .use { c -> c.moveToFirst() }
+
+    private fun widgetJob(db: SQLiteDatabase): Long? {
+        if (!hasJobsTable(db)) return null
+
+        val active = "SELECT ws.job_id FROM work_sessions ws JOIN jobs j ON j.id = ws.job_id " +
+            "WHERE ws.status = 'active' AND j.end_date IS NULL ORDER BY ws.start_time DESC LIMIT 1"
+        val last = "SELECT ws.job_id FROM work_sessions ws JOIN jobs j ON j.id = ws.job_id " +
+            "WHERE j.end_date IS NULL ORDER BY ws.start_time DESC LIMIT 1"
+        val first = "SELECT id FROM jobs WHERE end_date IS NULL ORDER BY start_date LIMIT 1"
+        for (query in listOf(active, last, first)) {
+            db.rawQuery(query, null).use { c -> if (c.moveToFirst()) return c.getLong(0) }
+        }
+        return null
+    }
+
+    /** `AND job_id = ?` and its argument, or nothing before jobs existed. */
+    private fun jobFilter(job: Long?): String = if (job == null) "" else " AND job_id = $job"
+
     fun loadState(context: Context): WidgetState {
         val file = dbFile(context)
         if (!file.exists()) return WidgetState(TrackingState.NOT_STARTED, 0.0, 0.0, 0.0)
@@ -66,10 +94,12 @@ object WidgetRepository {
         try {
             val today = todayMidnightSeconds()
             val now = nowSeconds()
+            val job = widgetJob(db)
+            val forJob = jobFilter(job)
 
             var activeStart: Long? = null
             db.rawQuery(
-                "SELECT start_time FROM work_sessions WHERE status = 'active' " +
+                "SELECT start_time FROM work_sessions WHERE status = 'active'$forJob " +
                     "ORDER BY start_time DESC LIMIT 1",
                 null,
             ).use { c -> if (c.moveToFirst()) activeStart = c.getLong(0) }
@@ -79,7 +109,7 @@ object WidgetRepository {
             val completed = mutableListOf<Pair<Long, Long>>()
             db.rawQuery(
                 "SELECT start_time, end_time FROM work_sessions " +
-                    "WHERE date = ? AND status = 'completed' ORDER BY start_time",
+                    "WHERE date = ? AND status = 'completed'$forJob ORDER BY start_time",
                 arrayOf(today.toString()),
             ).use { c ->
                 while (c.moveToNext()) completed.add(c.getLong(0) to c.getLong(1))
@@ -104,7 +134,7 @@ object WidgetRepository {
             var targetHours = 0.0
             var hasTargetRow = false
             db.rawQuery(
-                "SELECT target_hours FROM day_entries WHERE date = ?",
+                "SELECT target_hours FROM day_entries WHERE date = ?$forJob",
                 arrayOf(today.toString()),
             ).use { c ->
                 if (c.moveToFirst()) {
@@ -112,27 +142,27 @@ object WidgetRepository {
                     hasTargetRow = true
                 }
             }
-            if (!hasTargetRow || targetHours <= 0.0) targetHours = fallbackTargetHours(db, today)
+            if (!hasTargetRow || targetHours <= 0.0) targetHours = fallbackTargetHours(db, today, forJob)
 
             // Strictly before today: today's stored snapshot carries a
             // full-day shortfall until the day has actually been worked, and
             // the app stopped printing that. Today is composed back on below.
             var balanceHours = 0.0
             db.rawQuery(
-                "SELECT balance FROM balance_snapshots WHERE date < ? " +
+                "SELECT balance FROM balance_snapshots WHERE date < ?$forJob " +
                     "ORDER BY date DESC LIMIT 1",
                 arrayOf(today.toString()),
             ).use { c -> if (c.moveToFirst()) balanceHours = c.getDouble(0) }
 
             var leaveHours = 0.0
             db.rawQuery(
-                "SELECT leave_hours FROM day_entries WHERE date = ?",
+                "SELECT leave_hours FROM day_entries WHERE date = ?$forJob",
                 arrayOf(today.toString()),
             ).use { c -> if (c.moveToFirst()) leaveHours = c.getDouble(0) }
 
             val lastCheckOut = completed.maxOfOrNull { it.second }
 
-            val window = workWindow(db, today)
+            val window = workWindow(db, today, forJob)
             balanceHours += DaySettlement.todayContribution(
                 delta = netHours + leaveHours - targetHours,
                 finished = DaySettlement.todayIsFinished(
@@ -185,12 +215,12 @@ object WidgetRepository {
     }
 
     /** The configured normal work hours as (start, end) minutes since midnight. */
-    private fun workWindow(db: SQLiteDatabase, today: Long): Pair<Int, Int> {
+    private fun workWindow(db: SQLiteDatabase, today: Long, forJob: String): Pair<Int, Int> {
         var start = 8 * 60
         var end = 18 * 60
         db.rawQuery(
             "SELECT work_window_start_minutes, work_window_end_minutes FROM app_settings " +
-                "WHERE effective_from <= ? ORDER BY effective_from DESC, created_at DESC LIMIT 1",
+                "WHERE effective_from <= ?$forJob ORDER BY effective_from DESC, created_at DESC LIMIT 1",
             arrayOf(today.toString()),
         ).use { c ->
             if (c.moveToFirst()) {
@@ -201,11 +231,11 @@ object WidgetRepository {
         return start to end
     }
 
-    private fun fallbackTargetHours(db: SQLiteDatabase, today: Long): Double {
+    private fun fallbackTargetHours(db: SQLiteDatabase, today: Long, forJob: String): Double {
         var weeklyHours = 40.0
         var workDays = "1,2,3,4,5"
         db.rawQuery(
-            "SELECT weekly_hours, work_days FROM app_settings WHERE effective_from <= ? " +
+            "SELECT weekly_hours, work_days FROM app_settings WHERE effective_from <= ?$forJob " +
                 "ORDER BY effective_from DESC, created_at DESC LIMIT 1",
             arrayOf(today.toString()),
         ).use { c ->
@@ -240,10 +270,15 @@ object WidgetRepository {
         val db = SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READWRITE)
         try {
             val now = nowSeconds()
+            val job = widgetJob(db)
+            // Jobs exist as a concept but none is active — every job ended,
+            // or onboarding has not run. There is nothing to check in to.
+            if (job == null && hasJobsTable(db)) return
+            val forJob = jobFilter(job)
             var activeId: String? = null
             var activeStart: Long? = null
             db.rawQuery(
-                "SELECT id, start_time FROM work_sessions WHERE status = 'active' " +
+                "SELECT id, start_time FROM work_sessions WHERE status = 'active'$forJob " +
                     "ORDER BY start_time DESC LIMIT 1",
                 null,
             ).use { c ->
@@ -256,7 +291,7 @@ object WidgetRepository {
             val id = activeId
             val start = activeStart
             if (id != null && start != null) {
-                val minMinutes = minSessionMinutes(db, todayMidnightSeconds())
+                val minMinutes = minSessionMinutes(db, todayMidnightSeconds(), forJob)
                 val durationMinutes = (now - start) / 60.0
                 val status = if (durationMinutes < minMinutes) "discarded" else "completed"
                 db.execSQL(
@@ -265,28 +300,42 @@ object WidgetRepository {
                 )
             } else {
                 val today = todayMidnightSeconds()
-                // DayEntry rows are created lazily and WorkSessions.date FKs to
-                // them (FK enforcement is on) — it must exist first.
-                db.execSQL(
-                    "INSERT OR IGNORE INTO day_entries (date, updated_at) VALUES (?, ?)",
-                    arrayOf<Any>(today, now),
-                )
-                db.execSQL(
-                    "INSERT INTO work_sessions " +
-                        "(id, date, start_time, end_time, status, created_at, updated_at) " +
-                        "VALUES (?, ?, ?, NULL, 'active', ?, ?)",
-                    arrayOf<Any>(UUID.randomUUID().toString(), today, now, now, now),
-                )
+                // DayEntry rows are created lazily and WorkSessions point at
+                // their (job, date) day (FK enforcement is on) — it must exist
+                // first. Before jobs, the same rows without a job.
+                if (job == null) {
+                    db.execSQL(
+                        "INSERT OR IGNORE INTO day_entries (date, updated_at) VALUES (?, ?)",
+                        arrayOf<Any>(today, now),
+                    )
+                    db.execSQL(
+                        "INSERT INTO work_sessions " +
+                            "(id, date, start_time, end_time, status, created_at, updated_at) " +
+                            "VALUES (?, ?, ?, NULL, 'active', ?, ?)",
+                        arrayOf<Any>(UUID.randomUUID().toString(), today, now, now, now),
+                    )
+                } else {
+                    db.execSQL(
+                        "INSERT OR IGNORE INTO day_entries (job_id, date, updated_at) VALUES (?, ?, ?)",
+                        arrayOf<Any>(job, today, now),
+                    )
+                    db.execSQL(
+                        "INSERT INTO work_sessions " +
+                            "(id, job_id, date, start_time, end_time, status, created_at, updated_at) " +
+                            "VALUES (?, ?, ?, ?, NULL, 'active', ?, ?)",
+                        arrayOf<Any>(UUID.randomUUID().toString(), job, today, now, now, now),
+                    )
+                }
             }
         } finally {
             db.close()
         }
     }
 
-    private fun minSessionMinutes(db: SQLiteDatabase, today: Long): Int {
+    private fun minSessionMinutes(db: SQLiteDatabase, today: Long, forJob: String): Int {
         var minutes = 5
         db.rawQuery(
-            "SELECT min_session_minutes FROM app_settings WHERE effective_from <= ? " +
+            "SELECT min_session_minutes FROM app_settings WHERE effective_from <= ?$forJob " +
                 "ORDER BY effective_from DESC, created_at DESC LIMIT 1",
             arrayOf(today.toString()),
         ).use { c -> if (c.moveToFirst()) minutes = c.getInt(0) }
