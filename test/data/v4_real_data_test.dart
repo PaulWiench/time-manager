@@ -18,9 +18,13 @@ import 'package:time_manager/data/database/v4_migration.dart';
 import 'package:time_manager/data/repositories/recalculation_service.dart';
 
 final _home = Platform.environment['HOME'];
+/// TM_BACKUP points the test at a newer export, as taken right before an
+/// install; without it, the 1 Oct export it was written against.
 final _backup = File(
-  '$_home/time-manager-backups/pre-jobs-migration/timemanager-20261001-184731.sqlite',
+  Platform.environment['TM_BACKUP'] ??
+      '$_home/time-manager-backups/pre-jobs-migration/timemanager-20261001-184731.sqlite',
 );
+final _isPinnedExport = !Platform.environment.containsKey('TM_BACKUP');
 
 /// Each v3 table and the columns that identify a row in it.
 const _tables = {
@@ -88,7 +92,9 @@ void main() {
   test('the backup is the v3 file it should be', () {
     final db = raw.sqlite3.open(_backup.path, mode: raw.OpenMode.readOnly);
     expect(db.userVersion, 3);
-    expect(db.select('SELECT COUNT(*) AS n FROM work_sessions').first['n'], 329);
+    if (_isPinnedExport) {
+      expect(db.select('SELECT COUNT(*) AS n FROM work_sessions').first['n'], 329);
+    }
     db.close();
   });
 
@@ -149,14 +155,14 @@ void main() {
       FROM (SELECT * FROM leave_entries WHERE type = 'vacation' ORDER BY date)
       GROUP BY vacation_id ORDER BY MIN(date)
     ''').map((r) => r['days']).toList();
-    expect(groups, [
+    if (_isPinnedExport) expect(groups, [
       '2026-06-05',
       '2026-07-17 2026-07-20',
       '2026-08-31 2026-09-01 2026-09-02 2026-09-03 2026-09-04 '
           '2026-09-07 2026-09-08 2026-09-09 2026-09-10 2026-09-11',
       '2026-10-26 2026-10-27 2026-10-28 2026-10-29 2026-10-30',
     ]);
-    expect(migrated.select('SELECT COUNT(*) AS n FROM vacations').first['n'], 4);
+    expect(migrated.select('SELECT COUNT(*) AS n FROM vacations').first['n'], groups.length);
     expect(
       migrated.select("SELECT COUNT(*) AS n FROM leave_entries WHERE type != 'vacation' "
           'AND vacation_id IS NOT NULL').first['n'],
@@ -171,7 +177,12 @@ void main() {
     // the pre-jobs engine had stored. Same day entries, same balances.
     final file = _copyOfBackup();
     final db = AppDatabase(NativeDatabase(file));
-    final exportedAt = DateTime(2026, 10, 1, 18, 47, 31);
+    // The export's own timestamp is in its file name: timemanager-YYYYMMDD-HHMMSS.
+    final stamp = RegExp(r'(\d{8})-(\d{6})').firstMatch(_backup.path)!;
+    final d = stamp.group(1)!, t = stamp.group(2)!;
+    final exportedAt = DateTime(int.parse(d.substring(0, 4)), int.parse(d.substring(4, 6)),
+        int.parse(d.substring(6)), int.parse(t.substring(0, 2)), int.parse(t.substring(2, 4)),
+        int.parse(t.substring(4)));
     await RecalculationService(db, now: () => exportedAt)
         .recalculateRangeFrom(kFirstJobId, DateTime(2026, 3, 15));
     await db.close();
