@@ -1253,9 +1253,42 @@
         meant.
       </p>
     </div>
-    <div class="story-entry">
-      <h3>1 Oct 2026: Jobs arrive underneath, and nothing moves</h3>
-      <p>Paul asked for overlapping jobs, each with its own schedule, balance and vacation quota. That meant every day in the database now belongs to a job, so the storage under six months of real history had to be rebuilt. Problem → options → choice: adding the job as a plain extra column would have left "one day, one row" baked into the keys. Rebuilding the tables does it properly, but it is the riskiest kind of change. We chose the rebuild, done all-or-nothing in one transaction that counts every row and checks every link before committing, and rehearsed it on an exact copy of the phone's data first. On the phone afterwards, every one of the 1,000-odd rows was still there and unchanged, and the balance still read −25:00. The rehearsal found one older bug on the side: a vacation booked entirely in the future only counted its first day. That is fixed too, so October's week off now shows as 5 planned days.</p>
+    <div class="entry">
+      <div class="date">1 October 2026</div>
+      <h3>Jobs arrive underneath, and nothing moves</h3>
+      <span class="pill">Feedback batch</span>
+      <p>
+        Paul's next list had nine items. Two were stats bugs (leave days
+        dragging down "by day of week", and the daily chart collapsing at
+        six months); those shipped first. The largest was jobs: several of
+        them, possibly at the same time, each with its own schedule,
+        balance and vacation quota.
+      </p>
+      <p>
+        That meant every day in the database now belongs to a job, so the
+        storage under six months of real history had to be rebuilt. Adding
+        the job as a loose extra column would have been easier, but it would
+        have left "one day, one row" baked into the keys. The rebuild was
+        the right call and also the riskiest change this app has made.
+      </p>
+      <div class="problem">
+        <strong>How do you rebuild the tables holding the only copy of six months?</strong>
+        All or nothing: one transaction that counts every row in every
+        table and checks every link before it commits, so a failure leaves
+        the file exactly as it was. That was rehearsed on a byte-for-byte copy
+        of the phone's own data, including recalculating every single day
+        from scratch to check the numbers come out the same. They did. On the
+        phone, an export taken after the upgrade matched the one taken just
+        before it in every value, and the balance still read −25:00.
+      </div>
+      <p>
+        The rehearsal also turned up an older bug: a vacation booked entirely
+        in the future only had its first day worked out, so October's week
+        off counted as one planned day. That is fixed too, and the stored
+        days are repaired at launch. Stats now reads 13 used, 5 planned and
+        5 left of 23. The 23 is also new: the year's 30 days, pro-rated
+        from the 15 March start.
+      </p>
     </div>
     <!-- STORY_ENTRIES_END -->
   </section>
