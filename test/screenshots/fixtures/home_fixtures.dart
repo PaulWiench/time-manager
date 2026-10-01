@@ -45,6 +45,7 @@ HomeView tracking() => buildHomeView(
       leave: const [],
       balance: balanceRow(date: yesterday, balance: _balance),
       onEditSession: _noop,
+      onFixActive: (_) {},
     );
 
 /// (b) On break at 13:05, twenty-eight minutes after checking out.
@@ -57,6 +58,7 @@ HomeView onBreak() => buildHomeView(
       leave: const [],
       balance: balanceRow(date: yesterday, balance: _balance),
       onEditSession: _noop,
+      onFixActive: (_) {},
     );
 
 /// (c) Checked out at 19:20, having hit the target exactly.
@@ -72,6 +74,7 @@ HomeView checkedOut() => buildHomeView(
       leave: const [],
       balance: balanceRow(date: yesterday, balance: _balance),
       onEditSession: _noop,
+      onFixActive: (_) {},
     );
 
 /// (d) 07:58, nothing logged. The slab still carries the real balance.

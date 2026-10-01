@@ -13,6 +13,7 @@ import 'package:flutter/widgets.dart';
 import '../../core/format.dart';
 import '../../data/database/database.dart';
 import '../../data/database/enums.dart';
+import '../../domain/session_fix.dart';
 import '../../domain/day_settlement.dart';
 import '../../domain/midnight_cutoff.dart';
 import '../../domain/recalculation_engine.dart';
@@ -115,6 +116,7 @@ HomeView buildHomeView({
   required BalanceSnapshot? balance,
   void Function(WorkSession session)? onEditSession,
   VoidCallback? onDeleteSyntheticBreak,
+  void Function(SessionFix fix)? onFixActive,
 }) {
   final today = DateTime(now.year, now.month, now.day);
 
@@ -238,6 +240,25 @@ HomeView buildHomeView({
       state: state,
       lastCheckOut: lastCheckOut,
       now: now,
+      fix: onFixActive == null
+          ? null
+          : switch (state) {
+              TrackingState.tracking => SessionFix.startEarlier(
+                  currentStart: active!.startTime,
+                  previousEnd: _lastEndBefore(completed, active.startTime),
+                  workWindowStartMinutes:
+                      settings.restrictCheckin ? settings.workWindowStartMinutes : null,
+                ),
+              TrackingState.onBreak =>
+                SessionFix.checkInAt(lastCheckOut: lastCheckOut!, now: now),
+              // Past the break window the day reads as checked out, but the
+              // last check-out can still be resumed from.
+              TrackingState.checkedOut when lastCheckOut != null &&
+                    !lastCheckOut.isBefore(today) =>
+                SessionFix.checkInAt(lastCheckOut: lastCheckOut, now: now),
+              _ => null,
+            },
+      onFixActive: onFixActive,
       onEditSession: onEditSession,
       onDeleteSyntheticBreak: onDeleteSyntheticBreak,
     ),
@@ -386,10 +407,13 @@ List<TimelineItem> _timeline({
   required TrackingState state,
   required DateTime? lastCheckOut,
   required DateTime now,
+  SessionFix? fix,
+  void Function(SessionFix fix)? onFixActive,
   void Function(WorkSession session)? onEditSession,
   VoidCallback? onDeleteSyntheticBreak,
 }) {
   final items = <TimelineItem>[];
+  final onEditActive = fix == null || onFixActive == null ? null : () => onFixActive(fix);
 
   if (blocks.isNotEmpty) {
     items.add(TimelineEvent(
@@ -478,6 +502,7 @@ List<TimelineItem> _timeline({
         label: 'Tracking since ${AppFormat.time(active!.startTime)}',
         chipLabel:
             'Work session · ${AppFormat.hm(now.difference(active.startTime).inSeconds / 3600.0)} so far',
+        onEdit: onEditActive,
       ));
     case TrackingState.onBreak:
       final elapsed = _nonNegative(now.difference(lastCheckOut!));
@@ -485,6 +510,7 @@ List<TimelineItem> _timeline({
         state: state,
         label: 'On break since ${AppFormat.time(lastCheckOut)}',
         chipLabel: 'Break · ${AppFormat.hm(elapsed.inSeconds / 3600.0)} so far',
+        onEdit: onEditActive,
       ));
     case TrackingState.checkedOut:
       if (lastCheckOut != null) {
@@ -492,6 +518,7 @@ List<TimelineItem> _timeline({
           label: 'Check out',
           time: AppFormat.time(lastCheckOut),
           isCheckIn: false,
+          onEdit: onEditActive,
         ));
       }
     case TrackingState.notStarted:
@@ -499,4 +526,15 @@ List<TimelineItem> _timeline({
   }
 
   return items;
+}
+
+/// The end of the last session that finished at or before [start] — the
+/// earliest a running session that began at [start] may be moved back to.
+DateTime? _lastEndBefore(List<WorkSession> completed, DateTime start) {
+  DateTime? last;
+  for (final session in completed) {
+    final end = session.endTime!;
+    if (!end.isAfter(start) && (last == null || end.isAfter(last))) last = end;
+  }
+  return last;
 }

@@ -378,4 +378,72 @@ void main() {
     await holidays.setHoliday(date: day, name: 'Company day');
     expect((await holidays.forDate(day))?.name, 'Company day');
   });
+
+  group('correcting the day in progress', () {
+    final monday = DateTime(2026, 8, 10);
+    DateTime at(int h, int m) => DateTime(2026, 8, 10, h, m);
+
+    test('moving the running session\'s start earlier recalculates the day', () async {
+      await sessions.checkIn(j, at(9, 0));
+      final active = (await sessions.activeSession(j))!;
+      await sessions.moveActiveStart(sessionId: active.id, newStart: at(8, 15));
+
+      final moved = (await sessions.activeSession(j))!;
+      expect(moved.id, active.id);
+      expect(moved.startTime, at(8, 15));
+      expect(moved.endTime, isNull);
+      // Still one session, still running: nothing else was touched.
+      expect(await db.workSessionDao.forDate(j, monday), hasLength(1));
+    });
+
+    test('the start cannot move later, or into the previous session', () async {
+      await sessions.checkIn(j, at(8, 0));
+      await sessions.checkOut(sessionId: (await sessions.activeSession(j))!.id, at: at(12, 0));
+      await sessions.checkIn(j, at(12, 45));
+      final active = (await sessions.activeSession(j))!;
+
+      expect(
+        () => sessions.moveActiveStart(sessionId: active.id, newStart: at(13, 0)),
+        throwsArgumentError,
+      );
+      expect(
+        () => sessions.moveActiveStart(sessionId: active.id, newStart: at(11, 30)),
+        throwsArgumentError,
+      );
+      await sessions.moveActiveStart(sessionId: active.id, newStart: at(12, 0));
+      expect((await sessions.activeSession(j))!.startTime, at(12, 0));
+    });
+
+    test('checking in at a past time starts a session there', () async {
+      await sessions.checkIn(j, at(8, 0));
+      await sessions.checkOut(sessionId: (await sessions.activeSession(j))!.id, at: at(12, 0));
+
+      await sessions.checkInAt(j, at(12, 40), now: at(13, 5));
+
+      final active = (await sessions.activeSession(j))!;
+      expect(active.startTime, at(12, 40));
+      expect(await db.workSessionDao.forDate(j, monday), hasLength(2));
+    });
+
+    test('checking in exactly at the check-out resumes that session', () async {
+      await sessions.checkIn(j, at(8, 0));
+      final first = (await sessions.activeSession(j))!;
+      await sessions.checkOut(sessionId: first.id, at: at(12, 0));
+
+      await sessions.checkInAt(j, at(12, 0), now: at(12, 20));
+
+      final active = (await sessions.activeSession(j))!;
+      expect(active.id, first.id, reason: 'the same session, running again');
+      expect(active.startTime, at(8, 0));
+      expect(await db.workSessionDao.forDate(j, monday), hasLength(1));
+    });
+
+    test('a check-in before the check-out or in the future is refused', () async {
+      await sessions.checkIn(j, at(8, 0));
+      await sessions.checkOut(sessionId: (await sessions.activeSession(j))!.id, at: at(12, 0));
+      expect(() => sessions.checkInAt(j, at(11, 50), now: at(13, 0)), throwsArgumentError);
+      expect(() => sessions.checkInAt(j, at(13, 10), now: at(13, 0)), throwsArgumentError);
+      expect(await sessions.activeSession(j), isNull);
+    });
+  });
 }

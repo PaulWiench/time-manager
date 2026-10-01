@@ -54,10 +54,19 @@ sealed class TimelineItem {
 
 /// A check-in or check-out: a dot on the rail with a time on the right.
 class TimelineEvent extends TimelineItem {
-  const TimelineEvent({required this.label, required this.time, required this.isCheckIn});
+  const TimelineEvent({
+    required this.label,
+    required this.time,
+    required this.isCheckIn,
+    this.onEdit,
+  });
   final String label;
   final String time;
   final bool isCheckIn;
+
+  /// The day's last check-out offers "Check in at…" once the break window has
+  /// passed — a break that ran long is still a break someone forgot to end.
+  final VoidCallback? onEdit;
 }
 
 /// A block of the day: work, a break, or leave.
@@ -95,11 +104,16 @@ class TimelineActiveItem extends TimelineItem {
     required this.state,
     required this.label,
     required this.chipLabel,
+    this.onEdit,
   });
 
   final TrackingState state;
   final String label;
   final String chipLabel;
+
+  /// "Started earlier?" / "Check in at…" (additions handoff §5.1). When set,
+  /// the label row becomes a button with a trailing pencil and "Edit".
+  final VoidCallback? onEdit;
 }
 
 class EventTimeline extends StatelessWidget {
@@ -204,16 +218,26 @@ class _TimelineRow extends StatelessWidget {
     final colors = context.colors;
 
     final (height, marker, content) = switch (item) {
-      TimelineEvent(:final label, :final time, :final isCheckIn) => (
-          _eventHeight,
+      TimelineEvent(:final label, :final time, :final isCheckIn, :final onEdit) => (
+          onEdit == null ? _eventHeight : AppSize.touch,
           _EventMarker(isCheckIn: isCheckIn, ground: ground),
-          Row(
-            children: [
-              Expanded(
-                child: Text(label, style: AppTextStyles.body.copyWith(color: colors.text)),
-              ),
-              Text(time, style: AppTextStyles.caption.copyWith(color: colors.textMuted)),
-            ],
+          _editable(
+            onEdit: onEdit,
+            label: '$label $time',
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(label, style: AppTextStyles.body.copyWith(color: colors.text)),
+                ),
+                if (onEdit != null) ...[
+                  Icon(AppIcons.pencilSimple, size: AppIconSize.xs, color: colors.textMuted),
+                  const SizedBox(width: AppSpace.s1),
+                  Text('Edit', style: AppTextStyles.caption.copyWith(color: colors.textMuted)),
+                  const SizedBox(width: AppSpace.s3),
+                ],
+                Text(time, style: AppTextStyles.caption.copyWith(color: colors.textMuted)),
+              ],
+            ),
           ),
         ),
       TimelineChipItem chip => (
@@ -221,23 +245,39 @@ class _TimelineRow extends StatelessWidget {
           const SizedBox.shrink(),
           Align(alignment: Alignment.centerLeft, child: EventChip(item: chip)),
         ),
-      TimelineActiveItem(:final state, :final label, :final chipLabel) => (
+      TimelineActiveItem(:final state, :final label, :final chipLabel, :final onEdit) => (
           null,
           _ActiveMarker(state: state, ground: ground),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTextStyles.body.copyWith(color: colors.text)),
-              const SizedBox(height: AppSpace.s1),
-              EventChip(
-                item: TimelineChipItem(
-                  role: state == TrackingState.onBreak
-                      ? EventChipRole.activeBreak
-                      : EventChipRole.activeWork,
-                  label: chipLabel,
+          _editable(
+            onEdit: onEdit,
+            label: label,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(label, style: AppTextStyles.body.copyWith(color: colors.text)),
+                    ),
+                    if (onEdit != null) ...[
+                      Icon(AppIcons.pencilSimple, size: AppIconSize.xs, color: colors.textMuted),
+                      const SizedBox(width: AppSpace.s1),
+                      Text('Edit',
+                          style: AppTextStyles.caption.copyWith(color: colors.textMuted)),
+                    ],
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: AppSpace.s1),
+                EventChip(
+                  item: TimelineChipItem(
+                    role: state == TrackingState.onBreak
+                        ? EventChipRole.activeBreak
+                        : EventChipRole.activeWork,
+                    label: chipLabel,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
     };
@@ -293,7 +333,7 @@ class _TimelineRow extends StatelessWidget {
   /// Where the marker's centre sits from the top of the row, so the line meets
   /// it instead of running under it.
   double _markerCentre(TimelineItem item) => switch (item) {
-        TimelineEvent() => _eventHeight / 2,
+        TimelineEvent(:final onEdit) => (onEdit == null ? _eventHeight : AppSize.touch) / 2,
         TimelineActiveItem() => AppSize.timelineActiveDot / 2 + 4,
         // Never reached — `markerAt` is forced null for chip rows — but it has
         // to stay right, or it will be wrong the day one gets a marker.
@@ -692,4 +732,16 @@ class _DeletePill extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The active row as one button — its label and its running chip together,
+/// which clears the 44 dp minimum without making the row taller than the
+/// design's (additions handoff §5.1).
+Widget _editable({required VoidCallback? onEdit, required String label, required Widget child}) {
+  if (onEdit == null) return child;
+  return Semantics(
+    button: true,
+    label: '$label. Edit',
+    child: PressScale(onTap: onEdit, child: child),
+  );
 }

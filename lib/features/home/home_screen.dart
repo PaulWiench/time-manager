@@ -16,6 +16,8 @@ import '../../providers/repository_providers.dart';
 import '../../providers/session_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../widgets/edit_session_sheet.dart';
+import '../../widgets/session_fix_sheet.dart';
+import '../../domain/session_fix.dart';
 import 'home_body.dart';
 import 'home_view.dart';
 import '../../providers/job_providers.dart';
@@ -80,6 +82,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       leave: leave,
       balance: balance,
       onEditSession: (session) => EditSessionSheet.show(context, session),
+      onFixActive: (fix) => _fixActive(fix, active),
       onDeleteSyntheticBreak: () {
         final jobId = ref.read(selectedJobIdProvider);
         if (jobId != null) {
@@ -98,6 +101,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onOpenSettings: widget.onOpenSettings,
       onToggleTracking: () => _toggleTracking(active?.id),
       onRemoveLeave: leave.isEmpty ? null : () => _removeLeave(today, leave),
+    );
+  }
+
+  /// "Started earlier?" while tracking, "Check in at…" while on break.
+  void _fixActive(SessionFix fix, WorkSession? active) {
+    final jobId = ref.read(selectedJobIdProvider);
+    if (jobId == null) return;
+    final repo = ref.read(workSessionRepositoryProvider);
+    final net = (ref.read(dayEntryForDateProvider(dateOnly(DateTime.now()))).valueOrNull
+                ?.netWorkedHours ??
+            0) +
+        (active == null ? 0 : DateTime.now().difference(active.startTime).inSeconds / 3600.0);
+    showSessionFixSheet(
+      context: context,
+      fix: fix,
+      todayNetHours: net,
+      onSave: (at) => switch (fix.kind) {
+        SessionFixKind.startEarlier =>
+          repo.moveActiveStart(sessionId: active!.id, newStart: at),
+        SessionFixKind.checkInAt => repo.checkInAt(jobId, at),
+      },
     );
   }
 
